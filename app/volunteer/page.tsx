@@ -65,7 +65,7 @@ export default function VolunteerDashboard() {
               {getGreeting()}, <span className="gradient-text">{userName.split(' ')[0]}</span>! 💚
             </h1>
             <p className="text-white/50 text-sm mt-1">
-              Thank you for volunteering! You've contributed to{' '}
+              Thank you for volunteering! You&apos;ve contributed to{' '}
               <span className="text-accent font-semibold">3 events</span> this semester.
             </p>
           </div>
