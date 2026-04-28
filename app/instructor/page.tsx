@@ -79,7 +79,6 @@ export default function InstructorDashboard() {
         </div>
       ) : <span className="text-white/30">—</span>,
     },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ] as any;
 
   return (
