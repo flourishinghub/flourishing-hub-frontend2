@@ -2,102 +2,87 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronUp, ChevronDown, ChevronsUpDown, Search } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Search, ChevronUp, ChevronDown } from 'lucide-react';
 
 export interface Column<T> {
   key: keyof T | string;
   label: string;
-  render?: (value: unknown, row: T) => React.ReactNode;
+  render?: (row: T) => React.ReactNode;
   sortable?: boolean;
-  className?: string;
 }
 
 interface DataTableProps<T extends Record<string, unknown>> {
   data: T[];
   columns: Column<T>[];
-  searchable?: boolean;
   searchKeys?: (keyof T)[];
+  searchPlaceholder?: string;
   emptyMessage?: string;
-  loading?: boolean;
-  className?: string;
-}
-
-function getValue<T extends Record<string, unknown>>(row: T, key: string): unknown {
-  return key.split('.').reduce((obj: unknown, k: string) => {
-    if (obj && typeof obj === 'object') return (obj as Record<string, unknown>)[k];
-    return undefined;
-  }, row);
+  maxRows?: number;
 }
 
 export default function DataTable<T extends Record<string, unknown>>({
-  data, columns, searchable, searchKeys = [], emptyMessage = 'No data found', loading, className,
+  data,
+  columns,
+  searchKeys = [],
+  searchPlaceholder = 'Search...',
+  emptyMessage = 'No records found.',
+  maxRows,
 }: DataTableProps<T>) {
+  const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [search, setSearch] = useState('');
 
-  const handleSort = (key: string) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
+  const filtered = data.filter((row) => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return searchKeys.some((k) => String(row[k] ?? '').toLowerCase().includes(q));
+  });
+
+  const sorted = sortKey
+    ? [...filtered].sort((a, b) => {
+        const av = String(a[sortKey] ?? '');
+        const bv = String(b[sortKey] ?? '');
+        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      })
+    : filtered;
+
+  const displayed = maxRows ? sorted.slice(0, maxRows) : sorted;
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
   };
 
-  let filtered = data;
-
-  if (search && searchKeys.length > 0) {
-    const lower = search.toLowerCase();
-    filtered = data.filter((row) =>
-      searchKeys.some((k) => String(getValue(row, k as string) ?? '').toLowerCase().includes(lower))
-    );
-  }
-
-  if (sortKey) {
-    filtered = [...filtered].sort((a, b) => {
-      const av = String(getValue(a, sortKey) ?? '');
-      const bv = String(getValue(b, sortKey) ?? '');
-      return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
-    });
-  }
-
   return (
-    <div className={cn('glass-card rounded-2xl overflow-hidden', className)}>
-      {searchable && (
-        <div className="p-4 border-b border-white/5">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="input-dark w-full pl-9 h-9 rounded-xl text-sm"
-            />
-          </div>
+    <div className="space-y-4">
+      {searchKeys.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={searchPlaceholder}
+            className="input-dark w-full pl-9 pr-4 py-2 rounded-xl text-sm"
+          />
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-xl border border-white/5">
         <table className="w-full table-dark">
           <thead>
             <tr>
               {columns.map((col) => (
                 <th
                   key={String(col.key)}
-                  className={cn('px-6 py-3 text-left cursor-pointer select-none', col.className)}
-                  onClick={() => col.sortable && handleSort(String(col.key))}
+                  onClick={() => col.sortable && toggleSort(String(col.key))}
+                  className={`px-4 py-3 text-left ${col.sortable ? 'cursor-pointer select-none' : ''}`}
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     {col.label}
                     {col.sortable && (
-                      <span className="text-white/30">
-                        {sortKey === String(col.key) ? (
-                          sortDir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
-                        ) : (
-                          <ChevronsUpDown className="w-3 h-3" />
-                        )}
+                      <span className="flex flex-col">
+                        <ChevronUp className={`w-2.5 h-2.5 ${sortKey === col.key && sortDir === 'asc' ? 'text-primary' : 'text-white/20'}`} />
+                        <ChevronDown className={`w-2.5 h-2.5 -mt-1 ${sortKey === col.key && sortDir === 'desc' ? 'text-primary' : 'text-white/20'}`} />
                       </span>
                     )}
                   </div>
@@ -106,40 +91,23 @@ export default function DataTable<T extends Record<string, unknown>>({
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i}>
-                  {columns.map((col) => (
-                    <td key={String(col.key)} className="px-6 py-4">
-                      <div className="shimmer-bg h-4 rounded-lg" />
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : filtered.length === 0 ? (
+            {displayed.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-16 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-3xl">
-                      🔍
-                    </div>
-                    <p className="text-sm text-white/40">{emptyMessage}</p>
-                  </div>
+                <td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-white/30">
+                  {emptyMessage}
                 </td>
               </tr>
             ) : (
-              filtered.map((row, i) => (
+              displayed.map((row, i) => (
                 <motion.tr
                   key={i}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03 }}
                 >
                   {columns.map((col) => (
-                    <td key={String(col.key)} className={cn('px-6 py-4 text-sm text-white/80', col.className)}>
-                      {col.render
-                        ? col.render(getValue(row, String(col.key)), row)
-                        : String(getValue(row, String(col.key)) ?? '—')}
+                    <td key={String(col.key)} className="px-4 py-3 text-sm text-white/80">
+                      {col.render ? col.render(row) : String(row[col.key as keyof T] ?? '—')}
                     </td>
                   ))}
                 </motion.tr>
@@ -149,12 +117,8 @@ export default function DataTable<T extends Record<string, unknown>>({
         </table>
       </div>
 
-      {filtered.length > 0 && (
-        <div className="px-6 py-3 border-t border-white/5 flex items-center justify-between">
-          <p className="text-xs text-white/30">
-            Showing {filtered.length} of {data.length} entries
-          </p>
-        </div>
+      {maxRows && sorted.length > maxRows && (
+        <p className="text-xs text-white/30 text-center">Showing {maxRows} of {sorted.length} records</p>
       )}
     </div>
   );

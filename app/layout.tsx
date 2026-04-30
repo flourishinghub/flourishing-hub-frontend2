@@ -5,9 +5,6 @@ import { Providers } from '@/components/Providers';
 export const metadata: Metadata = {
   title: 'Flourishing Hub — IIT Bombay Student Wellness Center',
   description: 'Your comprehensive wellness companion at IIT Bombay. Track your wellbeing journey, attend workshops, and thrive.',
-  icons: {
-    icon: '/favicon.ico',
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

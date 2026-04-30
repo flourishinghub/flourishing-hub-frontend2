@@ -1,30 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
 import {
-  LayoutDashboard, BookOpen, Calendar, Clock, History, Users,
-  Video, BarChart3, GraduationCap, Settings, Heart, ChevronLeft,
-  ChevronRight, Activity, FileText, ClipboardList, Star, ShieldCheck,
-  Sparkles, LogOut, UserCheck,
+  LayoutDashboard, Calendar, Clock, History, Users, Video,
+  Settings, Heart, ChevronLeft, ChevronRight, ClipboardList,
+  Sparkles, LogOut, UserCheck, ShieldCheck, FileText,
 } from 'lucide-react';
 import { useState } from 'react';
 import { logout } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ElementType;
-}
+interface NavItem { label: string; href: string; icon: React.ElementType }
 
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   student: [
     { label: 'Dashboard', href: '/student', icon: LayoutDashboard },
-    { label: 'My Modules', href: '/student#modules', icon: BookOpen },
     { label: 'Events', href: '/student#events', icon: Calendar },
     { label: 'Schedule', href: '/student#schedule', icon: Clock },
     { label: 'History', href: '/student#history', icon: History },
@@ -32,38 +25,32 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   instructor: [
     { label: 'Dashboard', href: '/instructor', icon: LayoutDashboard },
     { label: 'My Sessions', href: '/instructor#sessions', icon: Video },
-    { label: 'Participants', href: '/instructor#participants', icon: Users },
-    { label: 'Schedule', href: '/instructor#schedule', icon: Calendar },
+    { label: 'Schedule', href: '/instructor#schedule', icon: Clock },
   ],
   admin: [
-    { label: 'Overview', href: '/admin', icon: LayoutDashboard },
-    { label: 'Analytics', href: '/admin#analytics', icon: BarChart3 },
-    { label: 'Students', href: '/admin#students', icon: GraduationCap },
-    { label: 'Workshops', href: '/admin#workshops', icon: Video },
-    { label: 'Courses', href: '/admin#courses', icon: BookOpen },
+    { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { label: 'Events', href: '/admin#events', icon: Calendar },
+    { label: 'Members', href: '/admin#members', icon: Users },
     { label: 'Roles', href: '/admin#roles', icon: ShieldCheck },
     { label: 'Settings', href: '/admin#settings', icon: Settings },
   ],
   volunteer: [
     { label: 'Dashboard', href: '/volunteer', icon: LayoutDashboard },
-    { label: 'My Modules', href: '/volunteer#modules', icon: BookOpen },
     { label: 'Events', href: '/volunteer#events', icon: Calendar },
+    { label: 'Schedule', href: '/volunteer#schedule', icon: Clock },
     { label: 'Volunteer', href: '/volunteer#volunteer', icon: Heart },
     { label: 'History', href: '/volunteer#history', icon: History },
   ],
   'associate-instructor': [
     { label: 'Dashboard', href: '/associate-instructor', icon: LayoutDashboard },
     { label: 'Attendance', href: '/associate-instructor#attendance', icon: UserCheck },
-    { label: 'Quizzes', href: '/associate-instructor#quizzes', icon: ClipboardList },
-    { label: 'Registrants', href: '/associate-instructor#registrants', icon: Users },
+    { label: 'Volunteers', href: '/associate-instructor#volunteers', icon: Users },
+    { label: 'Quiz', href: '/associate-instructor#quiz', icon: ClipboardList },
+    { label: 'Registrants', href: '/associate-instructor#registrants', icon: FileText },
   ],
 };
 
-interface SidebarProps {
-  role: UserRole;
-  userName: string;
-}
+interface SidebarProps { role: UserRole; userName: string }
 
 export default function Sidebar({ role, userName }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -71,10 +58,7 @@ export default function Sidebar({ role, userName }: SidebarProps) {
   const router = useRouter();
   const navItems = NAV_ITEMS[role] ?? NAV_ITEMS.student;
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
-  };
+  const handleLogout = () => { logout(); router.push('/login'); };
 
   return (
     <motion.aside
@@ -101,7 +85,6 @@ export default function Sidebar({ role, userName }: SidebarProps) {
             </motion.div>
           )}
         </AnimatePresence>
-
         {collapsed && (
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto">
             <Sparkles className="w-4 h-4 text-white" />
@@ -129,11 +112,7 @@ export default function Sidebar({ role, userName }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                'sidebar-item',
-                isActive && 'active',
-                collapsed && 'justify-center px-2'
-              )}
+              className={cn('sidebar-item', isActive && 'active', collapsed && 'justify-center px-2')}
               title={collapsed ? item.label : undefined}
             >
               <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-primary' : 'text-white/50')} />
@@ -168,23 +147,15 @@ export default function Sidebar({ role, userName }: SidebarProps) {
             </div>
           </div>
         )}
-
         <button
           onClick={handleLogout}
-          className={cn(
-            'sidebar-item w-full text-red-400/70 hover:text-red-400 hover:bg-red-500/10',
-            collapsed && 'justify-center px-2'
-          )}
+          className={cn('sidebar-item w-full text-red-400/70 hover:text-red-400 hover:bg-red-500/10', collapsed && 'justify-center px-2')}
           title={collapsed ? 'Logout' : undefined}
         >
           <LogOut className="w-4 h-4 shrink-0" />
           <AnimatePresence>
             {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 Logout
               </motion.span>
             )}

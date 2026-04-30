@@ -1,342 +1,318 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  UserCheck, ClipboardList, Users, Search, Download, Play, CheckCircle2, XCircle, ToggleLeft, ToggleRight,
-} from 'lucide-react';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { UserCheck, Users, ClipboardList, FileText, Search, ToggleLeft, ToggleRight, CheckSquare, Square } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { StatCardSkeleton } from '@/components/ui/skeleton';
-import { getGreeting } from '@/lib/utils';
-import { mockStudents, mockQuizSessions, mockAttendanceStudents } from '@/lib/mockData';
-import { getStoredUser } from '@/lib/auth';
-import type { QuizSession } from '@/types';
+import DataTable from '@/components/DataTable';
+import {
+  mockAttendanceStudents, mockVolunteerAttendance,
+  mockVolunteerPool, mockQuizSessions, mockStudents,
+} from '@/lib/mockData';
+import type { AttendanceRecord, VolunteerPool, QuizSession } from '@/types';
 import toast from 'react-hot-toast';
 
-type AttendanceStatus = 'present' | 'absent';
-
-interface AttendanceEntry {
-  studentId: string;
-  name: string;
-  rollNo: string;
-  department: string;
-  status: AttendanceStatus;
-}
+type Tab = 'attendance' | 'volunteers' | 'quiz' | 'registrants';
 
 export default function AssociateInstructorDashboard() {
-  const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState('');
-  const [search, setSearch] = useState('');
-  const [regSearch, setRegSearch] = useState('');
-  const [attendance, setAttendance] = useState<AttendanceEntry[]>([]);
+  const [activeTab, setActiveTab] = useState<Tab>('attendance');
+  const [studentAttendance, setStudentAttendance] = useState<AttendanceRecord[]>(mockAttendanceStudents);
+  const [volunteerAttendance, setVolunteerAttendance] = useState<AttendanceRecord[]>(mockVolunteerAttendance);
+  const [volunteerPool, setVolunteerPool] = useState<VolunteerPool[]>(mockVolunteerPool);
   const [quizSessions, setQuizSessions] = useState<QuizSession[]>(mockQuizSessions);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [volSearch, setVolSearch] = useState('');
 
-  useEffect(() => {
-    const user = getStoredUser();
-    setUserName(user?.name ?? 'Associate');
-    setTimeout(() => {
-      setAttendance(
-        mockStudents.map((s) => ({
-          studentId: s.id,
-          name: s.name,
-          rollNo: s.rollNo,
-          department: s.department,
-          status: 'present' as AttendanceStatus,
-        }))
-      );
-      setLoading(false);
-    }, 800);
-  }, []);
-
-  const toggleAttendance = (studentId: string) => {
-    setAttendance((prev) =>
-      prev.map((a) =>
-        a.studentId === studentId
-          ? { ...a, status: a.status === 'present' ? 'absent' : 'present' }
-          : a
-      )
+  const toggleStudentStatus = (id: string) => {
+    setStudentAttendance((prev) =>
+      prev.map((r) => r.id === id ? { ...r, status: r.status === 'present' ? 'absent' : 'present' } : r)
     );
   };
 
-  const toggleQuiz = (sessionId: string, type: 'quiz' | 'feedback') => {
-    setQuizSessions((prev) =>
-      prev.map((s) => {
-        if (s.sessionId !== sessionId) return s;
-        const updated = type === 'quiz'
-          ? { ...s, quizActive: !s.quizActive }
-          : { ...s, feedbackActive: !s.feedbackActive };
-        const label = type === 'quiz' ? 'Quiz' : 'Feedback';
-        const action = (type === 'quiz' ? updated.quizActive : updated.feedbackActive) ? 'activated' : 'deactivated';
-        toast.success(`${label} ${action} for "${s.sessionTitle.split('—')[0].trim()}"!`);
-        return updated;
-      })
+  const toggleVolunteerStatus = (id: string) => {
+    setVolunteerAttendance((prev) =>
+      prev.map((r) => r.id === id ? { ...r, status: r.status === 'present' ? 'absent' : 'present' } : r)
     );
   };
 
-  const handleSaveAttendance = () => {
-    const present = attendance.filter((a) => a.status === 'present').length;
-    toast.success(`Attendance saved! ${present}/${attendance.length} students marked present ✅`);
+  const toggleVolunteerSelect = (id: string) => {
+    setVolunteerPool((prev) => prev.map((v) => v.id === id ? { ...v, selected: !v.selected } : v));
   };
 
-  const handleExport = () => {
-    toast.success('Registrant list exported as CSV 📥');
+  const confirmVolunteerPool = () => {
+    const selected = volunteerPool.filter((v) => v.selected);
+    toast.success(`${selected.length} volunteer${selected.length !== 1 ? 's' : ''} confirmed for the event`);
   };
 
-  const filteredAttendance = attendance.filter(
-    (a) =>
-      a.name.toLowerCase().includes(search.toLowerCase()) ||
-      a.rollNo.toLowerCase().includes(search.toLowerCase()) ||
-      a.department.toLowerCase().includes(search.toLowerCase())
+  const toggleQuiz = (sessionId: string) => {
+    setQuizSessions((prev) => prev.map((s) => s.sessionId === sessionId ? { ...s, quizActive: !s.quizActive } : s));
+    toast.success('Quiz status updated');
+  };
+
+  const toggleFeedback = (sessionId: string) => {
+    setQuizSessions((prev) => prev.map((s) => s.sessionId === sessionId ? { ...s, feedbackActive: !s.feedbackActive } : s));
+    toast.success('Feedback status updated');
+  };
+
+  const filteredStudents = studentAttendance.filter(
+    (r) => r.studentName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      r.rollNo.toLowerCase().includes(studentSearch.toLowerCase())
   );
 
-  const filteredRegistrants = mockStudents.filter(
-    (s) =>
-      s.name.toLowerCase().includes(regSearch.toLowerCase()) ||
-      s.rollNo.toLowerCase().includes(regSearch.toLowerCase()) ||
-      s.department.toLowerCase().includes(regSearch.toLowerCase())
+  const filteredVolunteers = volunteerAttendance.filter(
+    (r) => r.studentName.toLowerCase().includes(volSearch.toLowerCase()) ||
+      r.rollNo.toLowerCase().includes(volSearch.toLowerCase())
   );
 
-  const presentCount = attendance.filter((a) => a.status === 'present').length;
+  const presentCount = studentAttendance.filter((r) => r.status === 'present').length;
+  const absentCount = studentAttendance.filter((r) => r.status === 'absent').length;
+
+  const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+    { id: 'attendance', label: 'Attendance', icon: UserCheck },
+    { id: 'volunteers', label: 'Volunteers', icon: Users },
+    { id: 'quiz', label: 'Quiz & Feedback', icon: ClipboardList },
+    { id: 'registrants', label: 'Registrants', icon: FileText },
+  ];
 
   return (
-    <DashboardLayout expectedRole="associate-instructor">
-      {/* Hero */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-2xl p-6 relative overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 pointer-events-none" />
-        <div className="relative z-10">
-          <p className="text-white/50 text-sm mb-1">{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          <h1 className="text-2xl font-bold text-white">
-            {getGreeting()}, <span className="gradient-text">{userName.split(' ').slice(-1)[0]}</span>!
-          </h1>
-          <p className="text-white/50 text-sm mt-1">
-            Associate Instructor Panel · Wellness Wednesday — Mindful Breathing
-          </p>
-        </div>
+    <DashboardLayout>
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <h1 className="text-2xl font-bold text-white">
+          <span className="gradient-text">Associate Instructor</span> Panel
+        </h1>
+        <p className="text-sm text-white/50 mt-1">Manage attendance, volunteers, quizzes & registrants</p>
       </motion.div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
-        ) : (
-          <>
-            <StatCard title="Total Students" value={attendance.length} icon={Users} color="purple" index={0} />
-            <StatCard title="Present Today" value={presentCount} icon={CheckCircle2} color="teal" index={1} />
-            <StatCard title="Absent" value={attendance.length - presentCount} icon={XCircle} color="red" index={2} />
-            <StatCard title="Quiz Sessions" value={quizSessions.length} icon={ClipboardList} color="yellow" index={3} />
-          </>
-        )}
+        <StatCard title="Present" value={presentCount} icon={UserCheck} color="teal" />
+        <StatCard title="Absent" value={absentCount} icon={UserCheck} color="red" />
+        <StatCard title="Volunteers" value={volunteerPool.filter((v) => v.selected).length} icon={Users} color="purple" />
+        <StatCard title="Registrants" value={mockStudents.length} icon={FileText} color="yellow" />
       </div>
 
-      {/* Attendance Panel */}
-      <div id="attendance">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <h2 className="text-base font-semibold text-white flex items-center gap-2">
-            <UserCheck className="w-4 h-4 text-primary" /> Mark Attendance
-          </h2>
-          <div className="flex items-center gap-3">
-            <Badge variant="green">{presentCount} Present</Badge>
-            <Badge variant="red">{attendance.length - presentCount} Absent</Badge>
-            <Button variant="default" size="sm" onClick={handleSaveAttendance} className="gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Save Attendance
-            </Button>
-          </div>
-        </div>
-
-        <div className="glass-card rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-white/5">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, roll number, or department..."
-                className="input-dark w-full pl-9 h-9 rounded-xl text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="divide-y divide-white/5">
-            {filteredAttendance.length === 0 ? (
-              <div className="p-12 text-center text-white/40 text-sm">No students found</div>
-            ) : (
-              filteredAttendance.map((student, i) => (
-                <motion.div
-                  key={student.studentId}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.04 }}
-                  className={`flex items-center gap-4 px-5 py-3.5 transition-colors ${
-                    student.status === 'present' ? 'hover:bg-accent/5' : 'hover:bg-red-500/5'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                    student.status === 'present'
-                      ? 'bg-accent/20 text-accent'
-                      : 'bg-red-500/20 text-red-400'
-                  }`}>
-                    {student.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white">{student.name}</p>
-                    <p className="text-xs text-white/40">{student.rollNo} · {student.department}</p>
-                  </div>
-
-                  <Badge variant={student.status === 'present' ? 'green' : 'red'}>
-                    {student.status === 'present' ? 'Present' : 'Absent'}
-                  </Badge>
-
-                  <button
-                    onClick={() => toggleAttendance(student.studentId)}
-                    className="flex items-center gap-1 text-white/30 hover:text-white transition-colors ml-2"
-                    title="Toggle attendance"
-                  >
-                    {student.status === 'present'
-                      ? <ToggleRight className="w-7 h-7 text-accent" />
-                      : <ToggleLeft className="w-7 h-7 text-red-400" />
-                    }
-                  </button>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Quiz / Feedback Activation */}
-      <div id="quizzes">
-        <h2 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-          <ClipboardList className="w-4 h-4 text-primary" /> Quiz & Feedback Activation
-        </h2>
-
-        <div className="space-y-3">
-          {quizSessions.map((session, i) => (
-            <motion.div
-              key={session.sessionId}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.08 }}
-              className="glass-card rounded-2xl p-5"
+      {/* Tabs */}
+      <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="flex border-b border-white/5 overflow-x-auto no-scrollbar">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap transition-all ${
+                activeTab === id
+                  ? 'text-white border-b-2 border-primary bg-primary/5'
+                  : 'text-white/50 hover:text-white/80 border-b-2 border-transparent'
+              }`}
             >
-              <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">{session.sessionTitle}</p>
-                  <div className="flex gap-3 mt-2">
-                    <span className={`text-xs flex items-center gap-1 ${session.quizActive ? 'text-accent' : 'text-white/30'}`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${session.quizActive ? 'bg-accent animate-pulse' : 'bg-white/20'}`} />
-                      Quiz {session.quizActive ? 'Active' : 'Inactive'}
-                    </span>
-                    <span className={`text-xs flex items-center gap-1 ${session.feedbackActive ? 'text-primary' : 'text-white/30'}`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${session.feedbackActive ? 'bg-primary animate-pulse' : 'bg-white/20'}`} />
-                      Feedback {session.feedbackActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    variant={session.quizActive ? 'destructive' : 'default'}
-                    size="sm"
-                    onClick={() => toggleQuiz(session.sessionId, 'quiz')}
-                    className="gap-1.5"
-                  >
-                    <Play className="w-3 h-3" />
-                    {session.quizActive ? 'Deactivate Quiz' : 'Activate Quiz'}
-                  </Button>
-                  <Button
-                    variant={session.feedbackActive ? 'destructive' : 'outline'}
-                    size="sm"
-                    onClick={() => toggleQuiz(session.sessionId, 'feedback')}
-                    className="gap-1.5"
-                  >
-                    <ClipboardList className="w-3 h-3" />
-                    {session.feedbackActive ? 'Deactivate Feedback' : 'Activate Feedback'}
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
           ))}
         </div>
-      </div>
 
-      {/* Registrants List */}
-      <div id="registrants">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <h2 className="text-base font-semibold text-white flex items-center gap-2">
-            <Users className="w-4 h-4 text-primary" /> Registrants List
-          </h2>
-          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5">
-            <Download className="w-3.5 h-3.5" /> Export CSV
-          </Button>
-        </div>
+        <div className="p-6">
+          {/* Attendance Tab */}
+          {activeTab === 'attendance' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Student Attendance — Wellness Wednesday</h3>
+                <div className="flex gap-2">
+                  <span className="badge-green">{presentCount} Present</span>
+                  <span className="badge-red">{absentCount} Absent</span>
+                </div>
+              </div>
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <input
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  placeholder="Search students..."
+                  className="input-dark w-full pl-9 pr-4 py-2 rounded-xl text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                {filteredStudents.map((record) => (
+                  <div key={record.id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+                    <div>
+                      <p className="text-sm font-medium text-white">{record.studentName}</p>
+                      <p className="text-xs text-white/40">{record.rollNo}</p>
+                    </div>
+                    <button
+                      onClick={() => toggleStudentStatus(record.id)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                        record.status === 'present'
+                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
+                          : 'bg-red-500/15 text-red-400 border-red-500/30 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30'
+                      }`}
+                    >
+                      {record.status === 'present' ? (
+                        <ToggleRight className="w-3.5 h-3.5" />
+                      ) : (
+                        <ToggleLeft className="w-3.5 h-3.5" />
+                      )}
+                      {record.status === 'present' ? 'Present' : 'Absent'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-        <div className="glass-card rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-white/5">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-              <input
-                value={regSearch}
-                onChange={(e) => setRegSearch(e.target.value)}
-                placeholder="Search registrants..."
-                className="input-dark w-full pl-9 h-9 rounded-xl text-sm"
+          {/* Volunteers Tab */}
+          {activeTab === 'volunteers' && (
+            <div className="space-y-6">
+              {/* Volunteer Attendance */}
+              <div>
+                <h3 className="text-sm font-semibold text-white mb-3">Volunteer Attendance</h3>
+                <div className="relative max-w-sm mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <input
+                    value={volSearch}
+                    onChange={(e) => setVolSearch(e.target.value)}
+                    placeholder="Search volunteers..."
+                    className="input-dark w-full pl-9 pr-4 py-2 rounded-xl text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  {filteredVolunteers.map((record) => (
+                    <div key={record.id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                      <div>
+                        <p className="text-sm font-medium text-white">{record.studentName}</p>
+                        <p className="text-xs text-white/40">{record.rollNo}</p>
+                      </div>
+                      <button
+                        onClick={() => toggleVolunteerStatus(record.id)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          record.status === 'present'
+                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            : 'bg-red-500/15 text-red-400 border-red-500/30'
+                        }`}
+                      >
+                        {record.status === 'present' ? 'Present' : 'Absent'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Volunteer Pool */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-white">Volunteer Pool — Wellness Wednesday</h3>
+                  <span className="text-xs text-white/40">{volunteerPool.filter((v) => v.selected).length} selected</span>
+                </div>
+                <div className="space-y-2 mb-4">
+                  {volunteerPool.map((vol) => (
+                    <div
+                      key={vol.id}
+                      onClick={() => vol.available && toggleVolunteerSelect(vol.id)}
+                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                        vol.available ? 'cursor-pointer hover:bg-white/[0.04]' : 'opacity-50 cursor-not-allowed'
+                      } ${vol.selected ? 'bg-primary/5 border-primary/30' : 'bg-white/[0.02] border-white/5'}`}
+                    >
+                      {vol.selected ? (
+                        <CheckSquare className="w-4 h-4 text-primary shrink-0" />
+                      ) : (
+                        <Square className="w-4 h-4 text-white/30 shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white">{vol.name}</p>
+                        <p className="text-xs text-white/40">{vol.rollNo} · {vol.department} · Year {vol.year}</p>
+                      </div>
+                      {!vol.available && (
+                        <span className="text-[10px] text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full">Unavailable</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={confirmVolunteerPool}
+                  className="btn-primary w-full py-2.5 rounded-xl text-sm font-semibold"
+                >
+                  Confirm Selection ({volunteerPool.filter((v) => v.selected).length} volunteers)
+                </motion.button>
+              </div>
+            </div>
+          )}
+
+          {/* Quiz Tab */}
+          {activeTab === 'quiz' && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-white mb-2">Quiz & Feedback Activation</h3>
+              {quizSessions.map((session) => (
+                <div key={session.sessionId} className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                      <p className="text-sm font-semibold text-white mb-0.5">{session.sessionTitle}</p>
+                      <p className="text-xs text-white/40">{session.registrantCount} registrants</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => toggleQuiz(session.sessionId)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          session.quizActive
+                            ? 'bg-primary/20 text-primary border-primary/40'
+                            : 'bg-white/5 text-white/50 border-white/10 hover:bg-primary/10 hover:text-primary/80'
+                        }`}
+                      >
+                        {session.quizActive ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
+                        Quiz {session.quizActive ? 'Active' : 'Off'}
+                      </button>
+                      <button
+                        onClick={() => toggleFeedback(session.sessionId)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          session.feedbackActive
+                            ? 'bg-accent/20 text-accent border-accent/40'
+                            : 'bg-white/5 text-white/50 border-white/10 hover:bg-accent/10 hover:text-accent/80'
+                        }`}
+                      >
+                        {session.feedbackActive ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
+                        Feedback {session.feedbackActive ? 'Active' : 'Off'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Registrants Tab */}
+          {activeTab === 'registrants' && (
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-4">Registrants — Wellness Wednesday</h3>
+              <DataTable
+                data={mockStudents.map((s) => ({
+                  name: s.name,
+                  rollNo: s.rollNo,
+                  dept: s.department,
+                  year: `Year ${s.year}`,
+                  programme: s.programme,
+                  registered: s.registeredEvents.includes('evt_001') ? 'Yes' : 'No',
+                })) as unknown as Record<string, unknown>[]}
+                columns={[
+                  { key: 'name', label: 'Name', sortable: true },
+                  { key: 'rollNo', label: 'Roll No' },
+                  { key: 'dept', label: 'Department', sortable: true },
+                  { key: 'year', label: 'Year' },
+                  { key: 'programme', label: 'Programme' },
+                  {
+                    key: 'registered', label: 'Registered',
+                    render: (row) => (
+                      <span className={(row as { registered: string }).registered === 'Yes' ? 'badge-green' : 'badge-red'}>
+                        {(row as { registered: string }).registered === 'Yes' ? 'Yes' : 'No'}
+                      </span>
+                    ),
+                  },
+                ]}
+                searchKeys={['name', 'rollNo'] as never[]}
+                searchPlaceholder="Search registrants..."
+                emptyMessage="No registrants found"
               />
             </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full table-dark">
-              <thead>
-                <tr>
-                  <th className="px-5 py-3 text-left">#</th>
-                  <th className="px-5 py-3 text-left">Name</th>
-                  <th className="px-5 py-3 text-left">Roll No.</th>
-                  <th className="px-5 py-3 text-left">Department</th>
-                  <th className="px-5 py-3 text-left">Programme</th>
-                  <th className="px-5 py-3 text-left">Year</th>
-                  <th className="px-5 py-3 text-left">Attendance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRegistrants.map((student, i) => {
-                  const att = attendance.find((a) => a.studentId === student.id);
-                  return (
-                    <motion.tr
-                      key={student.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: i * 0.04 }}
-                    >
-                      <td className="px-5 py-3.5 text-xs text-white/30">{i + 1}</td>
-                      <td className="px-5 py-3.5 text-sm font-medium text-white">{student.name}</td>
-                      <td className="px-5 py-3.5 text-xs text-white/50 font-mono">{student.rollNo}</td>
-                      <td className="px-5 py-3.5 text-xs text-white/60">{student.department}</td>
-                      <td className="px-5 py-3.5">
-                        <Badge variant="purple">{student.programme}</Badge>
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-white/50">Year {student.year}</td>
-                      <td className="px-5 py-3.5">
-                        <Badge variant={att?.status === 'present' ? 'green' : 'red'}>
-                          {att?.status ?? 'N/A'}
-                        </Badge>
-                      </td>
-                    </motion.tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="px-5 py-3 border-t border-white/5 text-xs text-white/30">
-            Showing {filteredRegistrants.length} of {mockStudents.length} registrants
-          </div>
+          )}
         </div>
       </div>
     </DashboardLayout>
