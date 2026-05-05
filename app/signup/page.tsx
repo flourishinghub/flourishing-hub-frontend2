@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, User, Hash, BookOpen, Building, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { mockSignup } from '@/lib/auth';
 import type { Programme } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -44,7 +43,13 @@ export default function SignupPage() {
     if (!form.programme) e.programme = 'Programme is required';
     if (!form.department) e.department = 'Department is required';
     if (!form.email.endsWith('@iitb.ac.in')) e.email = 'Only @iitb.ac.in emails allowed';
-    if (form.password.length < 6) e.password = 'Password must be at least 6 characters';
+    
+    // Backend password validation requirements
+    if (form.password.length < 8) e.password = 'Password must be at least 8 characters';
+    else if (!/[A-Z]/.test(form.password)) e.password = 'Must contain an uppercase letter';
+    else if (!/[a-z]/.test(form.password)) e.password = 'Must contain a lowercase letter';
+    else if (!/[0-9]/.test(form.password)) e.password = 'Must contain a digit';
+    
     if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
     return e;
   };
@@ -54,17 +59,60 @@ export default function SignupPage() {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); toast.error('Please fix the errors below'); return; }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
+    
     try {
-      mockSignup({
-        name: form.name, rollNo: form.rollNo, year: form.year, batch: form.batch,
-        programme: form.programme as Programme,
-        department: form.department, email: form.email, password: form.password,
+      // Prepare data for backend API
+      const requestData = {
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role: form.programme === 'Staff' ? 'INSTRUCTOR' : 'STUDENT',
+        studentProfile: form.programme !== 'Staff' ? {
+          rollNumber: form.rollNo,
+          department: form.department,
+          yearOfStudy: parseInt(form.year) || 1,
+          programme: form.programme.toUpperCase(),
+          cohort: form.batch
+        } : undefined,
+        instructorProfile: form.programme === 'Staff' ? {
+          department: form.department
+        } : undefined,
+        employeeId: form.programme === 'Staff' ? form.rollNo : undefined
+      };
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
       });
-      toast.success('Account created! Welcome to Flourishing Hub!');
-      router.push('/home');
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      // Store token (single source of truth)
+      if (data.data?.accessToken) {
+        localStorage.setItem("token", data.data.accessToken);
+        
+        // Store in cookie for middleware (hardened version with proper SameSite)
+        document.cookie = `token=${data.data.accessToken}; path=/; max-age=86400; SameSite=Lax; Secure=${location.protocol === 'https:'}`;
+        
+        toast.success('Account created! Welcome to Flourishing Hub!');
+        
+        // Small delay to prevent race condition
+        setTimeout(() => {
+          window.location.href = '/home';
+        }, 100);
+      } else {
+        // Fallback
+        window.location.href = '/home';
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Signup failed');
+      toast.error(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -200,7 +248,7 @@ export default function SignupPage() {
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                   <input value={form.password} onChange={(e) => set('password', e.target.value)}
-                    type={showPassword ? 'text' : 'password'} placeholder="Min 6 chars"
+                    type={showPassword ? 'text' : 'password'} placeholder="Min 8 chars, A-z, 0-9"
                     className="input-dark w-full pl-10 pr-10 py-3 rounded-xl text-sm" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors">

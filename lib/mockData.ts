@@ -16,7 +16,7 @@ export const mockEvents: Event[] = [
     organizer: 'Dr. Ananya Krishnan',
     capacity: 60,
     registeredCount: 38,
-    status: 'active',
+    status: 'published',
     volunteerSlots: 5,
   },
   {
@@ -58,7 +58,7 @@ export const mockEvents: Event[] = [
     organizer: 'Prof. Vikram Singh',
     capacity: 100,
     registeredCount: 78,
-    status: 'archived',
+    status: 'completed',
     volunteerSlots: 10,
   },
   {
@@ -72,7 +72,7 @@ export const mockEvents: Event[] = [
     organizer: 'Student Wellness Center',
     capacity: 200,
     registeredCount: 143,
-    status: 'archived',
+    status: 'completed',
     volunteerSlots: 15,
   },
 ];

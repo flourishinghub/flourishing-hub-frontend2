@@ -28,14 +28,16 @@ export function getRolePath(role: UserRole): string {
   return paths[role] ?? '/student';
 }
 
-export function formatTime(time: string): string {
+export function formatTime(time: string | undefined): string {
+  if (!time) return 'TBD';
   const [h, m] = time.split(':').map(Number);
   const period = h >= 12 ? 'PM' : 'AM';
   const hour = h % 12 || 12;
   return `${hour}:${m.toString().padStart(2, '0')} ${period}`;
 }
 
-export function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string | undefined): string {
+  if (!dateStr) return 'TBD';
   const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }

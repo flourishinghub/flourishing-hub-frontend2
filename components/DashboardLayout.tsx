@@ -24,19 +24,39 @@ function getNotifications(role: UserRole): Notification[] {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  user?: AuthPayload | null;
+  loading?: boolean;
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [user, setUser] = useState<AuthPayload | null>(null);
+export default function DashboardLayout({ children, user: propUser, loading }: DashboardLayoutProps) {
+  const [user, setUser] = useState<AuthPayload | null>(propUser || null);
   const router = useRouter();
 
   useEffect(() => {
+    if (propUser) {
+      console.log("🔄 DashboardLayout: Received prop user:", propUser.name);
+      setUser(propUser);
+      return;
+    }
+    
+    // Don't redirect if we're still loading (propUser might come later)
+    if (loading) {
+      console.log("🔄 DashboardLayout: Still loading, waiting for prop user");
+      return;
+    }
+    
+    // Only check stored user as fallback if not loading and no prop user
     const stored = getStoredUser();
-    if (!stored) { router.push('/login'); return; }
+    if (!stored) { 
+      console.log("🔄 DashboardLayout: No stored user found, redirecting to login");
+      router.push('/login'); 
+      return; 
+    }
+    console.log("🔄 DashboardLayout: Using stored user:", stored.name);
     setUser(stored);
-  }, [router]);
+  }, [router, propUser, loading]);
 
-  if (!user) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark">
         <div className="flex flex-col items-center gap-4">

@@ -1,14 +1,14 @@
 import type { AuthPayload, UserRole, Programme } from '@/types';
 
-const TOKEN_KEY = 'fh_token';
-const USER_KEY = 'fh_user';
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
 
 function setAuthCookie(token: string) {
-  document.cookie = `fh_auth=${token}; path=/; max-age=${60 * 60 * 24 * 7}`;
+  document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax; Secure=${location.protocol === 'https:'}`;
 }
 
 function clearAuthCookie() {
-  document.cookie = 'fh_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+  document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
 }
 
 export function mockLogin(email: string, _password: string): AuthPayload {

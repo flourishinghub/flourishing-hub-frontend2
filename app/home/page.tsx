@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -8,8 +8,8 @@ import {
   Sparkles, Calendar, ArrowRight, Star, MapPin, Clock, Users, Zap,
 } from 'lucide-react';
 import Link from 'next/link';
-import { getStoredUser } from '@/lib/auth';
 import { getRolePath, formatDate, formatTime } from '@/lib/utils';
+import { getCurrentUser, apiCall } from '@/lib/api';
 import { mockEvents, studentNotifications, volunteerNotifications } from '@/lib/mockData';
 import Navbar from '@/components/Navbar';
 import EventCard from '@/components/EventCard';
@@ -23,16 +23,135 @@ function getNotifications(role: string): Notification[] {
 
 export default function HomePage() {
   const [user, setUser] = useState<AuthPayload | null>(null);
+  const [events, setEvents] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [volunteerStates, setVolunteerStates] = useState<Record<string, boolean>>({});
   const router = useRouter();
 
+  // Clean logout function
+  const logout = () => {
+    localStorage.removeItem("token");
+    document.cookie = "token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+    router.push("/login");
+  };
+
+  // Fetch user data and events from backend API
   useEffect(() => {
-    const stored = getStoredUser();
-    if (!stored) { router.push('/login'); return; }
-    setUser(stored);
+    const token = localStorage.getItem("token");
+    
+    if (!token) {
+      router.push("/login");
+      setLoading(false); // ✅ FIX: Set loading false before return
+      return;
+    }
+    
+    // ✅ CRITICAL: Add timeout to prevent stuck loading
+    const timeoutId = setTimeout(() => {
+      console.log("⚠️ API call timeout - setting loading to false");
+      setLoading(false);
+    }, 10000); // 10 second timeout
+    
+    const fetchData = async () => {
+      try {
+        // Fetch user data
+        const userData = await getCurrentUser();
+        
+        // Transform backend user data with safe access
+        const transformedUser: AuthPayload = {
+          id: userData?.id || 'unknown',
+          email: userData?.email || '',
+          name: userData?.name || 'User',
+          role: userData?.role?.toLowerCase() || 'student',
+          department: userData?.studentProfile?.department || 
+                     userData?.instructorProfile?.department || 
+                     userData?.adminProfile?.department || 
+                     'IIT Bombay',
+          rollNo: userData?.studentProfile?.rollNumber,
+          empId: userData?.adminProfile?.employeeId || userData?.employeeId,
+          year: userData?.studentProfile?.yearOfStudy,
+          batch: userData?.studentProfile?.cohort,
+          programme: userData?.studentProfile?.programme || 'Staff',
+          iat: Date.now(),
+        };
+        
+        setUser(transformedUser);
+
+        // Fetch real events from backend
+        console.log("🔄 Fetching events from backend...");
+        const eventsResponse = await apiCall('/events'); // Use public events endpoint
+        console.log("📦 Events received:", eventsResponse);
+        
+        // Transform events to match frontend format
+        const transformedEvents = eventsResponse.data.items.map((event: any) => {
+          try {
+            const startDate = new Date(event.startAt);
+            return {
+              id: event.id, // ✅ CRITICAL: Keep original database ID
+              title: event.title || 'Untitled Event',
+              description: event.description || '',
+              date: startDate.toISOString().split('T')[0],
+              time: startDate.toTimeString().slice(0, 5),
+              venue: event.venue || 'TBD',
+              mode: event.meetLink ? 'Online' : 'Offline',
+              capacity: event.capacity || 0,
+              registeredCount: event._count?.registrations || 0,
+              status: event.status?.toLowerCase() || 'draft', // Keep original status from backend
+              organizer: event.createdBy?.name || 'Admin'
+            };
+          } catch (error) {
+            console.error("❌ Error transforming event:", event, error);
+            return {
+              id: event.id || 'unknown',
+              title: event.title || 'Untitled Event',
+              description: event.description || '',
+              date: '2026-05-04', // Fallback date
+              time: '10:00', // Fallback time
+              venue: event.venue || 'TBD',
+              mode: 'Offline',
+              capacity: 0,
+              registeredCount: 0,
+              status: 'draft',
+              organizer: 'Admin'
+            };
+          }
+        });
+        
+        setEvents(transformedEvents);
+        console.log("✅ Events loaded:", transformedEvents.length);
+        console.log("🔍 Event IDs:", transformedEvents.map((e: any) => ({ id: e.id, title: e.title })));
+
+        // 🔥 CRITICAL: Fetch user's registrations to show correct button states
+        console.log("🔄 Fetching user registrations for home page...");
+        const registrationsResponse = await apiCall('/registrations/me');
+        console.log("📦 User registrations received:", registrationsResponse);
+        
+        const userRegistrations = registrationsResponse.data || [];
+        setRegistrations(userRegistrations);
+        console.log("✅ User registrations loaded:", userRegistrations.length);
+        
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        // Fallback to mock data if API fails
+        console.log("⚠️ Using fallback mock data");
+        const { mockEvents } = await import('@/lib/mockData');
+        setEvents(mockEvents);
+        
+        // Only redirect to login if it's an auth error
+        if ((error as any)?.status === 401) {
+          localStorage.removeItem("token");
+          router.push("/login");
+        }
+      } finally {
+        clearTimeout(timeoutId); // Clear the timeout
+        setLoading(false); // ✅ CRITICAL: Always set loading to false
+      }
+    };
+    
+    fetchData();
   }, [router]);
 
-  if (!user) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent animate-pulse" />
@@ -40,8 +159,43 @@ export default function HomePage() {
     );
   }
 
-  const activeEvent = mockEvents.find((e) => e.status === 'active');
-  const upcomingEvents = mockEvents.filter((e) => e.status === 'draft');
+  if (!user) {
+    // User is null but loading is false - redirect is happening or failed
+    return (
+      <div style={{ color: "white", textAlign: "center", marginTop: "100px" }}>
+        Redirecting to login...
+      </div>
+    );
+  }
+
+  // Calculate active and upcoming events based on strict time logic
+  const now = new Date();
+  
+  // Active event: currently happening (strict time window)
+  const activeEvent = events.find(event => {
+    const startTime = new Date(`${event.date}T${event.time}`);
+    const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // 2-hour duration
+    return now >= startTime && now <= endTime;
+  });
+  
+  // Upcoming events: future events (starting after now)
+  const upcomingEvents = events.filter(event => {
+    const startTime = new Date(`${event.date}T${event.time}`);
+    return startTime > now;
+  });
+
+  // Check if user is registered for events
+  const isRegisteredForEvent = (eventId: string) => {
+    return registrations.some(reg => reg.eventId === eventId);
+  };
+  
+  console.log("⏰ Strict time-based event filtering:");
+  console.log("📅 Current time:", now.toISOString());
+  console.log("🔴 Active event:", activeEvent?.title || "None");
+  console.log("📋 Upcoming events:", upcomingEvents.length);
+  console.log("📊 Total events loaded:", events.length);
+  console.log("✅ User registrations:", registrations.length);
+  
   const notifications = getNotifications(user.role);
 
   const roleLabel = {
@@ -54,21 +208,75 @@ export default function HomePage() {
 
   const dashboardPath = getRolePath(user.role);
 
-  const handleRegister = (eventId: string) => {
-    toast.success('Successfully registered!');
+  const handleRegister = async (eventId: string, eventTitle: string) => {
+    try {
+      console.log("🔄 REGISTERING EVENT ID:", eventId);
+      console.log("📝 Event Title:", eventTitle);
+      
+      const response = await apiCall('/registrations', {
+        method: 'POST',
+        body: JSON.stringify({
+          eventId: eventId,
+          asVolunteer: false
+        })
+      });
+      
+      console.log("✅ Registration successful:", response);
+      toast.success(`Successfully registered for ${eventTitle}!`);
+      
+      // 🔥 CRITICAL: Refresh registrations to update UI
+      const registrationsResponse = await apiCall('/registrations/me');
+      setRegistrations(registrationsResponse.data || []);
+      
+    } catch (error: any) {
+      console.error("❌ Registration failed:", error);
+      if (error.message?.includes('already registered')) {
+        toast.error('You are already registered for this event');
+      } else if (error.message?.includes('capacity is full')) {
+        toast.error('Event is full - registration closed');
+      } else {
+        toast.error('Registration failed. Please try again.');
+      }
+    }
   };
 
-  const handleVolunteer = (eventId: string) => {
-    setVolunteerStates((prev) => {
-      const next = { ...prev, [eventId]: !prev[eventId] };
-      toast.success(next[eventId] ? 'Registered as volunteer!' : 'Removed from volunteer list');
-      return next;
-    });
+  const handleVolunteer = async (eventId: string, eventTitle: string) => {
+    try {
+      console.log("🔄 VOLUNTEERING FOR EVENT ID:", eventId);
+      
+      const isCurrentlyVolunteered = volunteerStates[eventId];
+      
+      if (isCurrentlyVolunteered) {
+        // TODO: Implement unregister API if needed
+        toast('Volunteer unregistration not implemented yet', { icon: 'ℹ️' });
+        return;
+      }
+      
+      const response = await apiCall('/registrations', {
+        method: 'POST',
+        body: JSON.stringify({
+          eventId: eventId,
+          asVolunteer: true
+        })
+      });
+      
+      console.log("✅ Volunteer registration successful:", response);
+      setVolunteerStates((prev) => ({ ...prev, [eventId]: true }));
+      toast.success(`Registered as volunteer for ${eventTitle}!`);
+      
+    } catch (error: any) {
+      console.error("❌ Volunteer registration failed:", error);
+      if (error.message?.includes('already registered')) {
+        toast.error('You are already registered for this event');
+      } else {
+        toast.error('Volunteer registration failed. Please try again.');
+      }
+    }
   };
 
   return (
     <div className="min-h-screen bg-dark flex flex-col">
-      <Navbar user={user} notifications={notifications} />
+      <Navbar user={user} notifications={notifications} onLogout={logout} />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8 space-y-8">
         {/* Hero */}
@@ -89,15 +297,16 @@ export default function HomePage() {
                 {roleLabel} · {user.department ?? 'IIT Bombay'}
               </p>
             </div>
-            <Link href={dashboardPath}>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.97 }}
-                className="btn-primary px-5 py-3 rounded-xl font-semibold text-sm flex items-center gap-2"
-              >
-                <Zap className="w-4 h-4" /> Go to Dashboard <ArrowRight className="w-4 h-4" />
-              </motion.button>
-            </Link>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                router.push(dashboardPath);
+              }}
+              className="btn-primary px-5 py-3 rounded-xl font-semibold text-sm flex items-center gap-2"
+            >
+              <Zap className="w-4 h-4" /> Go to Dashboard <ArrowRight className="w-4 h-4" />
+            </motion.button>
           </div>
         </motion.div>
 
@@ -155,16 +364,20 @@ export default function HomePage() {
                     {(user.role === 'student') && (
                       <motion.button
                         whileTap={{ scale: 0.97 }}
-                        onClick={() => toast.success('Registered for ' + activeEvent.title + '!')}
-                        className="btn-primary px-6 py-3 rounded-xl font-semibold text-sm"
+                        onClick={() => handleRegister(activeEvent.id, activeEvent.title)}
+                        className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
+                          isRegisteredForEvent(activeEvent.id)
+                            ? 'bg-primary/20 text-primary border border-primary/30'
+                            : 'btn-primary'
+                        }`}
                       >
-                        Register Now
+                        {isRegisteredForEvent(activeEvent.id) ? 'Registered ✓' : 'Register Now'}
                       </motion.button>
                     )}
                     {user.role === 'volunteer' && (
                       <motion.button
                         whileTap={{ scale: 0.97 }}
-                        onClick={() => handleVolunteer(activeEvent.id)}
+                        onClick={() => handleVolunteer(activeEvent.id, activeEvent.title)}
                         className={`px-6 py-3 rounded-xl font-semibold text-sm border transition-all ${
                           volunteerStates[activeEvent.id]
                             ? 'bg-accent/20 text-accent border-accent/30'
@@ -215,9 +428,10 @@ export default function HomePage() {
                 >
                   <EventCard
                     event={event}
-                    onRegister={user.role === 'student' ? handleRegister : undefined}
+                    onRegister={user.role === 'student' ? (eventId) => handleRegister(eventId, event.title) : undefined}
+                    isRegistered={isRegisteredForEvent(event.id)}
                     showVolunteerButton={user.role === 'volunteer'}
-                    onVolunteer={user.role === 'volunteer' ? handleVolunteer : undefined}
+                    onVolunteer={user.role === 'volunteer' ? (eventId) => handleVolunteer(eventId, event.title) : undefined}
                     isVolunteered={volunteerStates[event.id]}
                   />
                 </motion.div>

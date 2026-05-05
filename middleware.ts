@@ -6,7 +6,15 @@ const PROTECTED_PATHS = ['/home', '/student', '/instructor', '/admin', '/volunte
 
 function decodeToken(token: string) {
   try {
-    return JSON.parse(atob(token));
+    // JWT tokens have 3 parts separated by dots: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    
+    // Decode the payload (second part)
+    const payload = parts[1];
+    // Add padding if needed for base64 decoding
+    const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
+    return JSON.parse(atob(paddedPayload));
   } catch {
     return null;
   }
@@ -14,12 +22,14 @@ function decodeToken(token: string) {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get('fh_auth')?.value;
-  const payload = token ? decodeToken(token) : null;
+  
+  // Check for token in cookie
+  const cookieToken = request.cookies.get('token')?.value;
+  const payload = cookieToken ? decodeToken(cookieToken) : null;
   const isLoggedIn = !!payload;
 
   if (pathname === '/') {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL('/signup', request.url));
   }
 
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
@@ -31,7 +41,7 @@ export function middleware(request: NextRequest) {
 
   if (PROTECTED_PATHS.some((p) => pathname.startsWith(p))) {
     if (!isLoggedIn) {
-      return NextResponse.redirect(new URL('/login', request.url));
+      return NextResponse.redirect(new URL('/signup', request.url));
     }
     return NextResponse.next();
   }

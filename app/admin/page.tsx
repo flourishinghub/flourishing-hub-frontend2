@@ -1,21 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Calendar, Activity, Plus, X, Edit2, AlertTriangle,
-  Wifi, WifiOff, Shield, Settings, Check,
+  Wifi, WifiOff, Shield, Settings, Check, TrendingUp, Filter,
+  Download, FileSpreadsheet, Search, ChevronDown, UserCheck,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import DataTable from '@/components/DataTable';
-import { mockEvents, mockMemberDirectory, recentActivity } from '@/lib/mockData';
+import VolunteerAssignment from '@/components/VolunteerAssignment';
+import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import type { Event, MemberDirectory, UserRole } from '@/types';
 import toast from 'react-hot-toast';
 
-type EventStatus = 'active' | 'archived' | 'draft';
-type Tab = 'overview' | 'events' | 'members' | 'roles' | 'settings';
+type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
+type Tab = 'overview' | 'events' | 'members' | 'volunteers' | 'roles' | 'settings';
+
+interface FilterState {
+  role: string;
+  department: string;
+  programme: string;
+  year: string;
+  volunteerStatus: string;
+  search: string;
+}
 
 interface EventFormData {
   title: string;
@@ -30,26 +42,163 @@ interface EventFormData {
 
 const emptyForm: EventFormData = {
   title: '', description: '', date: '', time: '',
-  venue: '', mode: 'Offline', capacity: '', status: 'draft',
+  venue: '', mode: 'Offline', capacity: '', status: 'published', // ✅ Default to 'published' so events show up
 };
 
 const ROLES: UserRole[] = ['student', 'instructor', 'admin', 'volunteer', 'associate-instructor'];
 
 const statusColors: Record<EventStatus, string> = {
-  active: 'badge-green',
-  archived: 'bg-gray-500/15 text-gray-400 border border-gray-500/30 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
+  published: 'badge-green',
+  completed: 'bg-gray-500/15 text-gray-400 border border-gray-500/30 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
   draft: 'badge-yellow',
+  cancelled: 'bg-red-500/15 text-red-400 border border-red-500/30 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
 };
 
+// Admin Dashboard Component
 export default function AdminDashboard() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
-  const [events, setEvents] = useState<Event[]>(mockEvents);
-  const [members, setMembers] = useState<MemberDirectory[]>(mockMemberDirectory);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [members, setMembers] = useState<MemberDirectory[]>([]);
+  const [volunteers, setVolunteers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [form, setForm] = useState<EventFormData>(emptyForm);
+  const [filters, setFilters] = useState<FilterState>({
+    role: '',
+    department: '',
+    programme: '',
+    year: '',
+    volunteerStatus: '',
+    search: ''
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [saving, setSaving] = useState(false); // Add saving state to prevent double clicks
+  const [deleting, setDeleting] = useState<string | null>(null); // Track which event is being deleted
+  const [showDeleteModal, setShowDeleteModal] = useState(false); // Custom delete confirmation modal
+  const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null); // Event to be deleted
 
-  const activeEvent = events.find((e) => e.status === 'active');
+  // Handle URL hash navigation for tab switching
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '') as Tab;
+      if (hash && ['overview', 'events', 'members', 'volunteers', 'roles', 'settings'].includes(hash)) {
+        setActiveTab(hash);
+      } else if (!hash) {
+        setActiveTab('overview');
+      }
+    };
+
+    // Check hash on mount
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Fetch dashboard data from backend
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        console.log("🔄 Fetching admin dashboard data...");
+        
+        // Fetch admin dashboard data with retry
+        let dashboardResponse;
+        try {
+          dashboardResponse = await apiCall('/admin/dashboard');
+          console.log("✅ Dashboard data fetched:", dashboardResponse);
+        } catch (error) {
+          console.log("⚠️ Dashboard API failed, retrying...", error);
+          // Retry once after 2 seconds
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          dashboardResponse = await apiCall('/admin/dashboard');
+        }
+        setDashboardData(dashboardResponse.data);
+        
+        // Fetch events with registration details
+        console.log("🔄 Fetching events with registrations...");
+        const eventsResponse = await apiCall('/admin/events-with-registrations');
+        console.log("✅ Events with registrations fetched:", eventsResponse);
+        const transformedEvents = eventsResponse.data.map((event: any) => ({
+          id: event.id,
+          title: event.title,
+          description: event.description,
+          date: new Date(event.startAt).toISOString().split('T')[0],
+          time: new Date(event.startAt).toTimeString().slice(0, 5),
+          venue: event.venue || 'TBD',
+          mode: event.meetLink ? 'Online' : 'Offline',
+          capacity: event.capacity || 0,
+          registeredCount: event._count?.registrations || 0,
+          status: event.status.toLowerCase() as EventStatus,
+          organizer: event.createdBy?.name || 'Admin',
+          registrations: event.registrations || [],
+          registrationStats: event.registrationStats || {
+            total: 0,
+            students: 0,
+            volunteers: 0,
+            fillRate: 0,
+            available: event.capacity || 0
+          }
+        }));
+        setEvents(transformedEvents);
+        
+        // Fetch members
+        console.log("🔄 Fetching members...");
+        const membersResponse = await apiCall('/admin/members');
+        console.log("✅ Members fetched:", membersResponse);
+        const transformedMembers = membersResponse.data.map((member: any) => ({
+          id: member.id,
+          name: member.name,
+          email: member.email,
+          role: member.role.toLowerCase().replace('_', '-'),
+          department: member.department || 'N/A',
+          programme: member.programme || 'N/A',
+          year: member.yearOfStudy,
+          batch: member.cohort,
+          rollNo: member.rollNumber,
+          empId: member.employeeId || member.adminEmployeeId
+        }));
+        setMembers(transformedMembers);
+
+        // Fetch volunteers with activity data
+        console.log("🔄 Fetching volunteers...");
+        const volunteersResponse = await apiCall('/admin/volunteers');
+        console.log("✅ Volunteers fetched:", volunteersResponse);
+        setVolunteers(volunteersResponse.data);
+        
+        console.log("🎉 All admin data loaded successfully!");
+        
+      } catch (error) {
+        console.error('❌ Error fetching dashboard data:', error);
+        toast.error('Failed to load dashboard data. Please refresh the page.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent animate-pulse mx-auto mb-4" />
+            <p className="text-white/60">Loading dashboard...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const activeEvent = events.find((e) => e.status === 'published');
   const totalVolunteers = members.filter((m) => m.role === 'volunteer').length;
 
   const openCreate = () => {
@@ -73,54 +222,298 @@ export default function AdminDashboard() {
     setShowModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title || !form.date || !form.time || !form.venue || !form.capacity) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    let updatedEvents = [...events];
-
-    if (form.status === 'active' && activeEvent && activeEvent.id !== editingEvent?.id) {
-      updatedEvents = updatedEvents.map((e) =>
-        e.id === activeEvent.id ? { ...e, status: 'archived' as EventStatus } : e
-      );
+    if (saving) {
+      return; // Prevent double submission
     }
 
-    if (editingEvent) {
-      updatedEvents = updatedEvents.map((e) =>
-        e.id === editingEvent.id
-          ? { ...e, ...form, capacity: parseInt(form.capacity) }
-          : e
-      );
-      toast.success('Event updated!');
-    } else {
-      const newEvent: Event = {
-        id: `evt_${Date.now()}`,
-        ...form,
+    try {
+      setSaving(true); // Disable button during save
+      
+      const eventData = {
+        title: form.title,
+        description: form.description,
+        startAt: new Date(`${form.date}T${form.time}`).toISOString(),
+        endAt: new Date(`${form.date}T${form.time}`).toISOString(), // You might want to add end time
+        venue: form.venue,
+        meetLink: form.mode === 'Online' ? 'https://meet.google.com/placeholder' : null,
         capacity: parseInt(form.capacity),
-        registeredCount: 0,
-        organizer: 'Admin',
+        status: form.status.toUpperCase(),
+        type: 'WELLNESS_COURSE' // Default type, you might want to make this configurable
       };
-      updatedEvents = [...updatedEvents, newEvent];
-      toast.success(form.status === 'active' ? 'Event published!' : 'Event saved as draft');
-    }
 
-    setEvents(updatedEvents);
-    setShowModal(false);
-    setEditingEvent(null);
-    setForm(emptyForm);
+      console.log("📤 Sending event data:", eventData);
+
+      if (editingEvent) {
+        await apiCall(`/admin/events/${editingEvent.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(eventData)
+        });
+        toast.success('Event updated!');
+      } else {
+        await apiCall('/admin/events', {
+          method: 'POST',
+          body: JSON.stringify(eventData)
+        });
+        toast.success(form.status === 'published' ? 'Event published!' : 'Event saved as draft');
+      }
+
+      // Close modal immediately after success
+      setShowModal(false);
+      setEditingEvent(null);
+      setForm(emptyForm);
+
+      // Refresh events list with registration details in background
+      const eventsResponse = await apiCall('/admin/events-with-registrations');
+      const transformedEvents = eventsResponse.data.map((event: any) => ({
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        date: new Date(event.startAt).toISOString().split('T')[0],
+        time: new Date(event.startAt).toTimeString().slice(0, 5),
+        venue: event.venue || 'TBD',
+        mode: event.meetLink ? 'Online' : 'Offline',
+        capacity: event.capacity || 0,
+        registeredCount: event._count?.registrations || 0,
+        status: event.status.toLowerCase() as EventStatus,
+        organizer: event.createdBy?.name || 'Admin',
+        registrations: event.registrations || [],
+        registrationStats: event.registrationStats || {
+          total: 0,
+          students: 0,
+          volunteers: 0,
+          fillRate: 0,
+          available: event.capacity || 0
+        }
+      }));
+      setEvents(transformedEvents);
+    } catch (error) {
+      console.error('Error saving event:', error);
+      toast.error('Failed to save event');
+    } finally {
+      setSaving(false); // Re-enable button
+    }
   };
 
-  const handleRoleChange = (memberId: string, newRole: UserRole) => {
-    setMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, role: newRole } : m));
-    toast.success('Role updated successfully');
+  const handleDelete = async (eventId: string, eventTitle: string) => {
+    // Show custom confirmation modal instead of browser confirm
+    setEventToDelete({ id: eventId, title: eventTitle });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!eventToDelete) return;
+
+    try {
+      setDeleting(eventToDelete.id);
+      
+      console.log("🗑️ Cancelling event (soft delete):", eventToDelete.id);
+      
+      // Instead of deleting, mark event as CANCELLED
+      await apiCall(`/admin/events/${eventToDelete.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          status: 'CANCELLED'
+        })
+      });
+      
+      toast.success('Event cancelled successfully!');
+      
+      // Refresh events list
+      const eventsResponse = await apiCall('/admin/events-with-registrations');
+      const transformedEvents = eventsResponse.data.map((event: any) => ({
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        date: new Date(event.startAt).toISOString().split('T')[0],
+        time: new Date(event.startAt).toTimeString().slice(0, 5),
+        venue: event.venue || 'TBD',
+        mode: event.meetLink ? 'Online' : 'Offline',
+        capacity: event.capacity || 0,
+        registeredCount: event._count?.registrations || 0,
+        status: event.status.toLowerCase() as EventStatus,
+        organizer: event.createdBy?.name || 'Admin',
+        registrations: event.registrations || [],
+        registrationStats: event.registrationStats || {
+          total: 0,
+          students: 0,
+          volunteers: 0,
+          fillRate: 0,
+          available: event.capacity || 0
+        }
+      }));
+      setEvents(transformedEvents);
+      
+      setShowDeleteModal(false);
+      setEventToDelete(null);
+      
+    } catch (error) {
+      console.error('Error cancelling event:', error);
+      toast.error('Failed to cancel event');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleRoleChange = async (memberId: string, newRole: UserRole) => {
+    try {
+      // Note: You'll need to implement a role change API endpoint
+      // For now, just update locally
+      setMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, role: newRole } : m));
+      toast.success('Role updated successfully');
+    } catch (error) {
+      console.error('Error updating role:', error);
+      toast.error('Failed to update role');
+    }
+  };
+
+  // Filter members based on current filters
+  const filteredMembers = members.filter((member) => {
+    if (filters.role && member.role !== filters.role) return false;
+    if (filters.department && member.department !== filters.department) return false;
+    if (filters.programme && member.programme !== filters.programme) return false;
+    if (filters.year && member.year?.toString() !== filters.year) return false;
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      if (!member.name.toLowerCase().includes(searchLower) &&
+          !member.email.toLowerCase().includes(searchLower) &&
+          !(member.rollNo?.toLowerCase().includes(searchLower)) &&
+          !(member.empId?.toLowerCase().includes(searchLower))) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Filter volunteers based on volunteer status
+  const filteredVolunteers = volunteers.filter((volunteer) => {
+    if (filters.volunteerStatus === 'active') {
+      return volunteer.status === 'ACTIVE';
+    }
+    if (filters.volunteerStatus === 'past') {
+      return volunteer.status === 'INACTIVE';
+    }
+    return true; // Show all if no filter
+  });
+
+  // Get unique values for filter dropdowns
+  const uniqueDepartments = Array.from(new Set(members.map(m => m.department).filter(Boolean)));
+  const uniqueProgrammes = Array.from(new Set(members.map(m => m.programme).filter(Boolean)));
+  const uniqueYears = Array.from(new Set(members.map(m => m.year).filter(Boolean))).sort();
+
+  // Export to CSV function
+  const exportToCSV = (data: any[], filename: string) => {
+    if (data.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    setExporting(true);
+    try {
+      const headers = Object.keys(data[0]);
+      const csvContent = [
+        headers.join(','),
+        ...data.map(row => 
+          headers.map(header => {
+            const value = row[header];
+            // Escape commas and quotes in CSV
+            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+              return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value || '';
+          }).join(',')
+        )
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success(`Exported ${data.length} records to CSV`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Export failed. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Export students
+  const exportStudents = () => {
+    const studentData = filteredMembers
+      .filter(m => m.role === 'student')
+      .map(m => ({
+        Name: m.name,
+        Email: m.email,
+        'Roll Number': m.rollNo || '',
+        Department: m.department,
+        Programme: m.programme,
+        Year: m.year || '',
+        Batch: m.batch || '',
+        Role: m.role
+      }));
+    exportToCSV(studentData, 'students');
+  };
+
+  // Export volunteers
+  const exportVolunteers = () => {
+    const volunteerData = filteredVolunteers.map(m => ({
+      Name: m.name,
+      Email: m.email,
+      'Roll Number': m.rollNo || '',
+      Department: m.department,
+      Programme: m.programme,
+      Year: m.year || '',
+      Batch: m.batch || '',
+      Status: 'Active', // You can enhance this with real volunteer status
+      Role: m.role
+    }));
+    exportToCSV(volunteerData, 'volunteers');
+  };
+
+  // Export all members
+  const exportAllMembers = () => {
+    const allData = filteredMembers.map(m => ({
+      Name: m.name,
+      Email: m.email,
+      ID: m.rollNo || m.empId || '',
+      Department: m.department,
+      Programme: m.programme,
+      Year: m.year || '',
+      Batch: m.batch || '',
+      Role: m.role
+    }));
+    exportToCSV(allData, 'all_members');
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setFilters({
+      role: '',
+      department: '',
+      programme: '',
+      year: '',
+      volunteerStatus: '',
+      search: ''
+    });
   };
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'members', label: 'Members', icon: Users },
+    { id: 'volunteers', label: 'Volunteers', icon: UserCheck },
     { id: 'roles', label: 'Roles', icon: Shield },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -136,10 +529,31 @@ export default function AdminDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Members" value={members.length} icon={Users} color="purple" />
-        <StatCard title="Active Event" value={activeEvent ? '1' : '0'} subtitle={activeEvent?.title ?? 'None'} icon={Activity} color="teal" />
-        <StatCard title="Total Events" value={events.length} icon={Calendar} color="yellow" />
-        <StatCard title="Volunteers" value={totalVolunteers} icon={Users} color="blue" />
+        <StatCard 
+          title="Total Users" 
+          value={dashboardData?.totals?.totalUsers || 0} 
+          icon={Users} 
+          color="purple" 
+        />
+        <StatCard 
+          title="Active Events" 
+          value={dashboardData?.totals?.totalEvents || 0} 
+          subtitle={activeEvent?.title ?? 'None'} 
+          icon={Activity} 
+          color="teal" 
+        />
+        <StatCard 
+          title="Total Registrations" 
+          value={dashboardData?.totals?.totalRegistrations || 0} 
+          icon={Calendar} 
+          color="yellow" 
+        />
+        <StatCard 
+          title="Volunteers" 
+          value={totalVolunteers} 
+          icon={Users} 
+          color="blue" 
+        />
       </div>
 
       {/* Tabs */}
@@ -148,7 +562,14 @@ export default function AdminDashboard() {
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => {
+                setActiveTab(id);
+                if (id === 'overview') {
+                  window.history.pushState(null, '', '/admin');
+                } else {
+                  window.history.pushState(null, '', `/admin#${id}`);
+                }
+              }}
               className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap transition-all ${
                 activeTab === id
                   ? 'text-white border-b-2 border-primary bg-primary/5'
@@ -178,18 +599,42 @@ export default function AdminDashboard() {
                   <p className="text-xs text-white/40 mt-1">{activeEvent.registeredCount} / {activeEvent.capacity} registered</p>
                 </div>
               )}
-              <div>
-                <h3 className="text-sm font-semibold text-white mb-3">Recent Activity</h3>
-                <div className="space-y-2">
-                  {recentActivity.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                      <span className="text-base">{item.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-white/80 truncate">{item.action}</p>
-                        <p className="text-[10px] text-white/35 mt-0.5">{item.time}</p>
-                      </div>
+              
+              {/* Dashboard Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                  <h4 className="text-sm font-semibold text-white mb-3">Attendance Overview</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/60">Present</span>
+                      <span className="text-emerald-400">{dashboardData?.attendanceStats?.present || 0}</span>
                     </div>
-                  ))}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/60">Absent</span>
+                      <span className="text-red-400">{dashboardData?.attendanceStats?.absent || 0}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/60">Excused</span>
+                      <span className="text-yellow-400">{dashboardData?.attendanceStats?.excused || 0}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                  <h4 className="text-sm font-semibold text-white mb-3">Recent Activity</h4>
+                  <div className="space-y-2">
+                    {dashboardData?.recentActivity?.slice(0, 3).map((item: any) => (
+                      <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.02]">
+                        <TrendingUp className="w-4 h-4 text-primary" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-white/80 truncate">{item.userName} registered for {item.eventTitle}</p>
+                          <p className="text-[10px] text-white/35 mt-0.5">{new Date(item.registeredAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    )) || (
+                      <p className="text-xs text-white/40">No recent activity</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -197,9 +642,9 @@ export default function AdminDashboard() {
 
           {/* Events Tab */}
           {activeTab === 'events' && (
-            <div className="space-y-4" id="events">
+            <div className="space-y-6" id="events">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">All Events</h3>
+                <h3 className="text-lg font-semibold text-white">Event Management</h3>
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
@@ -210,55 +655,360 @@ export default function AdminDashboard() {
                 </motion.button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-6">
                 {events.map((event) => (
-                  <div key={event.id} className="flex items-start justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${
-                        event.status === 'active' ? 'bg-emerald-400' :
-                        event.status === 'draft' ? 'bg-yellow-400' : 'bg-gray-500'
-                      }`} />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-white">{event.title}</p>
-                          <span className={statusColors[event.status]}>{event.status}</span>
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                            event.mode === 'Online'
-                              ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                              : 'bg-teal-500/15 text-teal-400 border-teal-500/30'
-                          }`}>
-                            {event.mode === 'Online' ? <Wifi className="w-2.5 h-2.5" /> : <WifiOff className="w-2.5 h-2.5" />}
-                            {event.mode}
-                          </span>
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden"
+                  >
+                    {/* Event Header */}
+                    <div className="p-6 border-b border-white/5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4 flex-1">
+                          <div className={`w-3 h-3 rounded-full mt-1 shrink-0 ${
+                            event.status === 'published' ? 'bg-emerald-400' :
+                            event.status === 'draft' ? 'bg-yellow-400' : 'bg-gray-500'
+                          }`} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="text-lg font-bold text-white">{event.title}</h4>
+                              <span className={statusColors[event.status]}>{event.status}</span>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                                event.mode === 'Online'
+                                  ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                                  : 'bg-teal-500/15 text-teal-400 border-teal-500/30'
+                              }`}>
+                                {event.mode === 'Online' ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                                {event.mode}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-white/60 mb-3">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-4 h-4" />
+                                {formatDate(event.date)} · {formatTime(event.time)}
+                              </span>
+                              <span>{event.venue}</span>
+                            </div>
+                            <p className="text-sm text-white/50">{event.description}</p>
+                          </div>
                         </div>
-                        <p className="text-xs text-white/40 mt-0.5">
-                          {formatDate(event.date)} · {formatTime(event.time)} · {event.venue}
-                        </p>
-                        <p className="text-xs text-white/30 mt-0.5">
-                          {event.registeredCount} / {event.capacity} registered
-                        </p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => openEdit(event)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white/5 text-white/60 border border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+                          >
+                            <Edit2 className="w-4 h-4" /> Edit
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleDelete(event.id, event.title)}
+                            disabled={deleting === event.id}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                          >
+                            {deleting === event.id ? (
+                              <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <X className="w-4 h-4" />
+                            )}
+                            Cancel
+                          </motion.button>
+                        </div>
                       </div>
                     </div>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => openEdit(event)}
-                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 text-white/60 border border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
-                    >
-                      <Edit2 className="w-3 h-3" /> Edit
-                    </motion.button>
-                  </div>
+
+                    {/* Event Stats */}
+                    <div className="p-6 border-b border-white/5">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                          <div className="text-2xl font-bold text-white mb-1">{event.registeredCount}</div>
+                          <div className="text-xs text-white/50">Registered</div>
+                        </div>
+                        <div className="text-center p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                          <div className="text-2xl font-bold text-white mb-1">{event.capacity}</div>
+                          <div className="text-xs text-white/50">Capacity</div>
+                        </div>
+                        <div className="text-center p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                          <div className="text-2xl font-bold text-emerald-400 mb-1">
+                            {event.capacity > 0 ? Math.round((event.registeredCount / event.capacity) * 100) : 0}%
+                          </div>
+                          <div className="text-xs text-white/50">Fill Rate</div>
+                        </div>
+                        <div className="text-center p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                          <div className="text-2xl font-bold text-blue-400 mb-1">
+                            {event.capacity - event.registeredCount}
+                          </div>
+                          <div className="text-xs text-white/50">Available</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Registration Details */}
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h5 className="text-sm font-semibold text-white">Registered Participants</h5>
+                        <div className="flex items-center gap-2">
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              // Export event registrations with real data
+                              const eventRegistrations = (event as any).registrations?.map((reg: any) => ({
+                                Name: reg.user.name,
+                                Email: reg.user.email,
+                                'Roll Number': reg.user.rollNumber || '',
+                                Department: reg.user.department || '',
+                                Programme: reg.user.programme || '',
+                                Year: reg.user.yearOfStudy || '',
+                                Section: reg.user.section || '',
+                                Cohort: reg.user.cohort || '',
+                                'Is Volunteer': reg.isVolunteer ? 'Yes' : 'No',
+                                'Registration Date': new Date(reg.registeredAt).toLocaleDateString(),
+                                'Event': event.title
+                              })) || [];
+                              
+                              if (eventRegistrations.length > 0) {
+                                exportToCSV(eventRegistrations, `${event.title.replace(/\s+/g, '_')}_registrations`);
+                              } else {
+                                toast.error('No registrations to export');
+                              }
+                            }}
+                            disabled={exporting}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500/20 transition-all disabled:opacity-50"
+                          >
+                            <Download className="w-3 h-3" />
+                            Export
+                          </motion.button>
+                        </div>
+                      </div>
+
+                      {event.registeredCount > 0 ? (
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {/* Real registered users from database */}
+                          {(event as any).registrations?.map((registration: any) => (
+                            <div key={registration.id} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center text-white font-bold text-xs">
+                                  {registration.user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-white">{registration.user.name}</p>
+                                  <div className="flex items-center gap-2 text-xs text-white/50">
+                                    <span>{registration.user.rollNumber || registration.user.email}</span>
+                                    {registration.user.department && (
+                                      <>
+                                        <span>•</span>
+                                        <span>{registration.user.department}</span>
+                                      </>
+                                    )}
+                                    {registration.user.yearOfStudy && (
+                                      <>
+                                        <span>•</span>
+                                        <span>Year {registration.user.yearOfStudy}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {registration.isVolunteer && (
+                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/30">
+                                    Volunteer
+                                  </span>
+                                )}
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                  Registered
+                                </span>
+                                <span className="text-xs text-white/40">
+                                  {new Date(registration.registeredAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          )) || (
+                            // Fallback if registrations array is empty but count > 0
+                            <div className="text-center py-4">
+                              <p className="text-white/40 text-sm">Registration details loading...</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <Users className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                          <p className="text-white/40">No registrations yet</p>
+                          <p className="text-white/30 text-sm mt-1">Participants will appear here once they register</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Volunteer Assignment Section */}
+                    <VolunteerAssignment eventId={event.id} />
+                  </motion.div>
                 ))}
               </div>
+
+              {events.length === 0 && (
+                <div className="text-center py-12">
+                  <Calendar className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                  <p className="text-white/40 text-lg">No events created yet</p>
+                  <p className="text-white/30 text-sm mt-1">Create your first event to get started</p>
+                </div>
+              )}
             </div>
           )}
 
           {/* Members Tab */}
           {activeTab === 'members' && (
             <div id="members">
-              <h3 className="text-sm font-semibold text-white mb-4">Member Directory</h3>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-white">Member Directory</h3>
+                <div className="flex items-center gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 transition-all"
+                  >
+                    <Filter className="w-4 h-4" />
+                    Filters
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={exportAllMembers}
+                    disabled={exporting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-all disabled:opacity-50"
+                  >
+                    {exporting ? (
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    Export All
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Filters Panel */}
+              <AnimatePresence>
+                {showFilters && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-6 p-4 rounded-xl bg-white/[0.02] border border-white/5"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                      {/* Search */}
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-2 block">Search</label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+                          <input
+                            type="text"
+                            value={filters.search}
+                            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                            placeholder="Name, email, ID..."
+                            className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Role Filter */}
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-2 block">Role</label>
+                        <select
+                          value={filters.role}
+                          onChange={(e) => setFilters(prev => ({ ...prev, role: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                        >
+                          <option value="">All Roles</option>
+                          <option value="student">Student</option>
+                          <option value="instructor">Instructor</option>
+                          <option value="volunteer">Volunteer</option>
+                          <option value="admin">Admin</option>
+                          <option value="associate-instructor">Associate Instructor</option>
+                        </select>
+                      </div>
+
+                      {/* Department Filter */}
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-2 block">Department</label>
+                        <select
+                          value={filters.department}
+                          onChange={(e) => setFilters(prev => ({ ...prev, department: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                        >
+                          <option value="">All Departments</option>
+                          {uniqueDepartments.map(dept => (
+                            <option key={dept} value={dept}>{dept}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Programme Filter */}
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-2 block">Programme</label>
+                        <select
+                          value={filters.programme}
+                          onChange={(e) => setFilters(prev => ({ ...prev, programme: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                        >
+                          <option value="">All Programmes</option>
+                          {uniqueProgrammes.map(prog => (
+                            <option key={prog} value={prog}>{prog}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Year Filter */}
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-2 block">Year</label>
+                        <select
+                          value={filters.year}
+                          onChange={(e) => setFilters(prev => ({ ...prev, year: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                        >
+                          <option value="">All Years</option>
+                          {uniqueYears.map(year => (
+                            <option key={year} value={year?.toString() || ''}>Year {year}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-white/60">
+                        Showing {filteredMembers.length} of {members.length} members
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={clearFilters}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                        >
+                          Clear Filters
+                        </button>
+                        <button
+                          onClick={exportStudents}
+                          disabled={exporting}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition-all disabled:opacity-50"
+                        >
+                          <FileSpreadsheet className="w-3 h-3" />
+                          Export Students
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Members Table */}
               <DataTable
-                data={members.map((m) => ({
+                data={filteredMembers.map((m) => ({
                   ...m,
                   yearDisplay: m.year ? `Year ${m.year}` : '—',
                   batchDisplay: m.batch ?? '—',
@@ -294,29 +1044,317 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* Volunteers Tab */}
+          {activeTab === 'volunteers' && (
+            <div id="volunteers">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-white">Volunteer Management</h3>
+                <div className="flex items-center gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={exportVolunteers}
+                    disabled={exporting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500/20 transition-all disabled:opacity-50"
+                  >
+                    {exporting ? (
+                      <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    Export Volunteers
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Volunteer Status Filter */}
+              <div className="mb-6 flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-white/60">Status:</label>
+                  <select
+                    value={filters.volunteerStatus}
+                    onChange={(e) => setFilters(prev => ({ ...prev, volunteerStatus: e.target.value }))}
+                    className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                  >
+                    <option value="">All Volunteers</option>
+                    <option value="active">Active Volunteers</option>
+                    <option value="past">Past Volunteers</option>
+                  </select>
+                </div>
+                <div className="text-sm text-white/60">
+                  {filteredVolunteers.length} volunteers found
+                </div>
+              </div>
+
+              {/* Volunteers Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredVolunteers.map((volunteer) => (
+                  <motion.div
+                    key={volunteer.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/30 to-emerald-500/30 flex items-center justify-center text-white font-bold text-sm">
+                          {volunteer.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">{volunteer.name}</p>
+                          <p className="text-xs text-white/40">{volunteer.email}</p>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        volunteer.status === 'ACTIVE' ? 'badge-green' : 'badge-gray'
+                      }`}>
+                        {volunteer.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-white/50">Roll No:</span>
+                        <span className="text-white/80">{volunteer.rollNumber || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-white/50">Department:</span>
+                        <span className="text-white/80">{volunteer.department}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-white/50">Programme:</span>
+                        <span className="text-white/80">{volunteer.programme}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-white/50">Year:</span>
+                        <span className="text-white/80">{volunteer.yearOfStudy ? `Year ${volunteer.yearOfStudy}` : 'N/A'}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-white/5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-white/50">Events Volunteered:</span>
+                        <span className="text-green-400 font-semibold">{volunteer.totalVolunteerEvents || 0}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {filteredVolunteers.length === 0 && (
+                <div className="text-center py-12">
+                  <UserCheck className="w-12 h-12 text-white/20 mx-auto mb-4" />
+                  <p className="text-white/40">No volunteers found</p>
+                  <p className="text-white/30 text-sm mt-1">Try adjusting your filters</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Roles Tab */}
           {activeTab === 'roles' && (
             <div id="roles">
-              <h3 className="text-sm font-semibold text-white mb-4">Dynamic Role Management</h3>
-              <div className="space-y-2">
-                {members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                    <div>
-                      <p className="text-sm font-medium text-white">{member.name}</p>
-                      <p className="text-xs text-white/40">{member.email}</p>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-white">Role Management</h3>
+                <div className="flex items-center gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 transition-all"
+                  >
+                    <Filter className="w-4 h-4" />
+                    Filters
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={exportAllMembers}
+                    disabled={exporting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-all disabled:opacity-50"
+                  >
+                    {exporting ? (
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    Export All
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Filters Panel */}
+              <AnimatePresence>
+                {showFilters && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-6 p-4 rounded-xl bg-white/[0.02] border border-white/5"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                      {/* Search */}
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-2 block">Search</label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+                          <input
+                            type="text"
+                            value={filters.search}
+                            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                            placeholder="Name, email, ID..."
+                            className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Role Filter */}
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-2 block">Role</label>
+                        <select
+                          value={filters.role}
+                          onChange={(e) => setFilters(prev => ({ ...prev, role: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                        >
+                          <option value="">All Roles</option>
+                          <option value="student">Student</option>
+                          <option value="instructor">Instructor</option>
+                          <option value="volunteer">Volunteer</option>
+                          <option value="admin">Admin</option>
+                          <option value="associate-instructor">Associate Instructor</option>
+                        </select>
+                      </div>
+
+                      {/* Department Filter */}
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-2 block">Department</label>
+                        <select
+                          value={filters.department}
+                          onChange={(e) => setFilters(prev => ({ ...prev, department: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                        >
+                          <option value="">All Departments</option>
+                          {uniqueDepartments.map(dept => (
+                            <option key={dept} value={dept}>{dept}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Programme Filter */}
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-2 block">Programme</label>
+                        <select
+                          value={filters.programme}
+                          onChange={(e) => setFilters(prev => ({ ...prev, programme: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                        >
+                          <option value="">All Programmes</option>
+                          {uniqueProgrammes.map(prog => (
+                            <option key={prog} value={prog}>{prog}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Year Filter */}
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-2 block">Year</label>
+                        <select
+                          value={filters.year}
+                          onChange={(e) => setFilters(prev => ({ ...prev, year: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                        >
+                          <option value="">All Years</option>
+                          {uniqueYears.map(year => (
+                            <option key={year} value={year?.toString() || ''}>Year {year}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <select
-                      value={member.role}
-                      onChange={(e) => handleRoleChange(member.id, e.target.value as UserRole)}
-                      className="input-dark px-3 py-1.5 rounded-lg text-xs min-w-[160px]"
-                    >
-                      {ROLES.map((r) => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                  </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-white/60">
+                        Showing {filteredMembers.length} of {members.length} members
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={clearFilters}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                        >
+                          Clear Filters
+                        </button>
+                        <button
+                          onClick={exportStudents}
+                          disabled={exporting}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition-all disabled:opacity-50"
+                        >
+                          <FileSpreadsheet className="w-3 h-3" />
+                          Export Students
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Role Management Cards */}
+              <div className="space-y-3">
+                {filteredMembers.map((member) => (
+                  <motion.div
+                    key={member.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all"
+                  >
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                        {member.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <p className="text-sm font-semibold text-white">{member.name}</p>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            member.role === 'admin' ? 'badge-red' :
+                            member.role === 'instructor' ? 'badge-purple' :
+                            member.role === 'volunteer' ? 'badge-green' :
+                            member.role === 'associate-instructor' ? 'badge-yellow' : 'badge-blue'
+                          }`}>
+                            {member.role}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-white/50">
+                          <span>{member.email}</span>
+                          {member.department && <span>• {member.department}</span>}
+                          {member.programme && <span>• {member.programme}</span>}
+                          {member.year && <span>• Year {member.year}</span>}
+                          {(member.rollNo || member.empId) && <span>• {member.rollNo || member.empId}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      <select
+                        value={member.role}
+                        onChange={(e) => handleRoleChange(member.id, e.target.value as UserRole)}
+                        className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm min-w-[160px]"
+                      >
+                        {ROLES.map((r) => (
+                          <option key={r} value={r} className="bg-[#1A1A2E] text-white capitalize">
+                            {r.replace('-', ' ')}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </motion.div>
                 ))}
               </div>
+
+              {filteredMembers.length === 0 && (
+                <div className="text-center py-12">
+                  <Shield className="w-12 h-12 text-white/20 mx-auto mb-4" />
+                  <p className="text-white/40">No members found</p>
+                  <p className="text-white/30 text-sm mt-1">Try adjusting your filters</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -372,7 +1410,7 @@ export default function AdminDashboard() {
 
               <div className="p-6 space-y-4">
                 {/* Warning Banner */}
-                {form.status === 'active' && activeEvent && activeEvent.id !== editingEvent?.id && (
+                {form.status === 'published' && activeEvent && activeEvent.id !== editingEvent?.id && (
                   <motion.div
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -481,8 +1519,8 @@ export default function AdminDashboard() {
                   <div className="flex gap-2">
                     {([
                       { val: 'draft' as EventStatus, label: 'Draft', cls: 'border-yellow-500/40 text-yellow-400 bg-yellow-500/10' },
-                      { val: 'active' as EventStatus, label: 'Publish (Active)', cls: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' },
-                      { val: 'archived' as EventStatus, label: 'Archive', cls: 'border-gray-500/40 text-gray-400 bg-gray-500/10' },
+                      { val: 'published' as EventStatus, label: 'Publish (Active)', cls: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' },
+                      { val: 'completed' as EventStatus, label: 'Complete', cls: 'border-gray-500/40 text-gray-400 bg-gray-500/10' },
                     ]).map(({ val, label, cls }) => (
                       <button
                         key={val}
@@ -503,17 +1541,107 @@ export default function AdminDashboard() {
               <div className="px-6 pb-6 flex gap-3">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                  disabled={saving}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: saving ? 1 : 1.02 }}
+                  whileTap={{ scale: saving ? 1 : 0.98 }}
                   onClick={handleSave}
-                  className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold"
+                  disabled={saving}
+                  className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {form.status === 'active' ? 'Publish Event' : 'Save Event'}
+                  {saving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    form.status === 'published' ? 'Publish Event' : 'Save Event'
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && eventToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => e.target === e.currentTarget && setShowDeleteModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="w-full max-w-md rounded-2xl border border-red-500/20 shadow-2xl overflow-hidden"
+              style={{ background: '#1A1A2E' }}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-white/5 bg-red-500/5">
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-white">Cancel Event</h3>
+                  <p className="text-xs text-white/50">Event will be marked as cancelled</p>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6">
+                <p className="text-sm text-white/70 mb-2">
+                  Are you sure you want to cancel this event?
+                </p>
+                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5 mb-4">
+                  <p className="text-sm font-semibold text-white">{eventToDelete.title}</p>
+                  <p className="text-xs text-white/40 mt-1">Event will be marked as cancelled but registration data will be preserved</p>
+                </div>
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                  <p className="text-xs text-blue-400">
+                    ℹ️ Students who registered will see this event as "Cancelled" in their dashboard
+                  </p>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="px-6 pb-6 flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setEventToDelete(null);
+                  }}
+                  disabled={deleting !== null}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <motion.button
+                  whileHover={{ scale: deleting ? 1 : 1.02 }}
+                  whileTap={{ scale: deleting ? 1 : 0.98 }}
+                  onClick={confirmDelete}
+                  disabled={deleting !== null}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                      Cancelling...
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4" />
+                      Cancel Event
+                    </>
+                  )}
                 </motion.button>
               </div>
             </motion.div>

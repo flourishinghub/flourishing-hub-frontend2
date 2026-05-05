@@ -12,12 +12,32 @@ import ProfileDropdown from '@/components/ProfileDropdown';
 interface NavbarProps {
   user: AuthPayload;
   notifications?: Notification[];
+  onLogout?: () => void;
 }
 
-export default function Navbar({ user, notifications = [] }: NavbarProps) {
+export default function Navbar({ user, notifications = [], onLogout }: NavbarProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const unread = notifications.filter((n) => !n.read).length;
+
+  // Get role-specific dashboard URL
+  const getDashboardUrl = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return '/admin';
+      case 'instructor':
+        return '/instructor';
+      case 'volunteer':
+        return '/volunteer';
+      case 'associate-instructor':
+        return '/associate-instructor';
+      case 'student':
+      default:
+        return '/student';
+    }
+  };
+
+  const dashboardUrl = getDashboardUrl(user.role);
 
   return (
     <motion.header
@@ -26,7 +46,7 @@ export default function Navbar({ user, notifications = [] }: NavbarProps) {
       transition={{ duration: 0.4 }}
       className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-[#0F0F1A]/80 backdrop-blur-xl sticky top-0 z-30"
     >
-      <Link href="/home" className="flex items-center gap-2.5">
+      <Link href={dashboardUrl} className="flex items-center gap-2.5">
         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-sm">
           <Sparkles className="w-4 h-4 text-white" />
         </div>
@@ -71,6 +91,7 @@ export default function Navbar({ user, notifications = [] }: NavbarProps) {
             user={user}
             open={profileOpen}
             onClose={() => setProfileOpen(false)}
+            onLogout={onLogout}
           />
         </div>
       </div>

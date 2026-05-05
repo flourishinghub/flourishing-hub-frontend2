@@ -8,7 +8,7 @@ import type { UserRole } from '@/types';
 import {
   LayoutDashboard, Calendar, Clock, History, Users, Video,
   Settings, Heart, ChevronLeft, ChevronRight, ClipboardList,
-  Sparkles, LogOut, UserCheck, ShieldCheck, FileText,
+  Sparkles, LogOut, UserCheck, ShieldCheck, FileText, User, Compass,
 } from 'lucide-react';
 import { useState } from 'react';
 import { logout } from '@/lib/auth';
@@ -18,8 +18,9 @@ interface NavItem { label: string; href: string; icon: React.ElementType }
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   student: [
     { label: 'Dashboard', href: '/student', icon: LayoutDashboard },
-    { label: 'Events', href: '/student#events', icon: Calendar },
-    { label: 'Schedule', href: '/student#schedule', icon: Clock },
+    { label: 'Events', href: '/student/events', icon: Calendar },
+    { label: 'Explore FH', href: '/student/explore', icon: Compass },
+    { label: 'Profile', href: '/student/profile', icon: User },
     { label: 'History', href: '/student#history', icon: History },
   ],
   instructor: [
@@ -30,9 +31,6 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   admin: [
     { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { label: 'Events', href: '/admin#events', icon: Calendar },
-    { label: 'Members', href: '/admin#members', icon: Users },
-    { label: 'Roles', href: '/admin#roles', icon: ShieldCheck },
-    { label: 'Settings', href: '/admin#settings', icon: Settings },
   ],
   volunteer: [
     { label: 'Dashboard', href: '/volunteer', icon: LayoutDashboard },

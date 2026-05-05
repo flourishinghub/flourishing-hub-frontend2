@@ -15,6 +15,7 @@ export interface CompletedEvent {
   title: string;
   date: string;
   venue: string;
+  role?: string;
   marks?: number;
   maxMarks?: number;
   starRating?: number;
@@ -76,7 +77,7 @@ export interface Event {
   mode: 'Online' | 'Offline';
   capacity: number;
   registeredCount: number;
-  status: 'active' | 'archived' | 'draft';
+  status: 'published' | 'completed' | 'draft' | 'cancelled';
   organizer: string;
   volunteerSlots?: number;
 }
@@ -172,5 +173,9 @@ export interface AuthPayload {
   year?: number;
   batch?: string;
   programme?: Programme;
+  phone?: string;
+  address?: string;
+  dateOfBirth?: string;
+  interests?: string;
   iat: number;
 }

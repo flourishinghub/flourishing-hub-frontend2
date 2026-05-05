@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, Sparkles, ArrowRight, Brain, Heart, Shield } from 'lucide-react';
 import Link from 'next/link';
-import { mockLogin } from '@/lib/auth';
 import toast from 'react-hot-toast';
 
 const WORDS = ['Mindfulness', 'Resilience', 'Growth', 'Clarity', 'Balance', 'Joy', 'Flourish'];
@@ -32,19 +31,62 @@ export default function LoginPage() {
   const validateEmail = (val: string) => {
     if (!val) { setEmailError(''); return; }
     if (!val.includes('@')) { setEmailError('Enter a valid email'); return; }
-    setEmailError(val.endsWith('@iitb.ac.in') ? '' : 'Only @iitb.ac.in emails are allowed');
+    setEmailError(val.endsWith('@iitb.ac.in') ? '' : 'Only IITB emails allowed');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) { toast.error('Please fill in all fields'); return; }
+    
+    // Validate IITB email
+    if (!email.endsWith('@iitb.ac.in')) {
+      toast.error('Only IITB emails allowed');
+      return;
+    }
+    
     if (emailError) { toast.error('Fix email errors first'); return; }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
+    
     try {
-      mockLogin(email, password);
-      toast.success('Welcome back!');
-      router.push('/home');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      // Store token and user data (single source of truth)
+      if (data.data?.accessToken) {
+        localStorage.setItem("token", data.data.accessToken);
+        
+        // Store user data in localStorage
+        if (data.data.user) {
+          localStorage.setItem("user", JSON.stringify(data.data.user));
+        }
+        
+        // Store in cookie for middleware (hardened version with proper SameSite)
+        document.cookie = `token=${data.data.accessToken}; path=/; max-age=86400; SameSite=Lax; Secure=${location.protocol === 'https:'}`;
+        
+        toast.success('Welcome back!');
+        
+        // Small delay to prevent race condition
+        setTimeout(() => {
+          router.push('/home');
+        }, 100);
+      } else {
+        // Fallback if no delay needed
+        router.push('/home');
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Login failed');
     } finally {

@@ -12,9 +12,10 @@ interface ProfileDropdownProps {
   user: AuthPayload;
   open: boolean;
   onClose: () => void;
+  onLogout?: () => void;
 }
 
-export default function ProfileDropdown({ user, open, onClose }: ProfileDropdownProps) {
+export default function ProfileDropdown({ user, open, onClose, onLogout }: ProfileDropdownProps) {
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -29,8 +30,13 @@ export default function ProfileDropdown({ user, open, onClose }: ProfileDropdown
   }, [open, onClose]);
 
   const handleLogout = () => {
-    logout();
-    router.push('/login');
+    if (onLogout) {
+      onLogout();
+    } else {
+      // Fallback to lib logout
+      logout();
+      router.push('/login');
+    }
   };
 
   const fields = [
