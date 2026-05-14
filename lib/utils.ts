@@ -28,17 +28,35 @@ export function getRolePath(role: UserRole): string {
   return paths[role] ?? '/student';
 }
 
-export function formatTime(time: string | undefined): string {
+export function formatTime(time: string | Date | undefined): string {
   if (!time) return 'TBD';
+  
+  // Handle Date object
+  if (time instanceof Date) {
+    const h = time.getHours();
+    const m = time.getMinutes();
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 || 12;
+    return `${hour}:${m.toString().padStart(2, '0')} ${period}`;
+  }
+  
+  // Handle string (HH:MM format)
   const [h, m] = time.split(':').map(Number);
   const period = h >= 12 ? 'PM' : 'AM';
   const hour = h % 12 || 12;
   return `${hour}:${m.toString().padStart(2, '0')} ${period}`;
 }
 
-export function formatDate(dateStr: string | undefined): string {
+export function formatDate(dateStr: string | Date | undefined): string {
   if (!dateStr) return 'TBD';
-  const date = new Date(dateStr + 'T00:00:00');
+  
+  // Handle Date object
+  if (dateStr instanceof Date) {
+    return dateStr.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  
+  // Handle string
+  const date = new Date(dateStr);
   return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 

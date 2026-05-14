@@ -13,6 +13,7 @@ import { getCurrentUser, apiCall } from '@/lib/api';
 import { mockEvents, studentNotifications, volunteerNotifications } from '@/lib/mockData';
 import Navbar from '@/components/Navbar';
 import EventCard from '@/components/EventCard';
+import FlourishingTagline from '@/components/FlourishingTagline';
 import type { AuthPayload, Notification } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -289,12 +290,30 @@ export default function HomePage() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 flex items-start justify-between gap-6 flex-wrap">
             <div>
-              <p className="text-white/50 text-sm mb-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+              <p className="text-white/50 text-sm mb-1">
+                {user.role === 'instructor' 
+                  ? (() => {
+                      const date = new Date();
+                      const month = date.toLocaleDateString('en-US', { month: 'short' });
+                      const day = date.getDate();
+                      const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+                      const year = date.getFullYear();
+                      return `${month} ${day}, ${weekday}, ${year}`;
+                    })()
+                  : format(new Date(), 'EEEE, MMMM d, yyyy')
+                }
+              </p>
               <h1 className="text-3xl font-black text-white mb-2">
                 Welcome back, <span className="gradient-text">{user.name.split(' ')[0]}</span>! 👋
               </h1>
               <p className="text-white/50 text-sm">
-                {roleLabel} · {user.department ?? 'IIT Bombay'}
+                {roleLabel}
+                {user.department && 
+                 user.role === 'instructor' && 
+                 (user.department === 'Humanities and Social Sciences' || 
+                  user.department === 'Humanities & Social Sciences') 
+                  ? '' 
+                  : user.department ? ` · ${user.department}` : ' · IIT Bombay'}
               </p>
             </div>
             <motion.button
@@ -388,14 +407,13 @@ export default function HomePage() {
                       </motion.button>
                     )}
                     {(user.role === 'instructor' || user.role === 'associate-instructor') && (
-                      <Link href={dashboardPath}>
-                        <motion.button
-                          whileTap={{ scale: 0.97 }}
-                          className="btn-primary px-6 py-3 rounded-xl font-semibold text-sm"
-                        >
-                          View Session
-                        </motion.button>
-                      </Link>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => router.push(dashboardPath)}
+                        className="btn-primary px-6 py-3 rounded-xl font-semibold text-sm"
+                      >
+                        View Details
+                      </motion.button>
                     )}
                     {user.role === 'admin' && (
                       <Link href="/admin#events">
@@ -413,6 +431,9 @@ export default function HomePage() {
             </motion.div>
           </div>
         )}
+
+        {/* Flourishing Hub Tagline */}
+        <FlourishingTagline />
 
         {/* Upcoming Events */}
         {upcomingEvents.length > 0 && (
@@ -433,6 +454,14 @@ export default function HomePage() {
                     showVolunteerButton={user.role === 'volunteer'}
                     onVolunteer={user.role === 'volunteer' ? (eventId) => handleVolunteer(eventId, event.title) : undefined}
                     isVolunteered={volunteerStates[event.id]}
+                    hideActions={user.role === 'instructor' || user.role === 'associate-instructor'}
+                    onClick={
+                      user.role === 'instructor' || user.role === 'associate-instructor'
+                        ? () => {
+                            toast('Workshop details page coming soon!', { icon: '📋' });
+                          }
+                        : undefined
+                    }
                   />
                 </motion.div>
               ))}

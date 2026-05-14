@@ -48,6 +48,10 @@ export default function LoginPage() {
     setLoading(true);
     
     try {
+      // Add timeout for slow backend (Render cold start)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -57,7 +61,10 @@ export default function LoginPage() {
           email,
           password,
         }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -88,7 +95,11 @@ export default function LoginPage() {
         router.push('/home');
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Login failed');
+      if (err instanceof Error && err.name === 'AbortError') {
+        toast.error('Request timeout. Backend might be starting up. Please try again.');
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Login failed');
+      }
     } finally {
       setLoading(false);
     }

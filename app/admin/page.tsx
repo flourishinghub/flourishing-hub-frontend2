@@ -80,6 +80,7 @@ export default function AdminDashboard() {
   const [deleting, setDeleting] = useState<string | null>(null); // Track which event is being deleted
   const [showDeleteModal, setShowDeleteModal] = useState(false); // Custom delete confirmation modal
   const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null); // Event to be deleted
+  const [courseFilter, setCourseFilter] = useState<string>(''); // Course filter for events
 
   // Handle URL hash navigation for tab switching
   useEffect(() => {
@@ -645,23 +646,46 @@ export default function AdminDashboard() {
             <div className="space-y-6" id="events">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">Event Management</h3>
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={openCreate}
-                  className="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
-                >
-                  <Plus className="w-4 h-4" /> Create Event
-                </motion.button>
+                <div className="flex items-center gap-3">
+                  {/* Course Filter */}
+                  <select
+                    value={courseFilter}
+                    onChange={(e) => setCourseFilter(e.target.value)}
+                    className="input-dark px-4 py-2 rounded-xl text-sm font-medium"
+                  >
+                    <option value="">All Workshops</option>
+                    <option value="MENTORSHIP">Mentorship Course</option>
+                    <option value="LEADERSHIP">Leadership Course</option>
+                    <option value="WELLNESS">Wellness Course</option>
+                    <option value="OPEN">Open Workshops</option>
+                  </select>
+                  
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={openCreate}
+                    className="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
+                  >
+                    <Plus className="w-4 h-4" /> Create Event
+                  </motion.button>
+                </div>
               </div>
 
               <div className="space-y-6">
-                {events.map((event) => (
+                {events
+                  .filter(event => {
+                    if (!courseFilter) return true;
+                    // TODO: Filter by course when course structure is implemented
+                    // For now, this is a placeholder
+                    return true;
+                  })
+                  .map((event) => (
                   <motion.div
                     key={event.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden"
+                    onClick={() => router.push(`/admin/events/${event.id}`)}
+                    className="rounded-2xl bg-gradient-to-br from-white/[0.03] to-white/[0.01] border-2 border-white/10 hover:border-primary/30 overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/10"
                   >
                     {/* Event Header */}
                     <div className="p-6 border-b border-white/5">
@@ -698,7 +722,10 @@ export default function AdminDashboard() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => openEdit(event)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(event);
+                            }}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white/5 text-white/60 border border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
                           >
                             <Edit2 className="w-4 h-4" /> Edit
@@ -706,7 +733,10 @@ export default function AdminDashboard() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => handleDelete(event.id, event.title)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(event.id, event.title);
+                            }}
                             disabled={deleting === event.id}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all disabled:opacity-50"
                           >
