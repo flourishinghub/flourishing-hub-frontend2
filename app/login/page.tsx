@@ -22,11 +22,19 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState('');
   const [wordIndex, setWordIndex] = useState(0);
   const router = useRouter();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 
   useEffect(() => {
     const t = setInterval(() => setWordIndex((i) => (i + 1) % WORDS.length), 2500);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    // Show success message if redirected from email verification
+    if (searchParams?.get('verified') === 'true') {
+      toast.success('Email verified successfully! You can now login.');
+    }
+  }, [searchParams]);
 
   const validateEmail = (val: string) => {
     if (!val) { setEmailError(''); return; }

@@ -94,23 +94,11 @@ export default function SignupPage() {
         throw new Error(data.message || 'Registration failed');
       }
 
-      // Store token (single source of truth)
-      if (data.data?.accessToken) {
-        localStorage.setItem("token", data.data.accessToken);
-        
-        // Store in cookie for middleware (hardened version with proper SameSite)
-        document.cookie = `token=${data.data.accessToken}; path=/; max-age=86400; SameSite=Lax; Secure=${location.protocol === 'https:'}`;
-        
-        toast.success('Account created! Welcome to Flourishing Hub!');
-        
-        // Small delay to prevent race condition
-        setTimeout(() => {
-          window.location.href = '/home';
-        }, 100);
-      } else {
-        // Fallback
-        window.location.href = '/home';
-      }
+      // Registration successful - redirect to OTP verification
+      toast.success('Registration successful! Please check your email for OTP.');
+      
+      // Redirect to verify-email page with userId and email
+      router.push(`/verify-email?userId=${data.data.userId}&email=${encodeURIComponent(data.data.email)}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');
     } finally {
