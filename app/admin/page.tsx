@@ -18,7 +18,7 @@ import type { Event, MemberDirectory, UserRole } from '@/types';
 import toast from 'react-hot-toast';
 
 type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
-type Tab = 'overview' | 'events' | 'members' | 'volunteers' | 'roles' | 'settings';
+type Tab = 'overview' | 'events' | 'members' | 'volunteers' | 'approvals' | 'roles' | 'settings';
 
 interface FilterState {
   role: string;
@@ -62,6 +62,7 @@ export default function AdminDashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [members, setMembers] = useState<MemberDirectory[]>([]);
   const [volunteers, setVolunteers] = useState<any[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
@@ -172,6 +173,17 @@ export default function AdminDashboard() {
         const volunteersResponse = await apiCall('/admin/volunteers');
         console.log("✅ Volunteers fetched:", volunteersResponse);
         setVolunteers(volunteersResponse.data);
+        
+        // Fetch pending approval users
+        console.log("🔄 Fetching pending approvals...");
+        try {
+          const pendingResponse = await apiCall('/admin/pending-approvals');
+          console.log("✅ Pending approvals fetched:", pendingResponse);
+          setPendingUsers(pendingResponse.data || []);
+        } catch (error) {
+          console.log("⚠️ No pending approvals or API not available");
+          setPendingUsers([]);
+        }
         
         console.log("🎉 All admin data loaded successfully!");
         

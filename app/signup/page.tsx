@@ -94,11 +94,20 @@ export default function SignupPage() {
         throw new Error(data.message || 'Registration failed');
       }
 
-      // Registration successful - redirect to OTP verification
-      toast.success('Registration successful! Please check your email for OTP.');
-      
-      // Redirect to verify-email page with userId and email
-      router.push(`/verify-email?userId=${data.data.userId}&email=${encodeURIComponent(data.data.email)}`);
+      // Check if user needs OTP verification or admin approval
+      if (data.data?.requiresOTP) {
+        // IITB email - redirect to OTP verification
+        toast.success('Registration successful! Please check your email for OTP.');
+        router.push(`/verify-email?userId=${data.data.userId}&email=${encodeURIComponent(data.data.email)}`);
+      } else if (data.data?.requiresApproval) {
+        // Non-IITB email - show approval pending message
+        toast.success('Account created! Pending admin approval.');
+        router.push(`/approval-pending?email=${encodeURIComponent(data.data.email)}`);
+      } else {
+        // Fallback
+        toast.success('Registration successful!');
+        router.push('/login');
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');
     } finally {
