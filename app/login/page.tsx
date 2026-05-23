@@ -39,18 +39,14 @@ export default function LoginPage() {
   const validateEmail = (val: string) => {
     if (!val) { setEmailError(''); return; }
     if (!val.includes('@')) { setEmailError('Enter a valid email'); return; }
-    setEmailError(val.endsWith('@iitb.ac.in') ? '' : 'Only IITB emails allowed');
+    setEmailError(''); // All emails allowed
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) { toast.error('Please fill in all fields'); return; }
     
-    // Validate IITB email
-    if (!email.endsWith('@iitb.ac.in')) {
-      toast.error('Only IITB emails allowed');
-      return;
-    }
+    // All emails allowed - no validation needed
     
     if (emailError) { toast.error('Fix email errors first'); return; }
     setLoading(true);
@@ -195,9 +191,6 @@ export default function LoginPage() {
                 />
               </div>
               {emailError && <p className="text-xs text-red-400 mt-1">{emailError}</p>}
-              {email.endsWith('@iitb.ac.in') && !emailError && (
-                <p className="text-xs text-emerald-400 mt-1">✓ Valid IITB email</p>
-              )}
             </div>
 
             <div>
