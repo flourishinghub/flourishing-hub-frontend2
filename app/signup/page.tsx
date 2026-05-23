@@ -54,7 +54,9 @@ export default function SignupPage() {
     if (!form.batch.trim()) e.batch = 'Batch is required';
     if (!form.programme) e.programme = 'Programme is required';
     if (!form.department) e.department = 'Department is required';
-    // Email validation removed - both IITB and non-IITB emails are now allowed
+    if (!form.email.trim()) e.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Invalid email format';
+    // Both IITB and non-IITB emails are allowed
     // IITB emails get OTP verification, non-IITB emails require admin approval
     
     // Backend password validation requirements
