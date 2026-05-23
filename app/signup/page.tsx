@@ -54,7 +54,8 @@ export default function SignupPage() {
     if (!form.batch.trim()) e.batch = 'Batch is required';
     if (!form.programme) e.programme = 'Programme is required';
     if (!form.department) e.department = 'Department is required';
-    if (!form.email.endsWith('@iitb.ac.in')) e.email = 'Only @iitb.ac.in emails allowed';
+    // Email validation removed - both IITB and non-IITB emails are now allowed
+    // IITB emails get OTP verification, non-IITB emails require admin approval
     
     // Backend password validation requirements
     if (form.password.length < 8) e.password = 'Password must be at least 8 characters';
