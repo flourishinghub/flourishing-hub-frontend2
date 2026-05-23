@@ -16,6 +16,18 @@ const DEPARTMENTS = [
   'Student Wellness Center', 'Other',
 ];
 
+// Field component defined outside to prevent re-creation on each render
+const Field = ({ label, icon: Icon, error, children }: { label: string; icon: React.ElementType; error?: string; children: React.ReactNode }) => (
+  <div>
+    <label className="text-xs font-medium text-white/60 mb-1.5 block">{label}</label>
+    <div className="relative">
+      <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 z-10" />
+      {children}
+    </div>
+    {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+  </div>
+);
+
 export default function SignupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -114,17 +126,6 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
-
-  const Field = ({ label, icon: Icon, error, children }: { label: string; icon: React.ElementType; error?: string; children: React.ReactNode }) => (
-    <div>
-      <label className="text-xs font-medium text-white/60 mb-1.5 block">{label}</label>
-      <div className="relative">
-        <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 z-10" />
-        {children}
-      </div>
-      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
-    </div>
-  );
 
   return (
     <div className="min-h-screen flex bg-dark">
