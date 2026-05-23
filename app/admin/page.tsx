@@ -7,11 +7,13 @@ import {
   Users, Calendar, Activity, Plus, X, Edit2, AlertTriangle,
   Wifi, WifiOff, Shield, Settings, Check, TrendingUp, Filter,
   Download, FileSpreadsheet, Search, ChevronDown, UserCheck,
+  UserCog,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import DataTable from '@/components/DataTable';
 import VolunteerAssignment from '@/components/VolunteerAssignment';
+import PendingApprovalsTab from '@/components/PendingApprovalsTab';
 import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import type { Event, MemberDirectory, UserRole } from '@/types';
@@ -87,7 +89,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') as Tab;
-      if (hash && ['overview', 'events', 'members', 'volunteers', 'roles', 'settings'].includes(hash)) {
+      if (hash && ['overview', 'events', 'members', 'volunteers', 'approvals', 'roles', 'settings'].includes(hash)) {
         setActiveTab(hash);
       } else if (!hash) {
         setActiveTab('overview');
@@ -527,6 +529,7 @@ export default function AdminDashboard() {
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'members', label: 'Members', icon: Users },
     { id: 'volunteers', label: 'Volunteers', icon: UserCheck },
+    { id: 'approvals', label: 'Approvals', icon: UserCog },
     { id: 'roles', label: 'Roles', icon: Shield },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -1190,6 +1193,24 @@ export default function AdminDashboard() {
                   <p className="text-white/30 text-sm mt-1">Try adjusting your filters</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Approvals Tab */}
+          {activeTab === 'approvals' && (
+            <div id="approvals">
+              <PendingApprovalsTab 
+                pendingUsers={pendingUsers} 
+                onUpdate={async () => {
+                  // Refresh pending users list
+                  try {
+                    const pendingResponse = await apiCall('/admin/pending-approvals');
+                    setPendingUsers(pendingResponse.data || []);
+                  } catch (error) {
+                    console.error("Failed to refresh pending users:", error);
+                  }
+                }}
+              />
             </div>
           )}
 
