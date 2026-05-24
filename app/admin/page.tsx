@@ -7,7 +7,7 @@ import {
   Users, Calendar, Activity, Plus, X, Edit2, AlertTriangle,
   Wifi, WifiOff, Shield, Settings, Check, TrendingUp, Filter,
   Download, FileSpreadsheet, Search, ChevronDown, UserCheck,
-  UserCog,
+  UserCog, BookOpen,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
@@ -20,7 +20,31 @@ import type { Event, MemberDirectory, UserRole } from '@/types';
 import toast from 'react-hot-toast';
 
 type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
-type Tab = 'overview' | 'events' | 'members' | 'volunteers' | 'approvals' | 'roles' | 'settings';
+type Tab = 'overview' | 'events' | 'courses' | 'members' | 'volunteers' | 'approvals' | 'roles' | 'settings';
+type CourseStatus = 'ACTIVE' | 'INACTIVE' | 'UPCOMING' | 'COMPLETED';
+
+interface CourseFormData {
+  name: string;
+  description: string;
+  duration: string;
+  instructorName: string;
+  status: CourseStatus;
+  startDate: string;
+  endDate: string;
+  capacity: string;
+}
+
+const emptyCourseForm: CourseFormData = {
+  name: '', description: '', duration: '', instructorName: '',
+  status: 'UPCOMING', startDate: '', endDate: '', capacity: '',
+};
+
+const courseStatusColors: Record<CourseStatus, string> = {
+  ACTIVE: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
+  UPCOMING: 'badge-yellow',
+  INACTIVE: 'bg-gray-500/15 text-gray-400 border border-gray-500/30 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
+  COMPLETED: 'bg-blue-500/15 text-blue-400 border border-blue-500/30 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
+};
 
 interface FilterState {
   role: string;
@@ -84,12 +108,18 @@ export default function AdminDashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState(false); // Custom delete confirmation modal
   const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null); // Event to be deleted
   const [courseFilter, setCourseFilter] = useState<string>(''); // Course filter for events
+  const [courses, setCourses] = useState<any[]>([]);
+  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<any | null>(null);
+  const [courseForm, setCourseForm] = useState<CourseFormData>(emptyCourseForm);
+  const [savingCourse, setSavingCourse] = useState(false);
+  const [deletingCourse, setDeletingCourse] = useState<string | null>(null);
 
   // Handle URL hash navigation for tab switching
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') as Tab;
-      if (hash && ['overview', 'events', 'members', 'volunteers', 'approvals', 'roles', 'settings'].includes(hash)) {
+      if (hash && ['overview', 'events', 'courses', 'members', 'volunteers', 'approvals', 'roles', 'settings'].includes(hash)) {
         setActiveTab(hash);
       } else if (!hash) {
         setActiveTab('overview');
@@ -185,6 +215,17 @@ export default function AdminDashboard() {
         } catch (error) {
           console.log("⚠️ No pending approvals or API not available");
           setPendingUsers([]);
+        }
+
+        // Fetch courses
+        console.log("🔄 Fetching courses...");
+        try {
+          const coursesResponse = await apiCall('/courses');
+          console.log("✅ Courses fetched:", coursesResponse);
+          setCourses(coursesResponse.data || []);
+        } catch (error) {
+          console.log("⚠️ Courses API not available");
+          setCourses([]);
         }
         
         console.log("🎉 All admin data loaded successfully!");
@@ -524,9 +565,89 @@ export default function AdminDashboard() {
     });
   };
 
+  const openCreateCourse = () => {
+    setEditingCourse(null);
+    setCourseForm(emptyCourseForm);
+    setShowCourseModal(true);
+  };
+
+  const openEditCourse = (course: any) => {
+    setEditingCourse(course);
+    setCourseForm({
+      name: course.name,
+      description: course.description || '',
+      duration: course.duration || '',
+      instructorName: course.instructorName || '',
+      status: course.status as CourseStatus,
+      startDate: course.startDate ? new Date(course.startDate).toISOString().split('T')[0] : '',
+      endDate: course.endDate ? new Date(course.endDate).toISOString().split('T')[0] : '',
+      capacity: course.capacity ? String(course.capacity) : '',
+    });
+    setShowCourseModal(true);
+  };
+
+  const handleSaveCourse = async () => {
+    if (!courseForm.name) {
+      toast.error('Course name is required');
+      return;
+    }
+    if (savingCourse) return;
+
+    try {
+      setSavingCourse(true);
+      const payload: any = {
+        name: courseForm.name,
+        description: courseForm.description,
+        duration: courseForm.duration,
+        instructorName: courseForm.instructorName,
+        status: courseForm.status,
+        startDate: courseForm.startDate || null,
+        endDate: courseForm.endDate || null,
+        capacity: courseForm.capacity ? parseInt(courseForm.capacity) : null,
+      };
+
+      if (editingCourse) {
+        await apiCall(`/courses/${editingCourse.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        toast.success('Course updated!');
+      } else {
+        await apiCall('/courses', { method: 'POST', body: JSON.stringify(payload) });
+        toast.success('Course created!');
+      }
+
+      setShowCourseModal(false);
+      setEditingCourse(null);
+      setCourseForm(emptyCourseForm);
+
+      const coursesResponse = await apiCall('/courses');
+      setCourses(coursesResponse.data || []);
+    } catch (error) {
+      console.error('Error saving course:', error);
+      toast.error('Failed to save course');
+    } finally {
+      setSavingCourse(false);
+    }
+  };
+
+  const handleDeleteCourse = async (courseId: string, courseName: string) => {
+    if (!window.confirm(`Delete course "${courseName}"? This cannot be undone.`)) return;
+    try {
+      setDeletingCourse(courseId);
+      await apiCall(`/courses/${courseId}`, { method: 'DELETE' });
+      toast.success('Course deleted');
+      const coursesResponse = await apiCall('/courses');
+      setCourses(coursesResponse.data || []);
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      toast.error('Failed to delete course');
+    } finally {
+      setDeletingCourse(null);
+    }
+  };
+
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'events', label: 'Events', icon: Calendar },
+    { id: 'courses', label: 'Courses', icon: BookOpen },
     { id: 'members', label: 'Members', icon: Users },
     { id: 'volunteers', label: 'Volunteers', icon: UserCheck },
     { id: 'approvals', label: 'Approvals', icon: UserCog },
@@ -900,6 +1021,102 @@ export default function AdminDashboard() {
                   <Calendar className="w-16 h-16 text-white/20 mx-auto mb-4" />
                   <p className="text-white/40 text-lg">No events created yet</p>
                   <p className="text-white/30 text-sm mt-1">Create your first event to get started</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Courses Tab */}
+          {activeTab === 'courses' && (
+            <div className="space-y-6" id="courses">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Course Management</h3>
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={openCreateCourse}
+                  className="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
+                >
+                  <Plus className="w-4 h-4" /> Create Course
+                </motion.button>
+              </div>
+
+              <div className="space-y-4">
+                {courses.map((course) => (
+                  <motion.div
+                    key={course.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-2xl bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 hover:border-primary/30 overflow-hidden transition-all duration-300"
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4 flex-1">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center shrink-0">
+                            <BookOpen className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="text-base font-bold text-white">{course.name}</h4>
+                              <span className={courseStatusColors[course.status as CourseStatus]}>{course.status}</span>
+                            </div>
+                            {course.description && (
+                              <p className="text-sm text-white/50 mb-3">{course.description}</p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-4 text-xs text-white/50">
+                              {course.instructorName && (
+                                <span>Instructor: <span className="text-white/70">{course.instructorName}</span></span>
+                              )}
+                              {course.duration && (
+                                <span>Duration: <span className="text-white/70">{course.duration}</span></span>
+                              )}
+                              {course.capacity && (
+                                <span>Capacity: <span className="text-white/70">{course.enrolledCount || 0}/{course.capacity}</span></span>
+                              )}
+                              {course.startDate && (
+                                <span>Starts: <span className="text-white/70">{new Date(course.startDate).toLocaleDateString()}</span></span>
+                              )}
+                              {course.endDate && (
+                                <span>Ends: <span className="text-white/70">{new Date(course.endDate).toLocaleDateString()}</span></span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => openEditCourse(course)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white/5 text-white/60 border border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+                          >
+                            <Edit2 className="w-4 h-4" /> Edit
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleDeleteCourse(course.id, course.name)}
+                            disabled={deletingCourse === course.id}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                          >
+                            {deletingCourse === course.id ? (
+                              <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <X className="w-4 h-4" />
+                            )}
+                            Delete
+                          </motion.button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {courses.length === 0 && (
+                <div className="text-center py-12">
+                  <BookOpen className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                  <p className="text-white/40 text-lg">No courses yet</p>
+                  <p className="text-white/30 text-sm mt-1">Create your first course to get started</p>
                 </div>
               )}
             </div>
@@ -1623,6 +1840,154 @@ export default function AdminDashboard() {
                     </>
                   ) : (
                     form.status === 'published' ? 'Publish Event' : 'Save Event'
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create/Edit Course Modal */}
+      <AnimatePresence>
+        {showCourseModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => e.target === e.currentTarget && setShowCourseModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+              style={{ background: '#1A1A2E' }}
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+                <h3 className="text-base font-semibold text-white">
+                  {editingCourse ? 'Edit Course' : 'Create Course'}
+                </h3>
+                <button onClick={() => setShowCourseModal(false)} className="text-white/40 hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Course Name *</label>
+                  <input
+                    value={courseForm.name}
+                    onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })}
+                    placeholder="e.g. Mindfulness & Wellbeing"
+                    className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Description</label>
+                  <textarea
+                    value={courseForm.description}
+                    onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
+                    placeholder="Course description..."
+                    rows={3}
+                    className="input-dark w-full px-4 py-2.5 rounded-xl text-sm resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Instructor</label>
+                    <input
+                      value={courseForm.instructorName}
+                      onChange={(e) => setCourseForm({ ...courseForm, instructorName: e.target.value })}
+                      placeholder="Instructor name"
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Duration</label>
+                    <input
+                      value={courseForm.duration}
+                      onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })}
+                      placeholder="e.g. 8 weeks"
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Start Date</label>
+                    <input
+                      type="date"
+                      value={courseForm.startDate}
+                      onChange={(e) => setCourseForm({ ...courseForm, startDate: e.target.value })}
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">End Date</label>
+                    <input
+                      type="date"
+                      value={courseForm.endDate}
+                      onChange={(e) => setCourseForm({ ...courseForm, endDate: e.target.value })}
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Capacity</label>
+                    <input
+                      type="number"
+                      value={courseForm.capacity}
+                      onChange={(e) => setCourseForm({ ...courseForm, capacity: e.target.value })}
+                      placeholder="e.g. 30"
+                      min="1"
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Status</label>
+                    <select
+                      value={courseForm.status}
+                      onChange={(e) => setCourseForm({ ...courseForm, status: e.target.value as CourseStatus })}
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    >
+                      <option value="UPCOMING">Upcoming</option>
+                      <option value="ACTIVE">Active</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="INACTIVE">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 pb-6 flex gap-3">
+                <button
+                  onClick={() => setShowCourseModal(false)}
+                  disabled={savingCourse}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <motion.button
+                  whileHover={{ scale: savingCourse ? 1 : 1.02 }}
+                  whileTap={{ scale: savingCourse ? 1 : 0.98 }}
+                  onClick={handleSaveCourse}
+                  disabled={savingCourse}
+                  className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingCourse ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    editingCourse ? 'Update Course' : 'Create Course'
                   )}
                 </motion.button>
               </div>
