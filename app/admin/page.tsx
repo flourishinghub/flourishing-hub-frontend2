@@ -1976,22 +1976,6 @@ export default function AdminDashboard() {
               </div>
 
               <div className="p-6 space-y-4">
-                {/* Warning Banner */}
-                {form.status === 'published' && activeEvent && activeEvent.id !== editingEvent?.id && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex gap-3 p-3.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30"
-                  >
-                    <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-semibold text-yellow-400">Active Event Conflict</p>
-                      <p className="text-xs text-yellow-400/80 mt-0.5">
-                        ⚠️ <strong>{activeEvent.title}</strong> is currently active. Publishing this will archive it.
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
 
                 {/* ── Course & Module Selection ── */}
                 {courses.length > 0 && (
