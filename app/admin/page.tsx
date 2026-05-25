@@ -773,6 +773,8 @@ export default function AdminDashboard() {
       setCourseModules(res.data || []);
       const coursesRes = await apiCall('/courses');
       setCourses(coursesRes.data || []);
+      const eventsRes = await apiCall('/admin/events-with-registrations');
+      setEvents(transformEventsData(eventsRes.data));
     } catch (error) {
       console.error('Error deleting module:', error);
       toast.error('Failed to delete module');
