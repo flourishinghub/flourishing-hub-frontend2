@@ -75,7 +75,7 @@ interface EventFormData {
   date: string;
   time: string;
   venue: string;
-  mode: 'Online' | 'Offline';
+  mode: 'Online' | 'In Classroom';
   capacity: string;
   status: EventStatus;
   courseId: string;
@@ -88,7 +88,7 @@ interface EventFormData {
 
 const emptyForm: EventFormData = {
   title: '', description: '', date: '', time: '',
-  venue: '', mode: 'Offline', capacity: '', status: 'published',
+  venue: '', mode: 'In Classroom', capacity: '', status: 'published',
   courseId: '', courseModuleId: '', batch: '', posterUrl: '', quizLink: '', feedbackLink: '',
 };
 
@@ -153,7 +153,7 @@ export default function AdminDashboard() {
     date: new Date(event.startAt).toISOString().split('T')[0],
     time: new Date(event.startAt).toTimeString().slice(0, 5),
     venue: event.venue || 'TBD',
-    mode: (event.meetLink ? 'Online' : 'Offline') as 'Online' | 'Offline',
+    mode: (event.meetLink ? 'Online' : 'In Classroom') as 'Online' | 'In Classroom',
     capacity: event.capacity || 0,
     registeredCount: event._count?.registrations || 0,
     status: event.status.toLowerCase() as EventStatus,
@@ -2103,7 +2103,7 @@ export default function AdminDashboard() {
                   <div>
                     <label className="text-xs font-medium text-white/60 mb-1.5 block">Mode</label>
                     <div className="flex gap-2">
-                      {(['Online', 'Offline'] as const).map((m) => (
+                      {(['Online', 'In Classroom'] as const).map((m) => (
                         <button
                           key={m}
                           type="button"

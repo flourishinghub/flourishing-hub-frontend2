@@ -94,7 +94,7 @@ export default function HomePage() {
               date: startDate.toISOString().split('T')[0],
               time: startDate.toTimeString().slice(0, 5),
               venue: event.venue || 'TBD',
-              mode: event.meetLink ? 'Online' : 'Offline',
+              mode: event.meetLink ? 'Online' : 'In Classroom',
               capacity: event.capacity || 0,
               registeredCount: event._count?.registrations || 0,
               status: event.status?.toLowerCase() || 'draft', // Keep original status from backend
@@ -109,7 +109,7 @@ export default function HomePage() {
               date: '2026-05-04', // Fallback date
               time: '10:00', // Fallback time
               venue: event.venue || 'TBD',
-              mode: 'Offline',
+              mode: 'In Classroom',
               capacity: 0,
               registeredCount: 0,
               status: 'draft',

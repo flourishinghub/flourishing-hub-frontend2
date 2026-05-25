@@ -37,7 +37,7 @@ interface Session {
   venue: string;
   startAt: string;
   endAt: string;
-  mode: 'online' | 'offline';
+  mode: 'online' | 'in-classroom';
   meetLink?: string;
 }
 
@@ -110,7 +110,7 @@ function SessionCard({ session }: { session: Session }) {
             Open Meet Link
           </motion.a>
         )}
-        {session.mode === 'offline' && (
+        {session.mode === 'in-classroom' && (
           <div className="flex-1 text-center py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-xs text-white/60">
             In-person session
           </div>
@@ -684,9 +684,9 @@ export default function InstructorDashboard() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-white/50">Offline Workshops</span>
+                <span className="text-xs text-white/50">In Classroom Workshops</span>
                 <span className="text-sm font-semibold text-teal-400">
-                  {data.upcomingSessions.filter(s => s.mode === 'offline').length}
+                  {data.upcomingSessions.filter(s => s.mode === 'in-classroom').length}
                 </span>
               </div>
               <div className="flex items-center justify-between">
