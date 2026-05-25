@@ -292,6 +292,7 @@ export default function AdminDashboard() {
   // Get today's events (published events happening today)
   const today = new Date().toISOString().split('T')[0];
   const todaysEvents = events.filter((e) => e.status === 'published' && e.date === today);
+  const activeEvent = events.find((e) => e.status === 'published') ?? null;
   
   // Sort events: live/today first, then by date
   const sortedEvents = [...events].sort((a, b) => {
