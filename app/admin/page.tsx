@@ -775,22 +775,35 @@ export default function AdminDashboard() {
   };
 
   const handleCreateWorkshopFromModule = (mod: any) => {
+    // Clear editing state first
     setEditingEvent(null);
-    setForm({
-      ...emptyForm,
-      title: mod.title,
-      description: mod.description || '',
-      posterUrl: mod.posterUrl || '',
-      quizLink: mod.quizLink || '',
-      feedbackLink: mod.feedbackLink || '',
-      courseId: selectedCourse?.id || '',
-      courseModuleId: mod.id,
-    });
+    
+    // Set course and modules for dropdown
     if (selectedCourse) {
       setSelectedCourseForEvent(selectedCourse);
       setModulesForEvent(courseModules);
     }
-    setShowModal(true);
+    
+    // Set form with module data - ensure all fields are strings
+    setForm({
+      title: mod.title || '',
+      description: mod.description || '',
+      date: '',
+      time: '',
+      venue: '',
+      mode: 'In Classroom',
+      capacity: '',
+      status: 'published',
+      courseId: selectedCourse?.id || '',
+      courseModuleId: mod.id || '',
+      batch: '',
+      posterUrl: mod.posterUrl || '',
+      quizLink: mod.quizLink || '',
+      feedbackLink: mod.feedbackLink || '',
+    });
+    
+    // Open modal after state is set
+    setTimeout(() => setShowModal(true), 0);
   };
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
