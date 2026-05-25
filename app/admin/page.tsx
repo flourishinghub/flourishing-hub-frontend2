@@ -154,6 +154,7 @@ export default function AdminDashboard() {
     description: event.description,
     date: new Date(event.startAt).toISOString().split('T')[0],
     time: new Date(event.startAt).toTimeString().slice(0, 5),
+    endTime: event.endAt ? new Date(event.endAt).toTimeString().slice(0, 5) : '',
     venue: event.venue || 'TBD',
     mode: (event.meetLink ? 'Online' : 'In Classroom') as 'Online' | 'In Classroom',
     capacity: event.capacity || 0,
@@ -321,6 +322,7 @@ export default function AdminDashboard() {
       description: event.description,
       date: event.date,
       time: event.time,
+      endTime: (ev as any).endTime || '',
       venue: event.venue,
       mode: event.mode,
       capacity: String(event.capacity),
@@ -359,7 +361,9 @@ export default function AdminDashboard() {
         title: form.title,
         description: form.description,
         startAt: new Date(`${form.date}T${form.time}`).toISOString(),
-        endAt: new Date(`${form.date}T${form.time}`).toISOString(),
+        endAt: form.endTime
+          ? new Date(`${form.date}T${form.endTime}`).toISOString()
+          : new Date(`${form.date}T${form.time}`).toISOString(),
         venue: form.venue,
         meetLink: form.mode === 'Online' ? 'https://meet.google.com/placeholder' : null,
         capacity: parseInt(form.capacity),
