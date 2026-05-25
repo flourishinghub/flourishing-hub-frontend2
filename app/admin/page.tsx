@@ -74,6 +74,7 @@ interface EventFormData {
   description: string;
   date: string;
   time: string;
+  endTime: string;
   venue: string;
   mode: 'Online' | 'In Classroom';
   capacity: string;
@@ -90,6 +91,7 @@ const emptyForm: EventFormData = {
   title: '', description: '', date: '', time: '',
   venue: '', mode: 'In Classroom', capacity: '', status: 'published',
   courseId: '', courseModuleId: '', batch: '', posterUrl: '', quizLink: '', feedbackLink: '',
+  endTime: '',
 };
 
 const ROLES: UserRole[] = ['student', 'instructor', 'admin', 'volunteer', 'associate-instructor'];
@@ -798,6 +800,7 @@ export default function AdminDashboard() {
       courseId: selectedCourse?.id || '',
       courseModuleId: mod.id || '',
       batch: '',
+      endTime: '',
       posterUrl: mod.posterUrl || '',
       quizLink: mod.quizLink || '',
       feedbackLink: mod.feedbackLink || '',
@@ -2060,7 +2063,7 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs font-medium text-white/60 mb-1.5 block">Date *</label>
                     <input
@@ -2071,11 +2074,20 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Time *</label>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Start Time *</label>
                     <input
                       type="time"
                       value={form.time}
                       onChange={(e) => setForm({ ...form, time: e.target.value })}
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">End Time</label>
+                    <input
+                      type="time"
+                      value={form.endTime}
+                      onChange={(e) => setForm({ ...form, endTime: e.target.value })}
                       className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
                     />
                   </div>
@@ -2167,7 +2179,6 @@ export default function AdminDashboard() {
                     {([
                       { val: 'draft' as EventStatus, label: 'Draft', cls: 'border-yellow-500/40 text-yellow-400 bg-yellow-500/10' },
                       { val: 'published' as EventStatus, label: 'Publish (Active)', cls: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' },
-                      { val: 'completed' as EventStatus, label: 'Complete', cls: 'border-gray-500/40 text-gray-400 bg-gray-500/10' },
                     ]).map(({ val, label, cls }) => (
                       <button
                         key={val}
