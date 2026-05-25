@@ -289,7 +289,19 @@ export default function AdminDashboard() {
     );
   }
 
-  const activeEvent = events.find((e) => e.status === 'published');
+  // Get today's events (published events happening today)
+  const today = new Date().toISOString().split('T')[0];
+  const todaysEvents = events.filter((e) => e.status === 'published' && e.date === today);
+  
+  // Sort events: live/today first, then by date
+  const sortedEvents = [...events].sort((a, b) => {
+    const aIsToday = a.date === today && a.status === 'published';
+    const bIsToday = b.date === today && b.status === 'published';
+    if (aIsToday && !bIsToday) return -1;
+    if (!aIsToday && bIsToday) return 1;
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
+  });
+
   const totalVolunteers = members.filter((m) => m.role === 'volunteer').length;
 
   const openCreate = () => {
@@ -812,7 +824,7 @@ export default function AdminDashboard() {
         <StatCard 
           title="Active Events" 
           value={dashboardData?.totals?.totalEvents || 0} 
-          subtitle={activeEvent?.title ?? 'None'} 
+          subtitle={todaysEvents.length > 0 ? `${todaysEvents.length} today` : 'None today'} 
           icon={Activity} 
           color="teal" 
         />
@@ -860,17 +872,25 @@ export default function AdminDashboard() {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {activeEvent && (
-                <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+              {todaysEvents.length > 0 && (
+                <div className="space-y-3">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Currently Active Event</span>
+                    <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                      Today's Events ({todaysEvents.length})
+                    </span>
                   </div>
-                  <p className="text-base font-semibold text-white">{activeEvent.title}</p>
-                  <p className="text-sm text-white/50 mt-0.5">
-                    {formatDate(activeEvent.date)} · {formatTime(activeEvent.time)} · {activeEvent.venue}
-                  </p>
-                  <p className="text-xs text-white/40 mt-1">{activeEvent.registeredCount} / {activeEvent.capacity} registered</p>
+                  {todaysEvents.map((event) => (
+                    <div key={event.id} className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                      <p className="text-base font-semibold text-white">{event.title}</p>
+                      <p className="text-sm text-white/50 mt-0.5">
+                        {formatTime(event.time)} · {event.venue} · {event.mode}
+                      </p>
+                      <p className="text-xs text-white/40 mt-1">
+                        {event.registeredCount} / {event.capacity} registered
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
               
@@ -944,7 +964,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="space-y-6">
-                {events
+                {sortedEvents
                   .filter(event => {
                     if (!courseFilter) return true;
                     return (event as any).courseId === courseFilter;
