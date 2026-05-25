@@ -128,6 +128,7 @@ export default function AdminDashboard() {
   const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false); // Add saving state to prevent double clicks
   const [deleting, setDeleting] = useState<string | null>(null); // Track which event is being deleted
+  const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false); // Custom delete confirmation modal
   const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null); // Event to be deleted
   const [courseFilter, setCourseFilter] = useState<string>(''); // Course filter for events
@@ -1018,7 +1019,6 @@ export default function AdminDashboard() {
                               </span>
                               <span>{event.venue}</span>
                             </div>
-                            <p className="text-sm text-white/50">{event.description}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -1029,7 +1029,7 @@ export default function AdminDashboard() {
                               e.stopPropagation();
                               openEdit(event);
                             }}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white/5 text-white/60 border border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-white/5 text-white/60 border border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
                           >
                             <Edit2 className="w-4 h-4" /> Edit
                           </motion.button>
@@ -1041,21 +1041,43 @@ export default function AdminDashboard() {
                               handleDelete(event.id, event.title);
                             }}
                             disabled={deleting === event.id}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all disabled:opacity-50"
                           >
                             {deleting === event.id ? (
                               <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
                             ) : (
                               <X className="w-4 h-4" />
                             )}
-                            Cancel
+                            Delete
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedEvents(prev => {
+                                const next = new Set(prev);
+                                next.has(event.id) ? next.delete(event.id) : next.add(event.id);
+                                return next;
+                              });
+                            }}
+                            className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 transition-all"
+                          >
+                            <motion.div animate={{ rotate: expandedEvents.has(event.id) ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                              <ChevronDown className="w-4 h-4" />
+                            </motion.div>
                           </motion.button>
                         </div>
                       </div>
                     </div>
 
+                    {/* Expandable Details */}
+                    {expandedEvents.has(event.id) && <div className="p-6 border-b border-white/5 bg-white/[0.01]">
+                      <p className="text-sm text-white/50">{event.description}</p>
+                    </div>}
+
                     {/* Event Stats */}
-                    <div className="p-6 border-b border-white/5">
+                    {expandedEvents.has(event.id) && <div className="p-6 border-b border-white/5">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="text-center p-4 rounded-xl bg-white/[0.02] border border-white/5">
                           <div className="text-2xl font-bold text-white mb-1">{event.registeredCount}</div>
@@ -1078,10 +1100,10 @@ export default function AdminDashboard() {
                           <div className="text-xs text-white/50">Available</div>
                         </div>
                       </div>
-                    </div>
+                    </div>}
 
                     {/* Registration Details */}
-                    <div className="p-6">
+                    {expandedEvents.has(event.id) && <div className="p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h5 className="text-sm font-semibold text-white">Registered Participants</h5>
                         <div className="flex items-center gap-2">
@@ -1175,10 +1197,10 @@ export default function AdminDashboard() {
                           <p className="text-white/30 text-sm mt-1">Participants will appear here once they register</p>
                         </div>
                       )}
-                    </div>
+                    </div>}
 
                     {/* Volunteer Assignment Section */}
-                    <VolunteerAssignment eventId={event.id} />
+                    {expandedEvents.has(event.id) && <VolunteerAssignment eventId={event.id} />}
                   </motion.div>
                 ))}
               </div>
