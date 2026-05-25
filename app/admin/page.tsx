@@ -895,25 +895,7 @@ export default function AdminDashboard() {
               )}
               
               {/* Dashboard Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                  <h4 className="text-sm font-semibold text-white mb-3">Attendance Overview</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/60">Present</span>
-                      <span className="text-emerald-400">{dashboardData?.attendanceStats?.present || 0}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/60">Absent</span>
-                      <span className="text-red-400">{dashboardData?.attendanceStats?.absent || 0}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/60">Excused</span>
-                      <span className="text-yellow-400">{dashboardData?.attendanceStats?.excused || 0}</span>
-                    </div>
-                  </div>
-                </div>
-                
+              <div className="grid grid-cols-1 gap-4">
                 <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
                   <h4 className="text-sm font-semibold text-white mb-3">Recent Activity</h4>
                   <div className="space-y-2">
