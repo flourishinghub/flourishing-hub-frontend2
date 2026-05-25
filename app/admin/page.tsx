@@ -887,24 +887,26 @@ export default function AdminDashboard() {
           {activeTab === 'overview' && (
             <div className="space-y-6">
               {todaysEvents.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 mb-2">
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
                       Today's Events ({todaysEvents.length})
                     </span>
                   </div>
-                  {todaysEvents.map((event) => (
-                    <div key={event.id} className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                      <p className="text-base font-semibold text-white">{event.title}</p>
-                      <p className="text-sm text-white/50 mt-0.5">
-                        {formatTime(event.time)} · {event.venue} · {event.mode}
-                      </p>
-                      <p className="text-xs text-white/40 mt-1">
-                        {event.registeredCount} / {event.capacity} registered
-                      </p>
-                    </div>
-                  ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {todaysEvents.map((event) => (
+                      <div key={event.id} className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                        <p className="text-base font-semibold text-white">{event.title}</p>
+                        <p className="text-sm text-white/50 mt-0.5">
+                          {formatTime(event.time)} · {event.venue} · {event.mode}
+                        </p>
+                        <p className="text-xs text-white/40 mt-1">
+                          {event.registeredCount} / {event.capacity} registered
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               
