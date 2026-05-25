@@ -419,17 +419,9 @@ export default function AdminDashboard() {
     try {
       setDeleting(eventToDelete.id);
       
-      console.log("🗑️ Cancelling event (soft delete):", eventToDelete.id);
-      
-      // Instead of deleting, mark event as CANCELLED
-      await apiCall(`/admin/events/${eventToDelete.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          status: 'CANCELLED'
-        })
-      });
-      
-      toast.success('Event cancelled successfully!');
+      await apiCall(`/admin/events/${eventToDelete.id}`, { method: 'DELETE' });
+
+      toast.success('Event deleted successfully!');
       
       // Refresh events list
       const eventsResponse = await apiCall('/admin/events-with-registrations');
