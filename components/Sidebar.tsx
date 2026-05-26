@@ -117,6 +117,15 @@ export default function Sidebar({ role, userName }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={(e) => {
+                if (item.href.includes('#')) {
+                  const [path, hash] = item.href.split('#');
+                  if (window.location.pathname === path) {
+                    e.preventDefault();
+                    window.location.hash = hash;
+                  }
+                }
+              }}
               className={cn('sidebar-item', isActive && 'active', collapsed && 'justify-center px-2')}
               title={collapsed ? item.label : undefined}
             >
