@@ -33,7 +33,6 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Profile', href: '/instructor/profile', icon: User },
   ],
   admin: [
-    { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { label: 'Events', href: '/admin#events', icon: Calendar },
     { label: 'Videos', href: '/videos', icon: Video },
   ],
