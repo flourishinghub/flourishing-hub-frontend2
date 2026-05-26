@@ -77,6 +77,7 @@ export default function HomePage() {
         };
         
         setUser(transformedUser);
+        localStorage.setItem('user', JSON.stringify(transformedUser));
 
         // Fetch real events from backend
         console.log("🔄 Fetching events from backend...");
@@ -473,12 +474,17 @@ export default function HomePage() {
         <div>
           <h2 className="text-sm font-semibold text-white/70 uppercase tracking-wider mb-4">Quick Access</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
+            {(user.role === 'admin' ? [
+              { label: 'Admin Panel', href: '/admin', icon: Sparkles, color: 'primary' },
+              { label: 'Events', href: '/admin#events', icon: Calendar, color: 'teal' },
+              { label: 'Members', href: '/admin#members', icon: Users, color: 'yellow' },
+              { label: 'Courses', href: '/admin#courses', icon: Star, color: 'purple' },
+            ] : [
               { label: 'My Dashboard', href: dashboardPath, icon: Sparkles, color: 'primary' },
               { label: 'All Events', href: `${dashboardPath}#events`, icon: Calendar, color: 'teal' },
               { label: 'Schedule', href: `${dashboardPath}#schedule`, icon: Clock, color: 'yellow' },
               { label: 'History', href: `${dashboardPath}#history`, icon: Star, color: 'purple' },
-            ].map(({ label, href, icon: Icon, color }) => (
+            ]).map(({ label, href, icon: Icon, color }) => (
               <Link key={label} href={href}>
                 <motion.div
                   whileHover={{ y: -3 }}

@@ -60,7 +60,8 @@ export default function Sidebar({ role, userName }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const navItems = NAV_ITEMS[role] ?? NAV_ITEMS.student;
+  const normalizedRole = (role?.toLowerCase() as UserRole) ?? 'student';
+  const navItems = NAV_ITEMS[normalizedRole] ?? NAV_ITEMS.student;
 
   const handleLogout = () => { logout(); router.push('/login'); };
 
