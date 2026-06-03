@@ -8,14 +8,17 @@ import {
   Wifi, WifiOff, Shield, Settings, Check, TrendingUp, Filter,
   Download, FileSpreadsheet, Search, ChevronDown, UserCheck,
   UserCog, BookOpen, Layers, ArrowLeft, Link2, ClipboardList,
+  Clock, MapPin,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import DataTable from '@/components/DataTable';
+import MiniCalendar from '@/components/MiniCalendar';
 import VolunteerAssignment from '@/components/VolunteerAssignment';
 import PendingApprovalsTab from '@/components/PendingApprovalsTab';
-import { apiCall } from '@/lib/api';
+import { apiCall, getCurrentUser } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
+import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
 import type { Event, MemberDirectory, UserRole } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -148,6 +151,10 @@ export default function AdminDashboard() {
   const [deletingModule, setDeletingModule] = useState<string | null>(null);
   const [selectedCourseForEvent, setSelectedCourseForEvent] = useState<any | null>(null);
   const [modulesForEvent, setModulesForEvent] = useState<any[]>([]);
+  const [adminUser, setAdminUser] = useState<any | null>(null);
+  const [eventStatusFilter, setEventStatusFilter] = useState<'all' | 'workshop' | 'course'>('all');
+  const [overviewFilter, setOverviewFilter] = useState<'live' | 'upcoming' | 'completed'>('upcoming');
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | null>(null);
 
   const transformEventsData = (rawEvents: any[]) => rawEvents.map((event: any) => ({
     id: event.id,
@@ -199,9 +206,15 @@ export default function AdminDashboard() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        
+
+        // Fetch current admin user
+        try {
+          const userResp = await getCurrentUser();
+          setAdminUser(userResp?.data?.data || userResp?.data || userResp);
+        } catch (_) { /* ignore */ }
+
         console.log("🔄 Fetching admin dashboard data...");
-        
+
         // Fetch admin dashboard data with retry
         let dashboardResponse;
         try {
@@ -308,6 +321,49 @@ export default function AdminDashboard() {
   });
 
   const totalVolunteers = members.filter((m) => m.role === 'volunteer').length;
+
+  const now = new Date();
+
+  // Event filters
+  const liveEvents = events.filter(e => e.status === 'published' && isEventLive(e.date + 'T' + e.time));
+  const upcomingEventsAll = events.filter(e => e.status === 'published' && isEventUpcoming(e.date + 'T' + e.time));
+  const completedEventsAll = events.filter(e => e.status === 'completed');
+
+  const filterByType = (list: Event[]) => {
+    if (eventStatusFilter === 'workshop') return list.filter(e => !(e as any).courseId);
+    if (eventStatusFilter === 'course') return list.filter(e => !!(e as any).courseId);
+    return list;
+  };
+
+  const overviewEvents = overviewFilter === 'live'
+    ? filterByType(liveEvents)
+    : overviewFilter === 'completed'
+    ? filterByType(completedEventsAll)
+    : filterByType(upcomingEventsAll);
+
+  // New Events: published with 0 registrations
+  const newEvents = events.filter(e => e.status === 'published' && e.registeredCount === 0);
+
+  // Calendar dates
+  const allEventDates = events.filter(e => e.status === 'published').map(e => e.date);
+  const calendarDateEvents = calendarSelectedDate
+    ? events.filter(e => e.date === calendarSelectedDate.toISOString().split('T')[0])
+    : [];
+
+  // 4 Summary stats
+  const coursesCompletedCount = courses.filter(c => c.status === 'ARCHIVED' || (c.endDate && new Date(c.endDate) < now)).length;
+  const workshopsCompletedCount = completedEventsAll.length;
+  const pendingWorkshopsCount = events.filter(e => e.status === 'draft').length;
+  const ongoingCoursesCount = courses.filter(c => c.status === 'ACTIVE').length;
+
+  // Past records table data
+  const pastRecordsData = completedEventsAll.map(e => ({
+    eventName: e.title,
+    courseName: (e as any).course?.name || '—',
+    date: formatDate(e.date),
+    venue: e.venue,
+    attended: e.registeredCount,
+  }));
 
   const openCreate = () => {
     setEditingEvent(null);
@@ -823,10 +879,15 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout>
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold text-white">
-          <span className="gradient-text">Admin</span> Dashboard
-        </h1>
-        <p className="text-sm text-white/50 mt-1">Flourishing Hub · IIT Bombay Wellness Center</p>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-bold text-white">
+            Welcome, <span className="gradient-text">{adminUser?.name?.split(' ')[0] || 'Admin'}</span>
+          </h1>
+          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/30 uppercase tracking-wider">
+            Administrator
+          </span>
+        </div>
+        <p className="text-sm text-white/50">Flourishing Hub · IIT Bombay Wellness Center</p>
       </motion.div>
 
       {/* Stats */}
@@ -850,12 +911,27 @@ export default function AdminDashboard() {
           icon={Calendar} 
           color="yellow" 
         />
-        <StatCard 
-          title="Volunteers" 
-          value={totalVolunteers} 
-          icon={Users} 
-          color="blue" 
+        <StatCard
+          title="Volunteers"
+          value={totalVolunteers}
+          icon={Users}
+          color="blue"
         />
+      </div>
+
+      {/* 4 Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Courses Completed', value: coursesCompletedCount, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+          { label: 'Workshops Completed', value: workshopsCompletedCount, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+          { label: 'Pending Workshops', value: pendingWorkshopsCount, color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
+          { label: 'Ongoing Courses', value: ongoingCoursesCount, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
+        ].map(({ label, value, color, bg, border }) => (
+          <div key={label} className={`${bg} border ${border} rounded-2xl p-4 flex items-center gap-3`}>
+            <div className={`text-2xl font-bold ${color}`}>{value}</div>
+            <div className="text-xs font-medium text-white/60 leading-tight">{label}</div>
+          </div>
+        ))}
       </div>
 
       {/* Tabs */}
@@ -888,6 +964,7 @@ export default function AdminDashboard() {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
+              {/* Today's Events */}
               {todaysEvents.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
@@ -911,24 +988,202 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )}
-              
-              {/* Dashboard Stats */}
-              <div className="grid grid-cols-1 gap-4">
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                  <h4 className="text-sm font-semibold text-white mb-3">Recent Activity</h4>
-                  <div className="space-y-2">
-                    {dashboardData?.recentActivity?.slice(0, 3).map((item: any) => (
-                      <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.02]">
-                        <TrendingUp className="w-4 h-4 text-primary" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-white/80 truncate">{item.userName} registered for {item.eventTitle}</p>
-                          <p className="text-[10px] text-white/35 mt-0.5">{new Date(item.registeredAt).toLocaleDateString()}</p>
+
+              {/* Event Status */}
+              <div className="glass-card rounded-2xl p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                  <h2 className="text-base font-semibold text-white">Event Status</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Workshop / Course filter */}
+                    <div className="flex rounded-xl border border-white/10 overflow-hidden text-xs font-medium">
+                      {(['all', 'workshop', 'course'] as const).map((f, i) => (
+                        <button
+                          key={f}
+                          onClick={() => setEventStatusFilter(f)}
+                          className={`px-3 py-1.5 ${i > 0 ? 'border-l border-white/10' : ''} transition-colors ${
+                            eventStatusFilter === f ? 'bg-primary/20 text-primary' : 'text-white/50 hover:text-white'
+                          }`}
+                        >
+                          {f === 'all' ? 'All' : f === 'workshop' ? 'Workshop' : 'Course'}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Live / Upcoming / Completed filter */}
+                    <div className="flex rounded-xl border border-white/10 overflow-hidden text-xs font-medium">
+                      {([
+                        { val: 'live' as const, label: 'Live', dotCls: 'bg-red-400' },
+                        { val: 'upcoming' as const, label: 'Upcoming', dotCls: 'bg-primary' },
+                        { val: 'completed' as const, label: 'Completed', dotCls: 'bg-gray-400' },
+                      ]).map(({ val, label, dotCls }, i) => (
+                        <button
+                          key={val}
+                          onClick={() => setOverviewFilter(val)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 ${i > 0 ? 'border-l border-white/10' : ''} transition-colors ${
+                            overviewFilter === val ? 'bg-primary/20 text-primary' : 'text-white/50 hover:text-white'
+                          }`}
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full ${dotCls} ${val === 'live' && overviewFilter === 'live' ? 'animate-pulse' : ''}`} />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {overviewEvents.length === 0 ? (
+                  <div className="text-center py-10">
+                    <Calendar className="w-10 h-10 text-white/20 mx-auto mb-3" />
+                    <p className="text-white/40 text-sm">No {overviewFilter} events{eventStatusFilter !== 'all' ? ` (${eventStatusFilter})` : ''}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {overviewEvents.map((event) => {
+                      const live = isEventLive(event.date + 'T' + event.time);
+                      return (
+                        <div
+                          key={event.id}
+                          className={`flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
+                            live ? 'bg-red-500/5 border-red-500/20 hover:bg-red-500/10' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'
+                          }`}
+                          onClick={() => router.push(`/admin/events/${event.id}`)}
+                        >
+                          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${live ? 'bg-red-400 animate-pulse' : event.status === 'completed' ? 'bg-gray-500' : 'bg-primary'}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <p className="text-sm font-semibold text-white">{event.title}</p>
+                              {(event as any).course && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                                  {(event as any).course.name}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+                              <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(event.date)} · {formatTime(event.time)}</span>
+                              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.venue}</span>
+                              <span className="flex items-center gap-1"><Users className="w-3 h-3" />{event.registeredCount}/{event.capacity}</span>
+                            </div>
+                          </div>
+                          {live && (
+                            <span className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30">
+                              <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" /> LIVE
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* New Events */}
+              <div className="glass-card rounded-2xl p-6">
+                <h2 className="text-base font-semibold text-white mb-4">New Events</h2>
+                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                  {newEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex-shrink-0 w-72 rounded-xl overflow-hidden bg-white/[0.03] border border-white/5 hover:scale-105 hover:shadow-xl transition-all duration-300 cursor-pointer group"
+                      onClick={() => router.push(`/admin/events/${event.id}`)}
+                    >
+                      <div className="relative h-36 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                        <BookOpen className="w-10 h-10 text-white/20" />
+                        <div className="absolute top-2 right-2 px-2 py-0.5 rounded-lg bg-black/50 text-white text-[10px] font-medium">
+                          {event.mode}
                         </div>
                       </div>
-                    )) || (
-                      <p className="text-xs text-white/40">No recent activity</p>
-                    )}
+                      <div className="p-4">
+                        <h3 className="text-sm font-semibold text-white mb-1 line-clamp-1">{event.title}</h3>
+                        {(event as any).course && (
+                          <p className="text-[10px] text-primary mb-2">{(event as any).course.name}</p>
+                        )}
+                        <div className="space-y-1 mb-3">
+                          <div className="flex items-center gap-1.5 text-xs text-white/50">
+                            <Clock className="w-3 h-3" /><span>{formatDate(event.date)} · {formatTime(event.time)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-white/50">
+                            <MapPin className="w-3 h-3" /><span>{event.venue}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-white/50">
+                            <Users className="w-3 h-3" /><span>0 / {event.capacity} registered</span>
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          New
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {newEvents.length === 0 && (
+                    <div className="flex-shrink-0 w-72 h-48 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center">
+                      <div className="text-center">
+                        <Calendar className="w-8 h-8 text-white/20 mx-auto mb-2" />
+                        <p className="text-white/40 text-sm">No new events</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Calendar + Past Records */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <div className="glass-card rounded-2xl p-6">
+                    <h2 className="text-base font-semibold text-white mb-4">Past Records</h2>
+                    <DataTable
+                      data={pastRecordsData as unknown as Record<string, unknown>[]}
+                      columns={[
+                        { key: 'eventName', label: 'Event Name', sortable: true },
+                        { key: 'courseName', label: 'Course Name', sortable: true },
+                        { key: 'date', label: 'Date', sortable: true },
+                        { key: 'venue', label: 'Venue' },
+                        { key: 'attended', label: 'Attended' },
+                        {
+                          key: 'status', label: 'Status',
+                          render: () => <span className="badge-green">Completed</span>,
+                        },
+                      ]}
+                      searchKeys={['eventName', 'courseName'] as never[]}
+                      searchPlaceholder="Search records..."
+                      emptyMessage="No completed events yet"
+                    />
                   </div>
+                </div>
+                <div className="space-y-4">
+                  <MiniCalendar
+                    unregisteredEventDates={allEventDates}
+                    events={events}
+                    onDateSelect={(date) => setCalendarSelectedDate(date)}
+                  />
+                  {calendarSelectedDate && calendarDateEvents.length > 0 && (
+                    <div className="glass-card rounded-2xl p-4">
+                      <h4 className="text-sm font-semibold text-white mb-3">
+                        {calendarSelectedDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </h4>
+                      <div className="space-y-2">
+                        {calendarDateEvents.map((event) => (
+                          <div
+                            key={event.id}
+                            className="p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all cursor-pointer"
+                            onClick={() => router.push(`/admin/events/${event.id}`)}
+                          >
+                            <p className="text-xs font-semibold text-white">{event.title}</p>
+                            <div className="flex items-center gap-2 mt-1 text-[10px] text-white/50">
+                              <span>{formatTime(event.time)}</span>
+                              <span>·</span>
+                              <span>{event.venue}</span>
+                              <span>·</span>
+                              <span>{event.registeredCount} registered</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {calendarSelectedDate && calendarDateEvents.length === 0 && (
+                    <div className="glass-card rounded-2xl p-4 text-center">
+                      <p className="text-xs text-white/40">No events on {calendarSelectedDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
