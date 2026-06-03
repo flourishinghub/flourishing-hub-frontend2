@@ -167,11 +167,12 @@ export default function AdminDashboard() {
     mode: (event.meetLink ? 'Online' : 'In Classroom') as 'Online' | 'In Classroom',
     capacity: event.capacity || 0,
     registeredCount: event._count?.registrations || 0,
+    attendedCount: event.attendedCount ?? event._count?.attendances ?? 0,
     status: event.status.toLowerCase() as EventStatus,
     organizer: event.createdBy?.name || 'Admin',
     registrations: event.registrations || [],
     registrationStats: event.registrationStats || {
-      total: 0, students: 0, volunteers: 0,
+      total: 0, attended: 0, students: 0, volunteers: 0,
       fillRate: 0, available: event.capacity || 0
     },
     courseId: event.courseId || null,
@@ -356,13 +357,14 @@ export default function AdminDashboard() {
   const pendingWorkshopsCount = events.filter(e => e.status === 'draft').length;
   const ongoingCoursesCount = courses.filter(c => c.status === 'ACTIVE').length;
 
-  // Past records table data
+  // Past records table data — attended count from real DB attendance records
   const pastRecordsData = completedEventsAll.map(e => ({
     eventName: e.title,
     courseName: (e as any).course?.name || '—',
     date: formatDate(e.date),
     venue: e.venue,
-    attended: e.registeredCount,
+    registered: e.registeredCount,
+    attended: (e as any).attendedCount ?? 0,
   }));
 
   const openCreate = () => {
@@ -989,6 +991,55 @@ export default function AdminDashboard() {
                 </div>
               )}
 
+              {/* New Events */}
+              <div className="glass-card rounded-2xl p-6">
+                <h2 className="text-base font-semibold text-white mb-4">New Events</h2>
+                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                  {newEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex-shrink-0 w-72 rounded-xl overflow-hidden bg-white/[0.03] border border-white/5 hover:scale-105 hover:shadow-xl transition-all duration-300 cursor-pointer group"
+                      onClick={() => router.push(`/admin/events/${event.id}`)}
+                    >
+                      <div className="relative h-36 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                        <BookOpen className="w-10 h-10 text-white/20" />
+                        <div className="absolute top-2 right-2 px-2 py-0.5 rounded-lg bg-black/50 text-white text-[10px] font-medium">
+                          {event.mode}
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="text-sm font-semibold text-white mb-1 line-clamp-1">{event.title}</h3>
+                        {(event as any).course && (
+                          <p className="text-[10px] text-primary mb-2">{(event as any).course.name}</p>
+                        )}
+                        <div className="space-y-1 mb-3">
+                          <div className="flex items-center gap-1.5 text-xs text-white/50">
+                            <Clock className="w-3 h-3" /><span>{formatDate(event.date)} · {formatTime(event.time)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-white/50">
+                            <MapPin className="w-3 h-3" /><span>{event.venue}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-white/50">
+                            <Users className="w-3 h-3" /><span>0 / {event.capacity} registered</span>
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          New
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {newEvents.length === 0 && (
+                    <div className="flex-shrink-0 w-72 h-48 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center">
+                      <div className="text-center">
+                        <Calendar className="w-8 h-8 text-white/20 mx-auto mb-2" />
+                        <p className="text-white/40 text-sm">No new events</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Event Status */}
               <div className="glass-card rounded-2xl p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
@@ -1075,55 +1126,6 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* New Events */}
-              <div className="glass-card rounded-2xl p-6">
-                <h2 className="text-base font-semibold text-white mb-4">New Events</h2>
-                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                  {newEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className="flex-shrink-0 w-72 rounded-xl overflow-hidden bg-white/[0.03] border border-white/5 hover:scale-105 hover:shadow-xl transition-all duration-300 cursor-pointer group"
-                      onClick={() => router.push(`/admin/events/${event.id}`)}
-                    >
-                      <div className="relative h-36 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                        <BookOpen className="w-10 h-10 text-white/20" />
-                        <div className="absolute top-2 right-2 px-2 py-0.5 rounded-lg bg-black/50 text-white text-[10px] font-medium">
-                          {event.mode}
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="text-sm font-semibold text-white mb-1 line-clamp-1">{event.title}</h3>
-                        {(event as any).course && (
-                          <p className="text-[10px] text-primary mb-2">{(event as any).course.name}</p>
-                        )}
-                        <div className="space-y-1 mb-3">
-                          <div className="flex items-center gap-1.5 text-xs text-white/50">
-                            <Clock className="w-3 h-3" /><span>{formatDate(event.date)} · {formatTime(event.time)}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-white/50">
-                            <MapPin className="w-3 h-3" /><span>{event.venue}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-white/50">
-                            <Users className="w-3 h-3" /><span>0 / {event.capacity} registered</span>
-                          </div>
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          New
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  {newEvents.length === 0 && (
-                    <div className="flex-shrink-0 w-72 h-48 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center">
-                      <div className="text-center">
-                        <Calendar className="w-8 h-8 text-white/20 mx-auto mb-2" />
-                        <p className="text-white/40 text-sm">No new events</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Calendar + Past Records */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
@@ -1136,6 +1138,7 @@ export default function AdminDashboard() {
                         { key: 'courseName', label: 'Course Name', sortable: true },
                         { key: 'date', label: 'Date', sortable: true },
                         { key: 'venue', label: 'Venue' },
+                        { key: 'registered', label: 'Registered' },
                         { key: 'attended', label: 'Attended' },
                         {
                           key: 'status', label: 'Status',
