@@ -8,7 +8,7 @@ import {
   Wifi, WifiOff, Shield, Settings, Check, TrendingUp, Filter,
   Download, FileSpreadsheet, Search, ChevronDown, UserCheck,
   UserCog, BookOpen, Layers, ArrowLeft, Link2, ClipboardList,
-  Clock, MapPin,
+  Clock, MapPin, Zap,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
@@ -23,7 +23,7 @@ import type { Event, MemberDirectory, UserRole } from '@/types';
 import toast from 'react-hot-toast';
 
 type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
-type Tab = 'overview' | 'events' | 'courses' | 'members' | 'volunteers' | 'approvals' | 'roles' | 'settings';
+type Tab = 'overview' | 'new-events' | 'event-status' | 'past-records' | 'calendar' | 'events' | 'courses' | 'members' | 'volunteers' | 'approvals' | 'roles' | 'settings';
 type CourseStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 
 interface CourseFormData {
@@ -187,7 +187,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') as Tab;
-      if (hash && ['overview', 'events', 'courses', 'members', 'volunteers', 'approvals', 'roles', 'settings'].includes(hash)) {
+      if (hash && ['overview', 'new-events', 'event-status', 'past-records', 'calendar', 'events', 'courses', 'members', 'volunteers', 'approvals', 'roles', 'settings'].includes(hash)) {
         setActiveTab(hash);
       } else if (!hash) {
         setActiveTab('overview');
@@ -869,7 +869,11 @@ export default function AdminDashboard() {
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Overview', icon: Activity },
-    { id: 'events', label: 'Events', icon: Calendar },
+    { id: 'new-events', label: 'New Events', icon: Zap },
+    { id: 'event-status', label: 'Event Status', icon: TrendingUp },
+    { id: 'past-records', label: 'Past Records', icon: ClipboardList },
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
+    { id: 'events', label: 'Events', icon: Edit2 },
     { id: 'courses', label: 'Courses', icon: BookOpen },
     { id: 'members', label: 'Members', icon: Users },
     { id: 'volunteers', label: 'Volunteers', icon: UserCheck },
@@ -966,7 +970,6 @@ export default function AdminDashboard() {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* Today's Events */}
               {todaysEvents.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
@@ -977,214 +980,234 @@ export default function AdminDashboard() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {todaysEvents.map((event) => (
-                      <div key={event.id} className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                      <div key={event.id} className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/10 transition-all" onClick={() => router.push(`/admin/events/${event.id}`)}>
                         <p className="text-base font-semibold text-white">{event.title}</p>
-                        <p className="text-sm text-white/50 mt-0.5">
-                          {formatTime(event.time)} · {event.venue} · {event.mode}
-                        </p>
-                        <p className="text-xs text-white/40 mt-1">
-                          {event.registeredCount} / {event.capacity} registered
-                        </p>
+                        <p className="text-sm text-white/50 mt-0.5">{formatTime(event.time)} · {event.venue} · {event.mode}</p>
+                        <p className="text-xs text-white/40 mt-1">{event.registeredCount} / {event.capacity} registered</p>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
-              {/* New Events */}
-              <div className="glass-card rounded-2xl p-6">
-                <h2 className="text-base font-semibold text-white mb-4">New Events</h2>
-                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                  {newEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className="flex-shrink-0 w-72 rounded-xl overflow-hidden bg-white/[0.03] border border-white/5 hover:scale-105 hover:shadow-xl transition-all duration-300 cursor-pointer group"
-                      onClick={() => router.push(`/admin/events/${event.id}`)}
-                    >
-                      <div className="relative h-36 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                        <BookOpen className="w-10 h-10 text-white/20" />
-                        <div className="absolute top-2 right-2 px-2 py-0.5 rounded-lg bg-black/50 text-white text-[10px] font-medium">
-                          {event.mode}
+              <div className="grid grid-cols-1 gap-4">
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                  <h4 className="text-sm font-semibold text-white mb-3">Recent Activity</h4>
+                  <div className="space-y-2">
+                    {dashboardData?.recentActivity?.slice(0, 5).map((item: any) => (
+                      <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.02]">
+                        <TrendingUp className="w-4 h-4 text-primary shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-white/80 truncate">{item.userName} registered for {item.eventTitle}</p>
+                          <p className="text-[10px] text-white/35 mt-0.5">{new Date(item.registeredAt).toLocaleDateString()}</p>
                         </div>
                       </div>
-                      <div className="p-4">
-                        <h3 className="text-sm font-semibold text-white mb-1 line-clamp-1">{event.title}</h3>
-                        {(event as any).course && (
-                          <p className="text-[10px] text-primary mb-2">{(event as any).course.name}</p>
-                        )}
-                        <div className="space-y-1 mb-3">
-                          <div className="flex items-center gap-1.5 text-xs text-white/50">
-                            <Clock className="w-3 h-3" /><span>{formatDate(event.date)} · {formatTime(event.time)}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-white/50">
-                            <MapPin className="w-3 h-3" /><span>{event.venue}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-white/50">
-                            <Users className="w-3 h-3" /><span>0 / {event.capacity} registered</span>
-                          </div>
-                        </div>
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          New
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  {newEvents.length === 0 && (
-                    <div className="flex-shrink-0 w-72 h-48 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center">
-                      <div className="text-center">
-                        <Calendar className="w-8 h-8 text-white/20 mx-auto mb-2" />
-                        <p className="text-white/40 text-sm">No new events</p>
-                      </div>
-                    </div>
-                  )}
+                    )) || <p className="text-xs text-white/40">No recent activity</p>}
+                  </div>
                 </div>
               </div>
+            </div>
+          )}
 
-              {/* Event Status */}
-              <div className="glass-card rounded-2xl p-6">
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-                  <h2 className="text-base font-semibold text-white">Event Status</h2>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Workshop / Course filter */}
-                    <div className="flex rounded-xl border border-white/10 overflow-hidden text-xs font-medium">
-                      {(['all', 'workshop', 'course'] as const).map((f, i) => (
-                        <button
-                          key={f}
-                          onClick={() => setEventStatusFilter(f)}
-                          className={`px-3 py-1.5 ${i > 0 ? 'border-l border-white/10' : ''} transition-colors ${
-                            eventStatusFilter === f ? 'bg-primary/20 text-primary' : 'text-white/50 hover:text-white'
-                          }`}
-                        >
-                          {f === 'all' ? 'All' : f === 'workshop' ? 'Workshop' : 'Course'}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Live / Upcoming / Completed filter */}
-                    <div className="flex rounded-xl border border-white/10 overflow-hidden text-xs font-medium">
-                      {([
-                        { val: 'live' as const, label: 'Live', dotCls: 'bg-red-400' },
-                        { val: 'upcoming' as const, label: 'Upcoming', dotCls: 'bg-primary' },
-                        { val: 'completed' as const, label: 'Completed', dotCls: 'bg-gray-400' },
-                      ]).map(({ val, label, dotCls }, i) => (
-                        <button
-                          key={val}
-                          onClick={() => setOverviewFilter(val)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 ${i > 0 ? 'border-l border-white/10' : ''} transition-colors ${
-                            overviewFilter === val ? 'bg-primary/20 text-primary' : 'text-white/50 hover:text-white'
-                          }`}
-                        >
-                          <div className={`w-1.5 h-1.5 rounded-full ${dotCls} ${val === 'live' && overviewFilter === 'live' ? 'animate-pulse' : ''}`} />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+          {/* New Events Tab */}
+          {activeTab === 'new-events' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">New Events</h3>
+                  <p className="text-xs text-white/40 mt-0.5">Published events with no registrations yet</p>
                 </div>
-
-                {overviewEvents.length === 0 ? (
-                  <div className="text-center py-10">
-                    <Calendar className="w-10 h-10 text-white/20 mx-auto mb-3" />
-                    <p className="text-white/40 text-sm">No {overviewFilter} events{eventStatusFilter !== 'all' ? ` (${eventStatusFilter})` : ''}</p>
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{newEvents.length} events</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {newEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className="rounded-xl overflow-hidden bg-white/[0.03] border border-white/5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 cursor-pointer"
+                    onClick={() => router.push(`/admin/events/${event.id}`)}
+                  >
+                    <div className="h-32 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center relative">
+                      <BookOpen className="w-10 h-10 text-white/20" />
+                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-lg bg-black/50 text-white text-[10px] font-medium">{event.mode}</div>
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-emerald-500/80 text-white text-[10px] font-bold">NEW</div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="text-sm font-semibold text-white mb-1 line-clamp-1">{event.title}</h3>
+                      {(event as any).course && <p className="text-[10px] text-primary mb-2">{(event as any).course.name}</p>}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs text-white/50"><Clock className="w-3 h-3" /><span>{formatDate(event.date)} · {formatTime(event.time)}</span></div>
+                        <div className="flex items-center gap-1.5 text-xs text-white/50"><MapPin className="w-3 h-3" /><span>{event.venue}</span></div>
+                        <div className="flex items-center gap-1.5 text-xs text-white/50"><Users className="w-3 h-3" /><span>Capacity: {event.capacity}</span></div>
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {overviewEvents.map((event) => {
-                      const live = isEventLive(event.date + 'T' + event.time);
-                      return (
-                        <div
-                          key={event.id}
-                          className={`flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
-                            live ? 'bg-red-500/5 border-red-500/20 hover:bg-red-500/10' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'
-                          }`}
-                          onClick={() => router.push(`/admin/events/${event.id}`)}
-                        >
-                          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${live ? 'bg-red-400 animate-pulse' : event.status === 'completed' ? 'bg-gray-500' : 'bg-primary'}`} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <p className="text-sm font-semibold text-white">{event.title}</p>
-                              {(event as any).course && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                                  {(event as any).course.name}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
-                              <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(event.date)} · {formatTime(event.time)}</span>
-                              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.venue}</span>
-                              <span className="flex items-center gap-1"><Users className="w-3 h-3" />{event.registeredCount}/{event.capacity}</span>
-                            </div>
-                          </div>
-                          {live && (
-                            <span className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30">
-                              <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" /> LIVE
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
+                ))}
+                {newEvents.length === 0 && (
+                  <div className="col-span-full text-center py-16">
+                    <Zap className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                    <p className="text-white/40">No new events</p>
+                    <p className="text-white/25 text-sm mt-1">All published events have registrations</p>
                   </div>
                 )}
               </div>
+            </div>
+          )}
 
-              {/* Calendar + Past Records */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <div className="glass-card rounded-2xl p-6">
-                    <h2 className="text-base font-semibold text-white mb-4">Past Records</h2>
-                    <DataTable
-                      data={pastRecordsData as unknown as Record<string, unknown>[]}
-                      columns={[
-                        { key: 'eventName', label: 'Event Name', sortable: true },
-                        { key: 'courseName', label: 'Course Name', sortable: true },
-                        { key: 'date', label: 'Date', sortable: true },
-                        { key: 'venue', label: 'Venue' },
-                        { key: 'registered', label: 'Registered' },
-                        { key: 'attended', label: 'Attended' },
-                        {
-                          key: 'status', label: 'Status',
-                          render: () => <span className="badge-green">Completed</span>,
-                        },
-                      ]}
-                      searchKeys={['eventName', 'courseName'] as never[]}
-                      searchPlaceholder="Search records..."
-                      emptyMessage="No completed events yet"
-                    />
+          {/* Event Status Tab */}
+          {activeTab === 'event-status' && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Event Status</h3>
+                  <p className="text-xs text-white/40 mt-0.5">Live, upcoming and completed events</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex rounded-xl border border-white/10 overflow-hidden text-xs font-medium">
+                    {(['all', 'workshop', 'course'] as const).map((f, i) => (
+                      <button key={f} onClick={() => setEventStatusFilter(f)}
+                        className={`px-3 py-1.5 ${i > 0 ? 'border-l border-white/10' : ''} transition-colors ${eventStatusFilter === f ? 'bg-primary/20 text-primary' : 'text-white/50 hover:text-white'}`}>
+                        {f === 'all' ? 'All' : f === 'workshop' ? 'Workshop' : 'Course'}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex rounded-xl border border-white/10 overflow-hidden text-xs font-medium">
+                    {([
+                      { val: 'live' as const, label: 'Live', dotCls: 'bg-red-400' },
+                      { val: 'upcoming' as const, label: 'Upcoming', dotCls: 'bg-primary' },
+                      { val: 'completed' as const, label: 'Completed', dotCls: 'bg-gray-400' },
+                    ]).map(({ val, label, dotCls }, i) => (
+                      <button key={val} onClick={() => setOverviewFilter(val)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 ${i > 0 ? 'border-l border-white/10' : ''} transition-colors ${overviewFilter === val ? 'bg-primary/20 text-primary' : 'text-white/50 hover:text-white'}`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${dotCls} ${val === 'live' && overviewFilter === 'live' ? 'animate-pulse' : ''}`} />
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <div className="space-y-4">
+              </div>
+              {overviewEvents.length === 0 ? (
+                <div className="text-center py-16">
+                  <Calendar className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                  <p className="text-white/40">No {overviewFilter} events{eventStatusFilter !== 'all' ? ` (${eventStatusFilter})` : ''}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {overviewEvents.map((event) => {
+                    const live = isEventLive(event.date + 'T' + event.time);
+                    return (
+                      <div key={event.id}
+                        className={`flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${live ? 'bg-red-500/5 border-red-500/20 hover:bg-red-500/10' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'}`}
+                        onClick={() => router.push(`/admin/events/${event.id}`)}>
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${live ? 'bg-red-400 animate-pulse' : event.status === 'completed' ? 'bg-gray-500' : 'bg-primary'}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <p className="text-sm font-semibold text-white">{event.title}</p>
+                            {(event as any).course && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{(event as any).course.name}</span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(event.date)} · {formatTime(event.time)}</span>
+                            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.venue}</span>
+                            <span className="flex items-center gap-1"><Users className="w-3 h-3" />{event.registeredCount}/{event.capacity}</span>
+                          </div>
+                        </div>
+                        {live && (
+                          <span className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30">
+                            <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" /> LIVE
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Past Records Tab */}
+          {activeTab === 'past-records' && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Past Records</h3>
+                <p className="text-xs text-white/40 mt-0.5">Completed events with attendance data from database</p>
+              </div>
+              <DataTable
+                data={pastRecordsData as unknown as Record<string, unknown>[]}
+                columns={[
+                  { key: 'eventName', label: 'Event Name', sortable: true },
+                  { key: 'courseName', label: 'Course Name', sortable: true },
+                  { key: 'date', label: 'Date', sortable: true },
+                  { key: 'venue', label: 'Venue' },
+                  { key: 'registered', label: 'Registered' },
+                  { key: 'attended', label: 'Attended' },
+                  { key: 'status', label: 'Status', render: () => <span className="badge-green">Completed</span> },
+                ]}
+                searchKeys={['eventName', 'courseName'] as never[]}
+                searchPlaceholder="Search records..."
+                emptyMessage="No completed events yet"
+              />
+            </div>
+          )}
+
+          {/* Calendar Tab */}
+          {activeTab === 'calendar' && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Calendar</h3>
+                <p className="text-xs text-white/40 mt-0.5">Click on a date to see event details</p>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1">
                   <MiniCalendar
                     unregisteredEventDates={allEventDates}
                     events={events}
                     onDateSelect={(date) => setCalendarSelectedDate(date)}
                   />
-                  {calendarSelectedDate && calendarDateEvents.length > 0 && (
-                    <div className="glass-card rounded-2xl p-4">
-                      <h4 className="text-sm font-semibold text-white mb-3">
-                        {calendarSelectedDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+                <div className="lg:col-span-2">
+                  {calendarSelectedDate ? (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold text-white">
+                        Events on {calendarSelectedDate.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                       </h4>
-                      <div className="space-y-2">
-                        {calendarDateEvents.map((event) => (
-                          <div
-                            key={event.id}
-                            className="p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all cursor-pointer"
-                            onClick={() => router.push(`/admin/events/${event.id}`)}
-                          >
-                            <p className="text-xs font-semibold text-white">{event.title}</p>
-                            <div className="flex items-center gap-2 mt-1 text-[10px] text-white/50">
-                              <span>{formatTime(event.time)}</span>
-                              <span>·</span>
-                              <span>{event.venue}</span>
-                              <span>·</span>
-                              <span>{event.registeredCount} registered</span>
+                      {calendarDateEvents.length > 0 ? (
+                        calendarDateEvents.map((event) => (
+                          <div key={event.id}
+                            className="p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-primary/30 hover:bg-white/[0.05] transition-all cursor-pointer"
+                            onClick={() => router.push(`/admin/events/${event.id}`)}>
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-white mb-1">{event.title}</p>
+                                {(event as any).course && (
+                                  <p className="text-[10px] text-primary mb-2">{(event as any).course.name}</p>
+                                )}
+                                <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+                                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatTime(event.time)}</span>
+                                  <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.venue}</span>
+                                  <span className="flex items-center gap-1"><Users className="w-3 h-3" />{event.registeredCount}/{event.capacity} registered</span>
+                                </div>
+                              </div>
+                              <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                                event.status === 'published' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' :
+                                event.status === 'completed' ? 'bg-gray-500/15 text-gray-400 border-gray-500/30' :
+                                'bg-yellow-500/15 text-yellow-400 border-yellow-500/30'
+                              }`}>{event.status}</span>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-12 rounded-xl border border-dashed border-white/10">
+                          <Calendar className="w-10 h-10 text-white/20 mx-auto mb-3" />
+                          <p className="text-white/40">No events on this date</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {calendarSelectedDate && calendarDateEvents.length === 0 && (
-                    <div className="glass-card rounded-2xl p-4 text-center">
-                      <p className="text-xs text-white/40">No events on {calendarSelectedDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                  ) : (
+                    <div className="flex items-center justify-center h-full min-h-[200px] rounded-xl border border-dashed border-white/10">
+                      <div className="text-center">
+                        <Calendar className="w-10 h-10 text-white/20 mx-auto mb-3" />
+                        <p className="text-white/40 text-sm">Select a date to view events</p>
+                      </div>
                     </div>
                   )}
                 </div>
