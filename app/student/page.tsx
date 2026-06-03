@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Calendar, CheckCircle, Clock, MapPin, Star, Users } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, MapPin, Star, Users, BookOpen } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
@@ -61,6 +61,7 @@ export default function StudentDashboard() {
   const [user, setUser] = useState<AuthPayload | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [registeredEvents, setRegisteredEvents] = useState<string[]>([]);
   const router = useRouter();
@@ -122,11 +123,11 @@ export default function StudentDashboard() {
         localStorage.setItem("user", JSON.stringify(transformedUser));
         console.log("✅ Fresh user data loaded and cached:", transformedUser.name);
 
-        // 🚀 OPTIMIZATION: Fetch both events and registrations in parallel
-        console.log("🔄 Fetching events and registrations in parallel...");
-        const [eventsResponse, registrationsResponse] = await Promise.all([
+        // Fetch events, registrations and attendance in parallel
+        const [eventsResponse, registrationsResponse, attendanceResponse] = await Promise.all([
           apiCall('/events'),
-          apiCall('/registrations/me')
+          apiCall('/registrations/me'),
+          apiCall('/event-operations/attendance/me').catch(() => ({ data: [] }))
         ]);
         
         console.log("📦 Student events received:", eventsResponse);
@@ -173,6 +174,7 @@ export default function StudentDashboard() {
         // Process registrations data
         const userRegistrations = registrationsResponse.data || [];
         setRegistrations(userRegistrations);
+        setAttendanceRecords(attendanceResponse.data || []);
         
         // 🔥 FIX: Use safe registration utilities (eliminates duplicate logic)
         const registrationMetrics = getRegistrationMetrics(userRegistrations);
@@ -550,6 +552,56 @@ export default function StudentDashboard() {
               searchPlaceholder="Search records..."
               emptyMessage="No past records"
             />
+          </div>
+
+          {/* Attendance */}
+          <div className="glass-card rounded-2xl p-6" id="attendance">
+            <h2 className="text-base font-semibold text-white mb-4">Attendance</h2>
+            {attendanceRecords.length === 0 ? (
+              <div className="text-center py-8">
+                <CheckCircle className="w-10 h-10 text-white/20 mx-auto mb-3" />
+                <p className="text-white/40 text-sm">No attendance records yet</p>
+                <p className="text-white/25 text-xs mt-1">Attend events to see your attendance here</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Header */}
+                <div className="grid grid-cols-4 gap-3 px-3 pb-2 border-b border-white/5">
+                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Course</p>
+                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Workshop</p>
+                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Date & Time</p>
+                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Status</p>
+                </div>
+                {attendanceRecords.map((record: any, i: number) => {
+                  const eventDate = new Date(record.date);
+                  const isPresent = record.status === 'PRESENT';
+                  const isExcused = record.status === 'EXCUSED';
+                  return (
+                    <div key={record.eventId + i} className="grid grid-cols-4 gap-3 items-center p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <BookOpen className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <p className="text-xs text-white/70 truncate">{record.courseName || 'Open Workshop'}</p>
+                      </div>
+                      <p className="text-xs text-white font-medium truncate">{record.eventTitle}</p>
+                      <div>
+                        <p className="text-xs text-white/70">{eventDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                        <p className="text-[10px] text-white/40 mt-0.5">{eventDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>
+                      </div>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold w-fit ${
+                        isPresent
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          : isExcused
+                          ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'
+                          : 'bg-red-500/15 text-red-400 border border-red-500/30'
+                      }`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${isPresent ? 'bg-emerald-400' : isExcused ? 'bg-yellow-400' : 'bg-red-400'}`} />
+                        {isPresent ? 'Present' : isExcused ? 'Excused' : 'Absent'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

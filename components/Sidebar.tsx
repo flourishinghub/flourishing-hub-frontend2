@@ -8,7 +8,7 @@ import type { UserRole } from '@/types';
 import {
   LayoutDashboard, Calendar, Clock, History, Users, Video,
   Settings, Heart, ChevronLeft, ChevronRight, ClipboardList,
-  Sparkles, LogOut, UserCheck, ShieldCheck, FileText, User, Compass,
+  Sparkles, LogOut, UserCheck, ShieldCheck, FileText, User, Compass, CheckCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { logout } from '@/lib/auth';
@@ -20,6 +20,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Home', href: '/home', icon: Sparkles },
     { label: 'Dashboard', href: '/student', icon: LayoutDashboard },
     { label: 'Events', href: '/student/events', icon: Calendar },
+    { label: 'Attendance', href: '/student#attendance', icon: CheckCircle },
     { label: 'Videos', href: '/videos', icon: Video },
     { label: 'Profile', href: '/student/profile', icon: User },
     { label: 'History', href: '/student#history', icon: History },

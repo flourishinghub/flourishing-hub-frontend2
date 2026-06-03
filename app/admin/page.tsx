@@ -328,7 +328,9 @@ export default function AdminDashboard() {
   // Event filters
   const liveEvents = events.filter(e => e.status === 'published' && isEventLive(e.date + 'T' + e.time));
   const upcomingEventsAll = events.filter(e => e.status === 'published' && isEventUpcoming(e.date + 'T' + e.time));
-  const completedEventsAll = events.filter(e => e.status === 'completed');
+  const completedEventsAll = events.filter(e =>
+    e.status === 'completed' || (e.date < now.toISOString().split('T')[0])
+  );
 
   const filterByType = (list: Event[]) => {
     if (eventStatusFilter === 'workshop') return list.filter(e => !(e as any).courseId);
@@ -1033,11 +1035,24 @@ export default function AdminDashboard() {
                     <div className="p-4">
                       <h3 className="text-sm font-semibold text-white mb-1 line-clamp-1">{event.title}</h3>
                       {(event as any).course && <p className="text-[10px] text-primary mb-2">{(event as any).course.name}</p>}
-                      <div className="space-y-1">
+                      <div className="space-y-1 mb-3">
                         <div className="flex items-center gap-1.5 text-xs text-white/50"><Clock className="w-3 h-3" /><span>{formatDate(event.date)} · {formatTime(event.time)}</span></div>
                         <div className="flex items-center gap-1.5 text-xs text-white/50"><MapPin className="w-3 h-3" /><span>{event.venue}</span></div>
                         <div className="flex items-center gap-1.5 text-xs text-white/50"><Users className="w-3 h-3" /><span>Capacity: {event.capacity}</span></div>
                       </div>
+                      {event.registeredCount > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          {event.registeredCount} Registered
+                        </span>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); router.push(`/admin/events/${event.id}`); }}
+                          className="w-full py-1.5 rounded-lg text-xs font-bold text-white/40 bg-white/[0.03] border border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+                        >
+                          Click to Register
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1108,7 +1123,13 @@ export default function AdminDashboard() {
                           <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
                             <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(event.date)} · {formatTime(event.time)}</span>
                             <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.venue}</span>
-                            <span className="flex items-center gap-1"><Users className="w-3 h-3" />{event.registeredCount}/{event.capacity}</span>
+                            {event.registeredCount > 0 ? (
+                              <span className="flex items-center gap-1 font-semibold text-emerald-400">
+                                <Users className="w-3 h-3" />{event.registeredCount}/{event.capacity} Registered
+                              </span>
+                            ) : (
+                              <span className="font-bold text-white/30 italic">Click to Register</span>
+                            )}
                           </div>
                         </div>
                         {live && (
