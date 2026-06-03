@@ -66,7 +66,7 @@ export default function EventDetailPage() {
           date: startDate.toISOString().split('T')[0],
           time: startDate.toTimeString().slice(0, 5),
           venue: eventData.venue || 'TBD',
-          mode: eventData.meetLink ? 'Online' : 'Offline',
+          mode: eventData.meetLink ? 'Online' : 'In Classroom',
           capacity: eventData.capacity || 0,
           registeredCount: eventData._count?.registrations || 0,
           status: eventData.status?.toLowerCase() || 'draft',

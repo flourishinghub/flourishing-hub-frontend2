@@ -14,6 +14,8 @@ interface EventCardProps {
   onVolunteer?: (eventId: string) => void;
   isVolunteered?: boolean;
   compact?: boolean;
+  onClick?: () => void;
+  hideActions?: boolean;
 }
 
 const statusColors = {
@@ -31,6 +33,8 @@ export default function EventCard({
   onVolunteer,
   isVolunteered = false,
   compact = false,
+  onClick,
+  hideActions = false,
 }: EventCardProps) {
   const fillPercent = Math.round((event.registeredCount / event.capacity) * 100);
 
@@ -38,7 +42,8 @@ export default function EventCard({
     <motion.div
       whileHover={{ y: -3 }}
       transition={{ duration: 0.2 }}
-      className={`glass-card rounded-2xl overflow-hidden ${compact ? 'p-4' : 'p-5'}`}
+      onClick={onClick}
+      className={`glass-card rounded-2xl overflow-hidden ${compact ? 'p-4' : 'p-5'} ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <h3 className={`font-semibold text-white leading-tight ${compact ? 'text-sm' : 'text-base'}`}>
@@ -96,34 +101,42 @@ export default function EventCard({
         </div>
       )}
 
-      <div className="flex gap-2">
-        {onRegister && (
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={() => onRegister(event.id)}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
-              isRegistered
-                ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
-                : 'btn-primary'
-            }`}
-          >
-            {isRegistered ? 'Registered ✓' : registerLabel}
-          </motion.button>
-        )}
-        {showVolunteerButton && onVolunteer && (
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={() => onVolunteer(event.id)}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all duration-200 ${
-              isVolunteered
-                ? 'bg-accent/20 text-accent border-accent/30'
-                : 'bg-white/5 text-white/70 border-white/10 hover:bg-accent/10 hover:text-accent hover:border-accent/30'
-            }`}
-          >
-            {isVolunteered ? '✓ Volunteered' : 'Volunteer'}
-          </motion.button>
-        )}
-      </div>
+      {!hideActions && (
+        <div className="flex gap-2">
+          {onRegister && (
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRegister(event.id);
+              }}
+              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                isRegistered
+                  ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
+                  : 'btn-primary'
+              }`}
+            >
+              {isRegistered ? 'Registered ✓' : registerLabel}
+            </motion.button>
+          )}
+          {showVolunteerButton && onVolunteer && (
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onVolunteer(event.id);
+              }}
+              className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all duration-200 ${
+                isVolunteered
+                  ? 'bg-accent/20 text-accent border-accent/30'
+                  : 'bg-white/5 text-white/70 border-white/10 hover:bg-accent/10 hover:text-accent hover:border-accent/30'
+              }`}
+            >
+              {isVolunteered ? '✓ Volunteered' : 'Volunteer'}
+            </motion.button>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }

@@ -13,6 +13,7 @@ import { getCurrentUser, apiCall } from '@/lib/api';
 import { mockEvents } from '@/lib/mockData';
 import DashboardLayout from '@/components/DashboardLayout';
 import EventCard from '@/components/EventCard';
+import FlourishingTagline from '@/components/FlourishingTagline';
 import type { AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -64,6 +65,7 @@ export default function HomePage() {
         };
         
         setUser(transformedUser);
+        localStorage.setItem('user', JSON.stringify(transformedUser));
 
         // Fetch real events from backend
         console.log("🔄 Fetching events from backend...");
@@ -81,7 +83,7 @@ export default function HomePage() {
               date: startDate.toISOString().split('T')[0],
               time: startDate.toTimeString().slice(0, 5),
               venue: event.venue || 'TBD',
-              mode: event.meetLink ? 'Online' : 'Offline',
+              mode: event.meetLink ? 'Online' : 'In Classroom',
               capacity: event.capacity || 0,
               registeredCount: event._count?.registrations || 0,
               status: event.status?.toLowerCase() || 'draft', // Keep original status from backend
@@ -96,7 +98,7 @@ export default function HomePage() {
               date: '2026-05-04', // Fallback date
               time: '10:00', // Fallback time
               venue: event.venue || 'TBD',
-              mode: 'Offline',
+              mode: 'In Classroom',
               capacity: 0,
               registeredCount: 0,
               status: 'draft',
@@ -273,12 +275,30 @@ export default function HomePage() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 flex items-start justify-between gap-6 flex-wrap">
             <div>
-              <p className="text-white/50 text-sm mb-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+              <p className="text-white/50 text-sm mb-1">
+                {user.role === 'instructor' 
+                  ? (() => {
+                      const date = new Date();
+                      const month = date.toLocaleDateString('en-US', { month: 'short' });
+                      const day = date.getDate();
+                      const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+                      const year = date.getFullYear();
+                      return `${month} ${day}, ${weekday}, ${year}`;
+                    })()
+                  : format(new Date(), 'EEEE, MMMM d, yyyy')
+                }
+              </p>
               <h1 className="text-3xl font-black text-white mb-2">
                 Welcome back, <span className="gradient-text">{user.name.split(' ')[0]}</span>! 👋
               </h1>
               <p className="text-white/50 text-sm">
-                {roleLabel} · {user.department ?? 'IIT Bombay'}
+                {roleLabel}
+                {user.department && 
+                 user.role === 'instructor' && 
+                 (user.department === 'Humanities and Social Sciences' || 
+                  user.department === 'Humanities & Social Sciences') 
+                  ? '' 
+                  : user.department ? ` · ${user.department}` : ' · IIT Bombay'}
               </p>
             </div>
             <motion.button
@@ -372,14 +392,13 @@ export default function HomePage() {
                       </motion.button>
                     )}
                     {(user.role === 'instructor' || user.role === 'associate-instructor') && (
-                      <Link href={dashboardPath}>
-                        <motion.button
-                          whileTap={{ scale: 0.97 }}
-                          className="btn-primary px-6 py-3 rounded-xl font-semibold text-sm"
-                        >
-                          View Session
-                        </motion.button>
-                      </Link>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => router.push(dashboardPath)}
+                        className="btn-primary px-6 py-3 rounded-xl font-semibold text-sm"
+                      >
+                        View Details
+                      </motion.button>
                     )}
                     {user.role === 'admin' && (
                       <Link href="/admin#events">
@@ -397,6 +416,9 @@ export default function HomePage() {
             </motion.div>
           </div>
         )}
+
+        {/* Flourishing Hub Tagline */}
+        <FlourishingTagline />
 
         {/* Upcoming Events */}
         {upcomingEvents.length > 0 && (
@@ -417,6 +439,14 @@ export default function HomePage() {
                     showVolunteerButton={user.role === 'volunteer'}
                     onVolunteer={user.role === 'volunteer' ? (eventId) => handleVolunteer(eventId, event.title) : undefined}
                     isVolunteered={volunteerStates[event.id]}
+                    hideActions={user.role === 'instructor' || user.role === 'associate-instructor'}
+                    onClick={
+                      user.role === 'instructor' || user.role === 'associate-instructor'
+                        ? () => {
+                            toast('Workshop details page coming soon!', { icon: '📋' });
+                          }
+                        : undefined
+                    }
                   />
                 </motion.div>
               ))}
@@ -428,12 +458,17 @@ export default function HomePage() {
         <div>
           <h2 className="text-sm font-semibold text-white/70 uppercase tracking-wider mb-4">Quick Access</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
+            {(user.role === 'admin' ? [
+              { label: 'Admin Panel', href: '/admin', icon: Sparkles, color: 'primary' },
+              { label: 'Events', href: '/admin#events', icon: Calendar, color: 'teal' },
+              { label: 'Members', href: '/admin#members', icon: Users, color: 'yellow' },
+              { label: 'Courses', href: '/admin#courses', icon: Star, color: 'purple' },
+            ] : [
               { label: 'My Dashboard', href: dashboardPath, icon: Sparkles, color: 'primary' },
               { label: 'All Events', href: `${dashboardPath}#events`, icon: Calendar, color: 'teal' },
               { label: 'Schedule', href: `${dashboardPath}#schedule`, icon: Clock, color: 'yellow' },
               { label: 'History', href: `${dashboardPath}#history`, icon: Star, color: 'purple' },
-            ].map(({ label, href, icon: Icon, color }) => (
+            ]).map(({ label, href, icon: Icon, color }) => (
               <Link key={label} href={href}>
                 <motion.div
                   whileHover={{ y: -3 }}

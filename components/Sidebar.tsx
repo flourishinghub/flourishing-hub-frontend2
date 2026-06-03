@@ -17,24 +17,29 @@ interface NavItem { label: string; href: string; icon: React.ElementType }
 
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   student: [
+    { label: 'Home', href: '/home', icon: Sparkles },
     { label: 'Dashboard', href: '/student', icon: LayoutDashboard },
     { label: 'Events', href: '/student/events', icon: Calendar },
-    { label: 'Explore FH', href: '/student/explore', icon: Compass },
+    { label: 'Videos', href: '/videos', icon: Video },
     { label: 'Profile', href: '/student/profile', icon: User },
     { label: 'History', href: '/student#history', icon: History },
   ],
   instructor: [
+    { label: 'Home', href: '/home', icon: Sparkles },
     { label: 'Dashboard', href: '/instructor', icon: LayoutDashboard },
     { label: 'My Sessions', href: '/instructor#sessions', icon: Video },
+    { label: 'Videos', href: '/videos', icon: Video },
     { label: 'Schedule', href: '/instructor#schedule', icon: Clock },
+    { label: 'Profile', href: '/instructor/profile', icon: User },
   ],
   admin: [
-    { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { label: 'Events', href: '/admin#events', icon: Calendar },
+    { label: 'Videos', href: '/videos', icon: Video },
   ],
   volunteer: [
     { label: 'Dashboard', href: '/volunteer', icon: LayoutDashboard },
     { label: 'Events', href: '/volunteer#events', icon: Calendar },
+    { label: 'Videos', href: '/videos', icon: Video },
     { label: 'Schedule', href: '/volunteer#schedule', icon: Clock },
     { label: 'Volunteer', href: '/volunteer#volunteer', icon: Heart },
     { label: 'History', href: '/volunteer#history', icon: History },
@@ -43,6 +48,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard', href: '/associate-instructor', icon: LayoutDashboard },
     { label: 'Attendance', href: '/associate-instructor#attendance', icon: UserCheck },
     { label: 'Volunteers', href: '/associate-instructor#volunteers', icon: Users },
+    { label: 'Videos', href: '/videos', icon: Video },
     { label: 'Quiz', href: '/associate-instructor#quiz', icon: ClipboardList },
     { label: 'Registrants', href: '/associate-instructor#registrants', icon: FileText },
   ],
@@ -54,7 +60,8 @@ export default function Sidebar({ role, userName }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const navItems = NAV_ITEMS[role] ?? NAV_ITEMS.student;
+  const normalizedRole = (role?.toLowerCase() as UserRole) ?? 'student';
+  const navItems = NAV_ITEMS[normalizedRole] ?? NAV_ITEMS.student;
 
   const handleLogout = () => { logout(); router.push('/login'); };
 
@@ -110,6 +117,15 @@ export default function Sidebar({ role, userName }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={(e) => {
+                if (item.href.includes('#')) {
+                  const [path, hash] = item.href.split('#');
+                  if (window.location.pathname === path) {
+                    e.preventDefault();
+                    window.location.hash = hash;
+                  }
+                }
+              }}
               className={cn('sidebar-item', isActive && 'active', collapsed && 'justify-center px-2')}
               title={collapsed ? item.label : undefined}
             >

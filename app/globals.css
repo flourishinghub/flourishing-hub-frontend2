@@ -219,6 +219,13 @@
     border: 1px solid rgba(108, 99, 255, 0.3);
   }
 
+  .badge-blue {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+    background: rgba(59, 130, 246, 0.15);
+    color: #3B82F6;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+  }
+
   .badge-yellow {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
     background: rgba(245, 158, 11, 0.15);
@@ -256,6 +263,27 @@
 
   .input-dark::placeholder {
     color: rgba(255, 255, 255, 0.3);
+  }
+
+  /* Select dropdown styling */
+  select.input-dark {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' fill-opacity='0.5' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2.5rem;
+  }
+
+  select.input-dark option {
+    background-color: #1a1a2e;
+    color: white;
+    padding: 0.5rem;
+  }
+
+  select.input-dark option:hover,
+  select.input-dark option:checked {
+    background-color: #6c63ff;
+    color: white;
   }
 
   .table-dark th {

@@ -16,6 +16,18 @@ const DEPARTMENTS = [
   'Student Wellness Center', 'Other',
 ];
 
+// Field component defined outside to prevent re-creation on each render
+const Field = ({ label, icon: Icon, error, children }: { label: string; icon: React.ElementType; error?: string; children: React.ReactNode }) => (
+  <div>
+    <label className="text-xs font-medium text-white/60 mb-1.5 block">{label}</label>
+    <div className="relative">
+      <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 z-10" />
+      {children}
+    </div>
+    {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+  </div>
+);
+
 export default function SignupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -42,7 +54,10 @@ export default function SignupPage() {
     if (!form.batch.trim()) e.batch = 'Batch is required';
     if (!form.programme) e.programme = 'Programme is required';
     if (!form.department) e.department = 'Department is required';
-    if (!form.email.endsWith('@iitb.ac.in')) e.email = 'Only @iitb.ac.in emails allowed';
+    if (!form.email.trim()) e.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Invalid email format';
+    // Both IITB and non-IITB emails are allowed
+    // IITB emails get OTP verification, non-IITB emails require admin approval
     
     // Backend password validation requirements
     if (form.password.length < 8) e.password = 'Password must be at least 8 characters';
@@ -94,22 +109,19 @@ export default function SignupPage() {
         throw new Error(data.message || 'Registration failed');
       }
 
-      // Store token (single source of truth)
-      if (data.data?.accessToken) {
-        localStorage.setItem("token", data.data.accessToken);
-        
-        // Store in cookie for middleware (hardened version with proper SameSite)
-        document.cookie = `token=${data.data.accessToken}; path=/; max-age=86400; SameSite=Lax; Secure=${location.protocol === 'https:'}`;
-        
-        toast.success('Account created! Welcome to Flourishing Hub!');
-        
-        // Small delay to prevent race condition
-        setTimeout(() => {
-          window.location.href = '/home';
-        }, 100);
+      // Check if user needs OTP verification or admin approval
+      if (data.data?.requiresOTP) {
+        // IITB email - redirect to OTP verification
+        toast.success('Registration successful! Please check your email for OTP.');
+        router.push(`/verify-email?userId=${data.data.userId}&email=${encodeURIComponent(data.data.email)}`);
+      } else if (data.data?.requiresApproval) {
+        // Non-IITB email - show approval pending message
+        toast.success('Account created! Pending admin approval.');
+        router.push(`/approval-pending?email=${encodeURIComponent(data.data.email)}`);
       } else {
         // Fallback
-        window.location.href = '/home';
+        toast.success('Registration successful!');
+        router.push('/login');
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');
@@ -117,17 +129,6 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
-
-  const Field = ({ label, icon: Icon, error, children }: { label: string; icon: React.ElementType; error?: string; children: React.ReactNode }) => (
-    <div>
-      <label className="text-xs font-medium text-white/60 mb-1.5 block">{label}</label>
-      <div className="relative">
-        <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 z-10" />
-        {children}
-      </div>
-      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
-    </div>
-  );
 
   return (
     <div className="min-h-screen flex bg-dark">

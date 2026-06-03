@@ -22,32 +22,40 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState('');
   const [wordIndex, setWordIndex] = useState(0);
   const router = useRouter();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 
   useEffect(() => {
     const t = setInterval(() => setWordIndex((i) => (i + 1) % WORDS.length), 2500);
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    // Show success message if redirected from email verification
+    if (searchParams?.get('verified') === 'true') {
+      toast.success('Email verified successfully! You can now login.');
+    }
+  }, [searchParams]);
+
   const validateEmail = (val: string) => {
     if (!val) { setEmailError(''); return; }
     if (!val.includes('@')) { setEmailError('Enter a valid email'); return; }
-    setEmailError(val.endsWith('@iitb.ac.in') ? '' : 'Only IITB emails allowed');
+    setEmailError(''); // All emails allowed
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) { toast.error('Please fill in all fields'); return; }
     
-    // Validate IITB email
-    if (!email.endsWith('@iitb.ac.in')) {
-      toast.error('Only IITB emails allowed');
-      return;
-    }
+    // All emails allowed - no validation needed
     
     if (emailError) { toast.error('Fix email errors first'); return; }
     setLoading(true);
     
     try {
+      // Add timeout for slow backend (Render cold start)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -57,7 +65,10 @@ export default function LoginPage() {
           email,
           password,
         }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -88,7 +99,11 @@ export default function LoginPage() {
         router.push('/home');
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Login failed');
+      if (err instanceof Error && err.name === 'AbortError') {
+        toast.error('Request timeout. Backend might be starting up. Please try again.');
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -176,9 +191,6 @@ export default function LoginPage() {
                 />
               </div>
               {emailError && <p className="text-xs text-red-400 mt-1">{emailError}</p>}
-              {email.endsWith('@iitb.ac.in') && !emailError && (
-                <p className="text-xs text-emerald-400 mt-1">✓ Valid IITB email</p>
-              )}
             </div>
 
             <div>

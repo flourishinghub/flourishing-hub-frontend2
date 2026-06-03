@@ -16,6 +16,8 @@ export interface CompletedEvent {
   date: string;
   venue: string;
   role?: string;
+  instructorName?: string;
+  engagementType?: 'VOLUNTEERING' | 'ATTENDING';
   marks?: number;
   maxMarks?: number;
   starRating?: number;
