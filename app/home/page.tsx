@@ -10,16 +10,11 @@ import {
 import Link from 'next/link';
 import { getRolePath, formatDate, formatTime } from '@/lib/utils';
 import { getCurrentUser, apiCall } from '@/lib/api';
-import { mockEvents, studentNotifications, volunteerNotifications } from '@/lib/mockData';
-import Navbar from '@/components/Navbar';
+import { mockEvents } from '@/lib/mockData';
+import DashboardLayout from '@/components/DashboardLayout';
 import EventCard from '@/components/EventCard';
-import type { AuthPayload, Notification } from '@/types';
+import type { AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
-
-function getNotifications(role: string): Notification[] {
-  if (role === 'volunteer') return volunteerNotifications;
-  return studentNotifications;
-}
 
 export default function HomePage() {
   const [user, setUser] = useState<AuthPayload | null>(null);
@@ -28,13 +23,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [volunteerStates, setVolunteerStates] = useState<Record<string, boolean>>({});
   const router = useRouter();
-
-  // Clean logout function
-  const logout = () => {
-    localStorage.removeItem("token");
-    document.cookie = "token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
-    router.push("/login");
-  };
 
   // Fetch user data and events from backend API
   useEffect(() => {
@@ -196,8 +184,6 @@ export default function HomePage() {
   console.log("📊 Total events loaded:", events.length);
   console.log("✅ User registrations:", registrations.length);
   
-  const notifications = getNotifications(user.role);
-
   const roleLabel = {
     student: 'Student',
     instructor: 'Instructor',
@@ -275,10 +261,8 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-dark flex flex-col">
-      <Navbar user={user} notifications={notifications} onLogout={logout} />
-
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8 space-y-8">
+    <DashboardLayout user={user}>
+      <div className="max-w-6xl mx-auto w-full space-y-8">
         {/* Hero */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -469,7 +453,7 @@ export default function HomePage() {
             ))}
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
