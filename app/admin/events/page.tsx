@@ -110,8 +110,9 @@ export default function AdminEventsPage() {
         setEvents(transformEventsData(eventsResponse.data));
         setCourses(coursesResponse.data || []);
         const allMembers = membersResponse.data || [];
-        setInstructors(allMembers.filter((m: any) => m.role === 'instructor'));
-        setAssociateInstructors(allMembers.filter((m: any) => m.role === 'associate-instructor'));
+        const normalizeRole = (r: string) => r?.toLowerCase().replace(/_/g, '-');
+        setInstructors(allMembers.filter((m: any) => normalizeRole(m.role) === 'instructor'));
+        setAssociateInstructors(allMembers.filter((m: any) => normalizeRole(m.role) === 'associate-instructor'));
       } catch (error) {
         console.error('Error fetching events:', error);
         toast.error('Failed to load events');

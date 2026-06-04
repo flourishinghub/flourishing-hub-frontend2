@@ -50,21 +50,45 @@ export default function AssociateInstructorDashboard() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Fetch live/today events on mount ──
+  // ── Fetch events assigned to this associate instructor ──
   useEffect(() => {
     const fetchLiveEvents = async () => {
       setLoadingEvents(true);
       try {
-        const response = await apiCall('/frontend/dashboard');
-        const sessions: any[] = response.data?.dashboard?.sessions || [];
-        const todaySessions = sessions.filter(isTodayOrOngoing);
-        setLiveEvents(todaySessions);
-        if (todaySessions.length === 1) {
-          setSelectedEventId(todaySessions[0].id || todaySessions[0].eventId || null);
+        // Get current user name from localStorage
+        let currentUserName: string | null = null;
+        try {
+          const cachedUser = localStorage.getItem('user');
+          if (cachedUser) currentUserName = JSON.parse(cachedUser)?.name || null;
+        } catch (_) {}
+
+        const response = await apiCall('/events');
+        const allEvents: any[] = response.data?.items || [];
+
+        const today = new Date().toISOString().split('T')[0];
+
+        const assigned = allEvents.filter((event: any) => {
+          const eventDate = event.startAt
+            ? new Date(event.startAt).toISOString().split('T')[0]
+            : null;
+          const isPublished =
+            event.status === 'PUBLISHED' || event.status === 'published';
+          const isTodayOrFuture = eventDate ? eventDate >= today : false;
+          // Show only events assigned to this associate instructor (by name match)
+          const isAssigned =
+            currentUserName
+              ? event.associateInstructorName === currentUserName
+              : true; // fallback: show all if user name unavailable
+          return isPublished && isTodayOrFuture && isAssigned;
+        });
+
+        setLiveEvents(assigned);
+        if (assigned.length === 1) {
+          setSelectedEventId(assigned[0].id || null);
         }
       } catch (err) {
-        console.error('Failed to fetch dashboard sessions:', err);
-        toast.error('Could not load live events');
+        console.error('Failed to fetch events:', err);
+        toast.error('Could not load events');
       } finally {
         setLoadingEvents(false);
       }
