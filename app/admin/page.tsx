@@ -88,13 +88,16 @@ interface EventFormData {
   posterUrl: string;
   quizLink: string;
   feedbackLink: string;
+  instructorName: string;
+  associateInstructorName: string;
+  maxVolunteers: string;
 }
 
 const emptyForm: EventFormData = {
   title: '', description: '', date: '', time: '',
   venue: '', mode: 'In Classroom', capacity: '', status: 'published',
   courseId: '', courseModuleId: '', batch: '', posterUrl: '', quizLink: '', feedbackLink: '',
-  endTime: '',
+  endTime: '', instructorName: '', associateInstructorName: '', maxVolunteers: '',
 };
 
 const ROLES: UserRole[] = ['student', 'instructor', 'admin', 'volunteer', 'associate-instructor'];
@@ -155,6 +158,8 @@ export default function AdminDashboard() {
   const [eventStatusFilter, setEventStatusFilter] = useState<'all' | 'workshop' | 'course'>('all');
   const [overviewFilter, setOverviewFilter] = useState<'live' | 'upcoming' | 'completed'>('upcoming');
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | null>(null);
+  const [instructors, setInstructors] = useState<any[]>([]);
+  const [associateInstructors, setAssociateInstructors] = useState<any[]>([]);
 
   const transformEventsData = (rawEvents: any[]) => rawEvents.map((event: any) => ({
     id: event.id,
@@ -181,6 +186,9 @@ export default function AdminDashboard() {
     courseModule: event.courseModule || null,
     batch: event.batch || null,
     bannerImageUrl: event.bannerImageUrl || null,
+    instructorName: event.instructorName || null,
+    associateInstructorName: event.associateInstructorName || null,
+    maxVolunteers: event.maxVolunteers || null,
   }));
 
   // Handle URL hash navigation for tab switching
@@ -252,6 +260,8 @@ export default function AdminDashboard() {
           empId: member.employeeId || member.adminEmployeeId
         }));
         setMembers(transformedMembers);
+        setInstructors(membersResponse.data.filter((m: any) => m.role?.toLowerCase().replace('_', '-') === 'instructor'));
+        setAssociateInstructors(membersResponse.data.filter((m: any) => m.role?.toLowerCase().replace('_', '-') === 'associate-instructor'));
 
         // Fetch volunteers with activity data
         console.log("🔄 Fetching volunteers...");
@@ -394,6 +404,9 @@ export default function AdminDashboard() {
       posterUrl: ev.bannerImageUrl || '',
       quizLink: ev.quizLink || '',
       feedbackLink: ev.feedbackLink || '',
+      instructorName: ev.instructorName || '',
+      associateInstructorName: ev.associateInstructorName || '',
+      maxVolunteers: ev.maxVolunteers ? String(ev.maxVolunteers) : '',
     });
     if (ev.courseId) {
       const course = courses.find(c => c.id === ev.courseId);
@@ -434,6 +447,9 @@ export default function AdminDashboard() {
         ...(form.courseModuleId && { courseModuleId: form.courseModuleId }),
         ...(form.batch && { batch: form.batch }),
         ...(form.posterUrl && { bannerImageUrl: form.posterUrl }),
+        ...(form.instructorName && { instructorName: form.instructorName }),
+        ...(form.associateInstructorName && { associateInstructorName: form.associateInstructorName }),
+        ...(form.maxVolunteers && { maxVolunteers: parseInt(form.maxVolunteers) }),
       };
 
       console.log("📤 Sending event data:", eventData);
@@ -863,6 +879,9 @@ export default function AdminDashboard() {
       posterUrl: mod.posterUrl || '',
       quizLink: mod.quizLink || '',
       feedbackLink: mod.feedbackLink || '',
+      instructorName: '',
+      associateInstructorName: '',
+      maxVolunteers: '',
     });
     
     // Open modal after state is set
@@ -2433,6 +2452,72 @@ export default function AdminDashboard() {
                     placeholder="e.g. BTech 2024, MTech 2023"
                     className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
                   />
+                </div>
+
+                {/* Instructor & Associate Instructor */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
+                  <p className="text-xs font-semibold text-white/60 uppercase tracking-wider">Facilitators</p>
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Instructor</label>
+                    {instructors.length > 0 ? (
+                      <select
+                        value={form.instructorName}
+                        onChange={(e) => setForm({ ...form, instructorName: e.target.value })}
+                        className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                      >
+                        <option value="">— Select Instructor —</option>
+                        {instructors.map((m: any) => (
+                          <option key={m.id} value={m.name}>{m.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={form.instructorName}
+                        onChange={(e) => setForm({ ...form, instructorName: e.target.value })}
+                        placeholder="Instructor name"
+                        className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Associate Instructor</label>
+                    {associateInstructors.length > 0 ? (
+                      <select
+                        value={form.associateInstructorName}
+                        onChange={(e) => setForm({ ...form, associateInstructorName: e.target.value })}
+                        className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                      >
+                        <option value="">— Select Associate Instructor —</option>
+                        {associateInstructors.map((m: any) => (
+                          <option key={m.id} value={m.name}>{m.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={form.associateInstructorName}
+                        onChange={(e) => setForm({ ...form, associateInstructorName: e.target.value })}
+                        placeholder="Associate instructor name"
+                        className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Volunteer Slots */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10">
+                  <p className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-3">Volunteers</p>
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Max Volunteer Slots</label>
+                    <input
+                      type="number"
+                      value={form.maxVolunteers}
+                      onChange={(e) => setForm({ ...form, maxVolunteers: e.target.value })}
+                      placeholder="e.g. 5 (leave blank if not needed)"
+                      min="0"
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    />
+                    <p className="text-xs text-white/30 mt-1">Number of volunteer slots available for this event</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
