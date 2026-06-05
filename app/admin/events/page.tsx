@@ -31,8 +31,8 @@ interface EventFormData {
   posterUrl: string;
   quizLink: string;
   feedbackLink: string;
-  instructorName: string;
-  associateInstructorName: string;
+  instructorId: string;
+  associateInstructorId: string;
   maxVolunteers: string;
 }
 
@@ -40,7 +40,7 @@ const emptyForm: EventFormData = {
   title: '', description: '', date: '', time: '',
   venue: '', mode: 'In Classroom', capacity: '', status: 'published',
   courseId: '', courseModuleId: '', batch: '', posterUrl: '', quizLink: '', feedbackLink: '',
-  endTime: '', instructorName: '', associateInstructorName: '', maxVolunteers: '',
+  endTime: '', instructorId: '', associateInstructorId: '', maxVolunteers: '',
 };
 
 const statusColors: Record<EventStatus, string> = {
@@ -74,17 +74,19 @@ const transformEventsData = (rawEvents: any[]) => rawEvents.map((event: any) => 
   courseModule: event.courseModule || null,
   batch: event.batch || null,
   bannerImageUrl: event.bannerImageUrl || null,
-  instructorName: event.instructorName || null,
-  associateInstructorName: event.associateInstructorName || null,
   maxVolunteers: event.maxVolunteers || null,
+  assignments: event.assignments || [],
+  instructorName: event.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.name || null,
+  instructorId: event.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.id || null,
+  associateInstructorName: event.assignments?.find((a: any) => a.role === 'ASSOCIATE_INSTRUCTOR')?.user?.name || null,
+  associateInstructorId: event.assignments?.find((a: any) => a.role === 'ASSOCIATE_INSTRUCTOR')?.user?.id || null,
 }));
 
 export default function AdminEventsPage() {
   const router = useRouter();
   const [events, setEvents] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
-  const [instructors, setInstructors] = useState<any[]>([]);
-  const [associateInstructors, setAssociateInstructors] = useState<any[]>([]);
+  const [staffList, setStaffList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
@@ -111,8 +113,11 @@ export default function AdminEventsPage() {
         setCourses(coursesResponse.data || []);
         const allMembers = membersResponse.data || [];
         const normalizeRole = (r: string) => r?.toLowerCase().replace(/_/g, '-');
-        setInstructors(allMembers.filter((m: any) => normalizeRole(m.role) === 'instructor'));
-        setAssociateInstructors(allMembers.filter((m: any) => normalizeRole(m.role) === 'associate-instructor'));
+        setStaffList(
+          allMembers
+            .filter((m: any) => ['instructor', 'associate-instructor'].includes(normalizeRole(m.role)))
+            .sort((a: any, b: any) => a.name.localeCompare(b.name))
+        );
       } catch (error) {
         console.error('Error fetching events:', error);
         toast.error('Failed to load events');
@@ -154,8 +159,8 @@ export default function AdminEventsPage() {
       posterUrl: ev.bannerImageUrl || '',
       quizLink: ev.quizLink || '',
       feedbackLink: ev.feedbackLink || '',
-      instructorName: ev.instructorName || '',
-      associateInstructorName: ev.associateInstructorName || '',
+      instructorId: ev.instructorId || '',
+      associateInstructorId: ev.associateInstructorId || '',
       maxVolunteers: ev.maxVolunteers ? String(ev.maxVolunteers) : '',
     });
     if (ev.courseId) {
@@ -191,8 +196,8 @@ export default function AdminEventsPage() {
         ...(form.courseModuleId && { courseModuleId: form.courseModuleId }),
         ...(form.batch && { batch: form.batch }),
         ...(form.posterUrl && { bannerImageUrl: form.posterUrl }),
-        ...(form.instructorName && { instructorName: form.instructorName }),
-        ...(form.associateInstructorName && { associateInstructorName: form.associateInstructorName }),
+        instructorId: form.instructorId || null,
+        associateInstructorId: form.associateInstructorId || null,
         ...(form.maxVolunteers && { maxVolunteers: parseInt(form.maxVolunteers) }),
       };
 
@@ -378,6 +383,7 @@ export default function AdminEventsPage() {
                           <span className="flex items-center gap-1">
                             <Users className="w-3.5 h-3.5" />
                             {event.instructorName}
+                            {event.associateInstructorName && ` · ${event.associateInstructorName}`}
                           </span>
                         )}
                         {event.maxVolunteers && (
@@ -725,47 +731,33 @@ export default function AdminEventsPage() {
                   <p className="text-xs font-semibold text-white/60 uppercase tracking-wider">Facilitators</p>
                   <div>
                     <label className="text-xs font-medium text-white/60 mb-1.5 block">Instructor</label>
-                    {instructors.length > 0 ? (
-                      <select
-                        value={form.instructorName}
-                        onChange={(e) => setForm({ ...form, instructorName: e.target.value })}
-                        className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                      >
-                        <option value="">— Select Instructor —</option>
-                        {instructors.map((m: any) => (
-                          <option key={m.id} value={m.name}>{m.name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        value={form.instructorName}
-                        onChange={(e) => setForm({ ...form, instructorName: e.target.value })}
-                        placeholder="Instructor name"
-                        className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                      />
-                    )}
+                    <select
+                      value={form.instructorId}
+                      onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    >
+                      <option value="">— Select Instructor —</option>
+                      {staffList.map((m: any) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.role?.toLowerCase().replace(/_/g, ' ')})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="text-xs font-medium text-white/60 mb-1.5 block">Associate Instructor</label>
-                    {associateInstructors.length > 0 ? (
-                      <select
-                        value={form.associateInstructorName}
-                        onChange={(e) => setForm({ ...form, associateInstructorName: e.target.value })}
-                        className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                      >
-                        <option value="">— Select Associate Instructor —</option>
-                        {associateInstructors.map((m: any) => (
-                          <option key={m.id} value={m.name}>{m.name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        value={form.associateInstructorName}
-                        onChange={(e) => setForm({ ...form, associateInstructorName: e.target.value })}
-                        placeholder="Associate instructor name"
-                        className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                      />
-                    )}
+                    <select
+                      value={form.associateInstructorId}
+                      onChange={(e) => setForm({ ...form, associateInstructorId: e.target.value })}
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    >
+                      <option value="">— Select Associate Instructor —</option>
+                      {staffList.map((m: any) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.role?.toLowerCase().replace(/_/g, ' ')})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
