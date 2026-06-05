@@ -54,40 +54,15 @@ export default function AssociateInstructorDashboard() {
     const fetchLiveEvents = async () => {
       setLoadingEvents(true);
       try {
-        // Get current user name from localStorage
-        let currentUserName: string | null = null;
-        try {
-          const cachedUser = localStorage.getItem('user');
-          if (cachedUser) currentUserName = JSON.parse(cachedUser)?.name || null;
-        } catch (_) {}
-
-        const response = await apiCall('/events');
-        const allEvents: any[] = response.data?.items || [];
-
-        const today = new Date().toISOString().split('T')[0];
-
-        const assigned = allEvents.filter((event: any) => {
-          const eventDate = event.startAt
-            ? new Date(event.startAt).toISOString().split('T')[0]
-            : null;
-          const isPublished =
-            event.status === 'PUBLISHED' || event.status === 'published';
-          const isTodayOrFuture = eventDate ? eventDate >= today : false;
-          // Show only events assigned to this associate instructor (by name match)
-          const isAssigned =
-            currentUserName
-              ? event.associateInstructorName === currentUserName
-              : true; // fallback: show all if user name unavailable
-          return isPublished && isTodayOrFuture && isAssigned;
-        });
-
+        const response = await apiCall('/event-operations/my-assigned-events');
+        const assigned: any[] = response.data || [];
         setLiveEvents(assigned);
         if (assigned.length === 1) {
           setSelectedEventId(assigned[0].id || null);
         }
       } catch (err) {
-        console.error('Failed to fetch events:', err);
-        toast.error('Could not load events');
+        console.error('Failed to fetch assigned events:', err);
+        toast.error('Could not load assigned events');
       } finally {
         setLoadingEvents(false);
       }
