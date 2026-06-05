@@ -8,7 +8,6 @@ import {
   RefreshCw, ShieldCheck, ShieldX, Clock, ChevronDown,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
-import StatCard from '@/components/StatCard';
 import DataTable from '@/components/DataTable';
 import { apiCall } from '@/lib/api';
 import {
@@ -243,14 +242,6 @@ export default function AssociateInstructorDashboard() {
         </h1>
         <p className="text-sm text-white/50 mt-1">Manage attendance, volunteers, quizzes &amp; registrants</p>
       </motion.div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Verified" value={verifiedCount || presentCount} icon={UserCheck} color="teal" />
-        <StatCard title="Pending" value={pendingCount || absentCount} icon={UserCheck} color="red" />
-        <StatCard title="Volunteers" value={volunteerPool.filter((v) => v.selected).length} icon={Users} color="purple" />
-        <StatCard title="Registrants" value={mockStudents.length} icon={FileText} color="yellow" />
-      </div>
 
       {/* Tabs */}
       <div className="glass-card rounded-2xl overflow-hidden">
