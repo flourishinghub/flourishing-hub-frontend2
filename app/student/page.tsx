@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Calendar, CheckCircle, Clock, MapPin, Star, Users, BookOpen, PlayCircle } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, MapPin, Star, Users, BookOpen, PlayCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
@@ -82,6 +82,8 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [registeredEvents, setRegisteredEvents] = useState<string[]>([]);
   const [bundleProgress, setBundleProgress] = useState<any[]>([]);
+  const [eventsFilter, setEventsFilter] = useState<'all' | 'registered' | 'unregistered'>('all');
+  const sliderRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   // Fetch user data, events, and registrations from backend API
@@ -487,100 +489,131 @@ export default function StudentDashboard() {
           </div>
 
           {/* All Upcoming Events to Register */}
-          <div className="glass-card rounded-2xl p-6">
-            <h2 className="text-base font-semibold text-white mb-4">All Events</h2>
-            
-            {/* Horizontal Slider */}
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-              {[...(activeEvent ? [activeEvent] : []), ...upcomingEvents].map((event) => (
-                <div 
-                  key={event.id} 
-                  className="flex-shrink-0 w-80 rounded-xl overflow-hidden bg-white/[0.03] border border-white/5 hover:scale-105 hover:shadow-xl transition-all duration-300 cursor-pointer group"
-                  onClick={() => {
-                    router.push(`/student/events/${event.id}`);
-                  }}
-                >
-                  {/* Event Image */}
-                  <div className="relative h-40 bg-gradient-to-br from-primary/20 to-accent/20 overflow-hidden">
-                    <img 
-                      src={`https://source.unsplash.com/400x200/?workshop,meditation,wellness,${encodeURIComponent(event.title)}`}
-                      alt={event.title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                      onError={(e) => {
-                        // Fallback gradient if image fails
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                    {/* Live Badge */}
-                    {isEventLive(event.date + 'T' + event.time) && (
-                      <div className="absolute top-3 left-3 px-2 py-1 rounded-full bg-emerald-500/90 text-white text-xs font-semibold flex items-center gap-1">
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                        LIVE NOW
-                      </div>
-                    )}
-                    {/* Mode Badge */}
-                    <div className="absolute top-3 right-3 px-2 py-1 rounded-lg bg-black/50 text-white text-xs font-medium">
-                      {event.mode}
+          {(() => {
+            const allSliderEvents = [...(activeEvent ? [activeEvent] : []), ...upcomingEvents];
+            const filteredSliderEvents = eventsFilter === 'registered'
+              ? allSliderEvents.filter(e => registeredEvents.includes(e.id))
+              : eventsFilter === 'unregistered'
+              ? allSliderEvents.filter(e => !registeredEvents.includes(e.id))
+              : allSliderEvents;
+
+            const slide = (dir: 'left' | 'right') => {
+              if (!sliderRef.current) return;
+              sliderRef.current.scrollBy({ left: dir === 'left' ? -240 : 240, behavior: 'smooth' });
+            };
+
+            return (
+              <div className="glass-card rounded-2xl p-5">
+                {/* Header row */}
+                <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                  <h2 className="text-base font-semibold text-white">All Events</h2>
+                  <div className="flex items-center gap-2">
+                    {/* Filter pills */}
+                    {(['all', 'registered', 'unregistered'] as const).map(f => (
+                      <button
+                        key={f}
+                        onClick={() => setEventsFilter(f)}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                          eventsFilter === f
+                            ? f === 'registered'
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                              : f === 'unregistered'
+                              ? 'bg-accent/20 text-accent border-accent/40'
+                              : 'bg-primary/20 text-primary border-primary/40'
+                            : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10 hover:text-white/60'
+                        }`}
+                      >
+                        {f === 'all' ? `All (${allSliderEvents.length})` : f === 'registered' ? `Registered (${allSliderEvents.filter(e => registeredEvents.includes(e.id)).length})` : `Unregistered (${allSliderEvents.filter(e => !registeredEvents.includes(e.id)).length})`}
+                      </button>
+                    ))}
+                    {/* Scroll arrows */}
+                    <div className="flex gap-1 ml-1">
+                      <button onClick={() => slide('left')} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 flex items-center justify-center text-white/50 hover:text-white transition-all">
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => slide('right')} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 flex items-center justify-center text-white/50 hover:text-white transition-all">
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  </div>
-                  
-                  {/* Event Content */}
-                  <div className="p-4">
-                    <h3 className="text-lg font-semibold text-white mb-2 line-clamp-1">{event.title}</h3>
-                    <p className="text-sm text-white/60 mb-3 line-clamp-2">
-                      {event.description || 'Join us for an amazing workshop experience designed to enhance your wellbeing and personal growth.'}
-                    </p>
-                    
-                    {/* Event Details */}
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-xs text-white/50">
-                        <Clock className="w-3 h-3" />
-                        <span>{formatDate(event.date)} at {formatTime(event.time)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-white/50">
-                        <MapPin className="w-3 h-3" />
-                        <span>{event.venue?.split(',')[0] || 'TBD'}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-white/50">
-                        <Users className="w-3 h-3" />
-                        <span>{event.registeredCount}/{event.capacity || 'Unlimited'} registered</span>
-                      </div>
-                    </div>
-                    
-                    {/* Register Button */}
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      whileHover={{ scale: 1.02 }}
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent card click
-                        handleRegister(event.id);
-                      }}
-                      disabled={registeredEvents.includes(event.id)}
-                      className={`w-full px-4 py-2 rounded-lg text-sm font-semibold border transition-all duration-200 ${
-                        registeredEvents.includes(event.id)
-                          ? 'bg-primary/15 text-primary border-primary/30 cursor-default'
-                          : 'bg-white/5 text-white/60 border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:shadow-lg'
-                      }`}
-                    >
-                      {registeredEvents.includes(event.id) ? '✓ Registered' : 'Register Now'}
-                    </motion.button>
                   </div>
                 </div>
-              ))}
-              
-              {/* Empty State */}
-              {[...(activeEvent ? [activeEvent] : []), ...upcomingEvents].length === 0 && (
-                <div className="flex-shrink-0 w-80 h-64 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center">
-                  <div className="text-center">
-                    <Calendar className="w-8 h-8 text-white/20 mx-auto mb-2" />
-                    <p className="text-white/40 text-sm">No upcoming events</p>
-                  </div>
+
+                {/* Slider */}
+                <div ref={sliderRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide scroll-smooth">
+                  {filteredSliderEvents.map((event) => {
+                    const isReg = registeredEvents.includes(event.id);
+                    const isLive = isEventLive(event.date + 'T' + event.time);
+                    return (
+                      <motion.div
+                        key={event.id}
+                        whileHover={{ y: -3, scale: 1.02 }}
+                        className="flex-shrink-0 w-52 rounded-xl overflow-hidden bg-white/[0.03] border border-white/8 hover:border-primary/30 transition-all cursor-pointer group"
+                        onClick={() => router.push(`/student/events/${event.id}`)}
+                      >
+                        {/* Compact image */}
+                        <div className="relative h-24 bg-gradient-to-br from-primary/20 to-accent/20 overflow-hidden">
+                          {isLive && (
+                            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white text-[9px] font-bold flex items-center gap-1 z-10">
+                              <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />LIVE
+                            </div>
+                          )}
+                          {isReg && (
+                            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary/80 text-white text-[9px] font-bold z-10">✓ Reg</div>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Calendar className="w-8 h-8 text-white/10" />
+                          </div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+
+                        {/* Card body */}
+                        <div className="p-3">
+                          <p className="text-xs font-semibold text-white line-clamp-2 mb-2 leading-tight">{event.title}</p>
+                          <div className="space-y-1 mb-3">
+                            <div className="flex items-center gap-1.5 text-[10px] text-white/45">
+                              <Clock className="w-2.5 h-2.5 shrink-0" />
+                              <span className="truncate">{formatDate(event.date)} · {formatTime(event.time)}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px] text-white/45">
+                              <MapPin className="w-2.5 h-2.5 shrink-0" />
+                              <span className="truncate">{event.venue?.split(',')[0] || 'TBD'}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px] text-white/45">
+                              <Users className="w-2.5 h-2.5 shrink-0" />
+                              <span>{event.registeredCount}/{event.capacity || '∞'}</span>
+                            </div>
+                          </div>
+                          <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => { e.stopPropagation(); handleRegister(event.id); }}
+                            disabled={isReg}
+                            className={`w-full py-1.5 rounded-lg text-[10px] font-semibold border transition-all ${
+                              isReg
+                                ? 'bg-primary/15 text-primary border-primary/30 cursor-default'
+                                : 'bg-white/5 text-white/50 border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30'
+                            }`}
+                          >
+                            {isReg ? '✓ Registered' : 'Register'}
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+
+                  {filteredSliderEvents.length === 0 && (
+                    <div className="flex-shrink-0 w-52 h-52 rounded-xl border border-dashed border-white/10 flex items-center justify-center">
+                      <div className="text-center">
+                        <Calendar className="w-7 h-7 text-white/20 mx-auto mb-2" />
+                        <p className="text-white/35 text-xs">
+                          {eventsFilter === 'registered' ? 'No registered events' : eventsFilter === 'unregistered' ? 'All events registered!' : 'No upcoming events'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+            );
+          })()}
 
           {/* Past Records */}
           <div className="glass-card rounded-2xl p-6" id="history">
