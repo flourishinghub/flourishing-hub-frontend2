@@ -51,7 +51,7 @@ export default function HomePage() {
           id: userData?.id || 'unknown',
           email: userData?.email || '',
           name: userData?.name || 'User',
-          role: userData?.role?.toLowerCase() || 'student',
+          role: (userData?.role?.toLowerCase().replace(/_/g, '-') || 'student') as AuthPayload['role'],
           department: userData?.studentProfile?.department || 
                      userData?.instructorProfile?.department || 
                      userData?.adminProfile?.department || 

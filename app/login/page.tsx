@@ -80,9 +80,13 @@ export default function LoginPage() {
       if (data.data?.accessToken) {
         localStorage.setItem("token", data.data.accessToken);
         
-        // Store user data in localStorage
+        // Store user data in localStorage (normalize role to hyphen format)
         if (data.data.user) {
-          localStorage.setItem("user", JSON.stringify(data.data.user));
+          const userToStore = {
+            ...data.data.user,
+            role: data.data.user.role?.toLowerCase().replace(/_/g, '-') || 'student',
+          };
+          localStorage.setItem("user", JSON.stringify(userToStore));
         }
         
         // Store in cookie for middleware (hardened version with proper SameSite)
