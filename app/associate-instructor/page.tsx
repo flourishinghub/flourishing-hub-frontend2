@@ -5,16 +5,16 @@ import { motion } from 'framer-motion';
 import {
   UserCheck, Users, ClipboardList, FileText, Search,
   RefreshCw, ShieldCheck, ShieldX, Clock, ChevronDown,
-  ExternalLink, AlertCircle,
+  ExternalLink, AlertCircle, Calendar, CheckCircle2, Zap, MapPin, BookOpen,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { apiCall } from '@/lib/api';
 import toast from 'react-hot-toast';
 
-type Tab = 'attendance' | 'volunteers' | 'quiz' | 'registrants';
+type Tab = 'events' | 'attendance' | 'volunteers' | 'quiz' | 'registrants';
 
 export default function AssociateInstructorDashboard() {
-  const [activeTab, setActiveTab] = useState<Tab>('attendance');
+  const [activeTab, setActiveTab] = useState<Tab>('events');
 
   // ── Shared event state ──
   const [liveEvents, setLiveEvents] = useState<any[]>([]);
@@ -39,7 +39,7 @@ export default function AssociateInstructorDashboard() {
 
   // ── Hash-based tab navigation ──
   useEffect(() => {
-    const validTabs: Tab[] = ['attendance', 'volunteers', 'quiz', 'registrants'];
+    const validTabs: Tab[] = ['events', 'attendance', 'volunteers', 'quiz', 'registrants'];
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') as Tab;
       if (hash && validTabs.includes(hash)) setActiveTab(hash);
@@ -193,11 +193,16 @@ export default function AssociateInstructorDashboard() {
   });
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+    { id: 'events', label: 'My Events', icon: Calendar },
     { id: 'attendance', label: 'Attendance', icon: UserCheck },
     { id: 'volunteers', label: 'Volunteers', icon: Users },
     { id: 'quiz', label: 'Quiz & Feedback', icon: ClipboardList },
     { id: 'registrants', label: 'Registrants', icon: FileText },
   ];
+
+  const liveNow = liveEvents.filter((e) => e.computedStatus === 'live');
+  const upcoming = liveEvents.filter((e) => e.computedStatus === 'upcoming');
+  const completed = liveEvents.filter((e) => e.computedStatus === 'completed');
 
   // ── Reusable event selector ──
   const EventSelector = () => (
@@ -286,6 +291,74 @@ export default function AssociateInstructorDashboard() {
         </div>
 
         <div className="p-6">
+
+          {/* ─── Events Tab ─── */}
+          {activeTab === 'events' && (
+            <div className="space-y-6">
+              {loadingEvents ? (
+                <div className="flex items-center gap-2 text-white/50 text-sm py-10 justify-center">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  Loading your events...
+                </div>
+              ) : liveEvents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
+                    <Calendar className="w-7 h-7 text-white/30" />
+                  </div>
+                  <p className="text-white/50 text-sm font-medium">No events assigned</p>
+                  <p className="text-white/30 text-xs">Events assigned to you by admin will appear here</p>
+                </div>
+              ) : (
+                <>
+                  {/* Live Now */}
+                  {liveNow.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Zap className="w-4 h-4 text-emerald-400" />
+                        <h3 className="text-sm font-semibold text-white">Live Now</h3>
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      </div>
+                      <div className="space-y-2">
+                        {liveNow.map((ev: any) => (
+                          <EventCard key={ev.id} ev={ev} onSelect={(id) => { setSelectedEventId(id); setActiveTab('attendance'); }} badge="live" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upcoming */}
+                  {upcoming.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Clock className="w-4 h-4 text-blue-400" />
+                        <h3 className="text-sm font-semibold text-white">Upcoming</h3>
+                      </div>
+                      <div className="space-y-2">
+                        {upcoming.map((ev: any) => (
+                          <EventCard key={ev.id} ev={ev} onSelect={(id) => { setSelectedEventId(id); setActiveTab('attendance'); }} badge="upcoming" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Completed */}
+                  {completed.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <CheckCircle2 className="w-4 h-4 text-white/40" />
+                        <h3 className="text-sm font-semibold text-white">Completed</h3>
+                      </div>
+                      <div className="space-y-2">
+                        {completed.map((ev: any) => (
+                          <EventCard key={ev.id} ev={ev} onSelect={(id) => { setSelectedEventId(id); setActiveTab('attendance'); }} badge="completed" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {/* ─── Attendance Tab ─── */}
           {activeTab === 'attendance' && (
@@ -700,5 +773,76 @@ export default function AssociateInstructorDashboard() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+function EventCard({ ev, onSelect, badge }: { ev: any; onSelect: (id: string) => void; badge: 'live' | 'upcoming' | 'completed' }) {
+  const badgeStyles = {
+    live: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+    upcoming: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
+    completed: 'bg-white/10 text-white/40 border-white/10',
+  };
+  const badgeLabel = { live: 'Live Now', upcoming: 'Upcoming', completed: 'Completed' };
+
+  const dateStr = ev.startAt
+    ? new Date(ev.startAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null;
+  const timeStr = ev.startAt
+    ? new Date(ev.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  return (
+    <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <p className="text-sm font-semibold text-white truncate">{ev.title || 'Unnamed Event'}</p>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeStyles[badge]}`}>
+              {badge === 'live' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse" />}
+              {badgeLabel[badge]}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs text-white/40 mt-1">
+            {dateStr && (
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> {dateStr} {timeStr && `· ${timeStr}`}
+              </span>
+            )}
+            {ev.venue && (
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3 h-3" /> {ev.venue}
+              </span>
+            )}
+            {ev.course?.name && (
+              <span className="flex items-center gap-1">
+                <BookOpen className="w-3 h-3" /> {ev.course.name}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-3 mt-2 text-xs text-white/40">
+            <span>{ev.registrationCount ?? ev._count?.registrations ?? 0} registered</span>
+            {badge !== 'completed' && (
+              <span>{ev.pendingCheckIns ?? 0} pending check-ins</span>
+            )}
+          </div>
+        </div>
+        {badge !== 'completed' && (
+          <button
+            onClick={() => onSelect(ev.id)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-all text-xs font-medium shrink-0"
+          >
+            <UserCheck className="w-3 h-3" /> Manage
+          </button>
+        )}
+        {badge === 'completed' && (
+          <button
+            onClick={() => onSelect(ev.id)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 transition-all text-xs font-medium shrink-0"
+          >
+            <FileText className="w-3 h-3" /> View
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

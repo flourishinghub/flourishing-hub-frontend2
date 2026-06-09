@@ -49,6 +49,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   'associate-instructor': [
     { label: 'Dashboard', href: '/associate-instructor', icon: LayoutDashboard },
+    { label: 'My Events', href: '/associate-instructor#events', icon: Calendar },
     { label: 'Attendance', href: '/associate-instructor#attendance', icon: UserCheck },
     { label: 'Volunteers', href: '/associate-instructor#volunteers', icon: Users },
     { label: 'Videos', href: '/videos', icon: Video },
