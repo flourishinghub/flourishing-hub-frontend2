@@ -156,7 +156,11 @@ export default function AdminDashboard() {
   const [deletingModule, setDeletingModule] = useState<string | null>(null);
   const [selectedCourseForEvent, setSelectedCourseForEvent] = useState<any | null>(null);
   const [modulesForEvent, setModulesForEvent] = useState<any[]>([]);
-  const [adminUser, setAdminUser] = useState<any | null>(null);
+  const [adminUser, setAdminUser] = useState<any | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try { const s = localStorage.getItem('user'); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [eventStatusFilter, setEventStatusFilter] = useState<'all' | 'workshop' | 'course'>('all');
   const [overviewFilter, setOverviewFilter] = useState<'live' | 'upcoming' | 'completed'>('upcoming');
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | null>(null);
@@ -230,91 +234,62 @@ export default function AdminDashboard() {
   // Fetch dashboard data from backend
   useEffect(() => {
     const fetchDashboardData = async () => {
+      setLoading(true);
+      setEventsLoading(true);
+
+      // Phase 1: All fast data in parallel (excludes the slow events query)
       try {
-        setLoading(true);
+        const [userResult, dashboardResult, membersResult, volunteersResult, pendingResult, coursesResult] =
+          await Promise.allSettled([
+            getCurrentUser(),
+            apiCall('/admin/dashboard'),
+            apiCall('/admin/members'),
+            apiCall('/admin/volunteers'),
+            apiCall('/admin/pending-approvals'),
+            apiCall('/courses'),
+          ]);
 
-        // Fetch current admin user
-        try {
-          const userResp = await getCurrentUser();
-          setAdminUser(userResp?.data?.data || userResp?.data || userResp);
-        } catch (_) { /* ignore */ }
-
-        console.log("🔄 Fetching admin dashboard data...");
-
-        // Fetch admin dashboard data with retry
-        let dashboardResponse;
-        try {
-          dashboardResponse = await apiCall('/admin/dashboard');
-          console.log("✅ Dashboard data fetched:", dashboardResponse);
-        } catch (error) {
-          console.log("⚠️ Dashboard API failed, retrying...", error);
-          // Retry once after 2 seconds
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          dashboardResponse = await apiCall('/admin/dashboard');
+        if (userResult.status === 'fulfilled') {
+          const u = userResult.value;
+          setAdminUser(u?.data?.data || u?.data || u);
         }
-        setDashboardData(dashboardResponse.data);
-        
-        // Fetch events with registration details
-        console.log("🔄 Fetching events with registrations...");
-        const eventsResponse = await apiCall('/admin/events-with-registrations');
-        console.log("✅ Events with registrations fetched:", eventsResponse);
-        setEvents(transformEventsData(eventsResponse.data));
-        
-        // Fetch members
-        console.log("🔄 Fetching members...");
-        const membersResponse = await apiCall('/admin/members');
-        console.log("✅ Members fetched:", membersResponse);
-        const transformedMembers = membersResponse.data.map((member: any) => ({
-          id: member.id,
-          name: member.name,
-          email: member.email,
-          role: member.role.toLowerCase().replace('_', '-'),
-          department: member.department || 'N/A',
-          programme: member.programme || 'N/A',
-          year: member.yearOfStudy,
-          batch: member.cohort,
-          rollNo: member.rollNumber,
-          empId: member.employeeId || member.adminEmployeeId
-        }));
-        setMembers(transformedMembers);
-        setInstructors(membersResponse.data.filter((m: any) => m.role?.toLowerCase().replace('_', '-') === 'instructor'));
-        setAssociateInstructors(membersResponse.data.filter((m: any) => m.role?.toLowerCase().replace('_', '-') === 'associate-instructor'));
-
-        // Fetch volunteers with activity data
-        console.log("🔄 Fetching volunteers...");
-        const volunteersResponse = await apiCall('/admin/volunteers');
-        console.log("✅ Volunteers fetched:", volunteersResponse);
-        setVolunteers(volunteersResponse.data);
-        
-        // Fetch pending approval users
-        console.log("🔄 Fetching pending approvals...");
-        try {
-          const pendingResponse = await apiCall('/admin/pending-approvals');
-          console.log("✅ Pending approvals fetched:", pendingResponse);
-          setPendingUsers(pendingResponse.data || []);
-        } catch (error) {
-          console.log("⚠️ No pending approvals or API not available");
-          setPendingUsers([]);
+        if (dashboardResult.status === 'fulfilled') {
+          setDashboardData(dashboardResult.value?.data);
         }
-
-        // Fetch courses
-        console.log("🔄 Fetching courses...");
-        try {
-          const coursesResponse = await apiCall('/courses');
-          console.log("✅ Courses fetched:", coursesResponse);
-          setCourses(coursesResponse.data || []);
-        } catch (error) {
-          console.log("⚠️ Courses API not available");
-          setCourses([]);
+        if (membersResult.status === 'fulfilled') {
+          const membersData = membersResult.value?.data || [];
+          setMembers(membersData.map((member: any) => ({
+            id: member.id,
+            name: member.name,
+            email: member.email,
+            role: member.role.toLowerCase().replace('_', '-'),
+            department: member.department || 'N/A',
+            programme: member.programme || 'N/A',
+            year: member.yearOfStudy,
+            batch: member.cohort,
+            rollNo: member.rollNumber,
+            empId: member.employeeId || member.adminEmployeeId
+          })));
+          setInstructors(membersData.filter((m: any) => m.role?.toLowerCase().replace('_', '-') === 'instructor'));
+          setAssociateInstructors(membersData.filter((m: any) => m.role?.toLowerCase().replace('_', '-') === 'associate-instructor'));
         }
-        
-        console.log("🎉 All admin data loaded successfully!");
-        
+        if (volunteersResult.status === 'fulfilled') setVolunteers(volunteersResult.value?.data || []);
+        if (pendingResult.status === 'fulfilled') setPendingUsers(pendingResult.value?.data || []);
+        if (coursesResult.status === 'fulfilled') setCourses(coursesResult.value?.data || []);
       } catch (error) {
         console.error('❌ Error fetching dashboard data:', error);
-        toast.error('Failed to load dashboard data. Please refresh the page.');
       } finally {
-        setLoading(false);
+        setLoading(false); // Show the page now — events still loading in background
+      }
+
+      // Phase 2: Events (slow query) — loads after page is already visible
+      try {
+        const eventsResponse = await apiCall('/admin/events-with-registrations');
+        setEvents(transformEventsData(eventsResponse?.data || []));
+      } catch (error) {
+        console.error('⚠️ Events fetch failed:', error);
+      } finally {
+        setEventsLoading(false);
       }
     };
 
@@ -1135,6 +1110,12 @@ export default function AdminDashboard() {
           {/* New Events Tab */}
           {activeTab === 'new-events' && (
             <div className="space-y-4">
+              {eventsLoading && events.length === 0 && (
+                <div className="flex items-center gap-2 text-sm text-white/40 py-4">
+                  <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+                  Loading events...
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-white">New Events</h3>
@@ -1192,6 +1173,12 @@ export default function AdminDashboard() {
           {/* Event Status Tab */}
           {activeTab === 'event-status' && (
             <div className="space-y-4">
+              {eventsLoading && events.length === 0 && (
+                <div className="flex items-center gap-2 text-sm text-white/40 py-4">
+                  <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+                  Loading events...
+                </div>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-semibold text-white">Event Status</h3>
@@ -1270,6 +1257,12 @@ export default function AdminDashboard() {
           {/* Past Records Tab */}
           {activeTab === 'past-records' && (
             <div className="space-y-4">
+              {eventsLoading && events.length === 0 && (
+                <div className="flex items-center gap-2 text-sm text-white/40 py-4">
+                  <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+                  Loading events...
+                </div>
+              )}
               <div>
                 <h3 className="text-lg font-semibold text-white">Past Records</h3>
                 <p className="text-xs text-white/40 mt-0.5">Completed events with attendance data from database</p>
@@ -1443,6 +1436,12 @@ export default function AdminDashboard() {
           {/* Calendar Tab */}
           {activeTab === 'calendar' && (
             <div className="space-y-6">
+              {eventsLoading && events.length === 0 && (
+                <div className="flex items-center gap-2 text-sm text-white/40 py-4">
+                  <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+                  Loading events...
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-white">Calendar</h3>
@@ -1575,6 +1574,12 @@ export default function AdminDashboard() {
           {/* Events Tab */}
           {activeTab === 'events' && (
             <div className="space-y-6" id="events">
+              {eventsLoading && events.length === 0 && (
+                <div className="flex items-center gap-2 text-sm text-white/40 py-4">
+                  <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+                  Loading events...
+                </div>
+              )}
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <h3 className="text-lg font-semibold text-white">Event Management</h3>
                 <div className="flex items-center gap-2 flex-wrap">
