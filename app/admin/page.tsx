@@ -9,7 +9,7 @@ import {
   Download, FileSpreadsheet, Search, ChevronDown, UserCheck,
   UserCog, BookOpen, Layers, ArrowLeft, Link2, ClipboardList,
   Clock, MapPin, Zap, BarChart2, Upload, FileText, ChevronRight,
-  Star, Eye,
+  Star, Eye, Play, Trash2,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
@@ -24,7 +24,7 @@ import type { Event, MemberDirectory, UserRole } from '@/types';
 import toast from 'react-hot-toast';
 
 type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
-type Tab = 'overview' | 'new-events' | 'event-status' | 'past-records' | 'calendar' | 'events' | 'courses' | 'members' | 'volunteers' | 'approvals' | 'roles' | 'settings' | 'analytics';
+type Tab = 'overview' | 'new-events' | 'event-status' | 'past-records' | 'calendar' | 'events' | 'courses' | 'members' | 'volunteers' | 'approvals' | 'roles' | 'settings' | 'analytics' | 'videos';
 type CourseStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 
 interface CourseFormData {
@@ -34,6 +34,7 @@ interface CourseFormData {
   duration: string;
   instructorName: string;
   status: CourseStatus;
+  isCompulsory: boolean;
   startDate: string;
   endDate: string;
   capacity: string;
@@ -41,7 +42,7 @@ interface CourseFormData {
 
 const emptyCourseForm: CourseFormData = {
   name: '', description: '', posterUrl: '', duration: '', instructorName: '',
-  status: 'ACTIVE', startDate: '', endDate: '', capacity: '',
+  status: 'ACTIVE', isCompulsory: false, startDate: '', endDate: '', capacity: '',
 };
 
 const courseStatusColors: Record<CourseStatus, string> = {
@@ -168,6 +169,14 @@ export default function AdminDashboard() {
   const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
   const [bulkImporting, setBulkImporting] = useState(false);
   const [draftFilter, setDraftFilter] = useState(false);
+  const [videos, setVideos] = useState<any[]>([]);
+  const [videosLoading, setVideosLoading] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [savingVideo, setSavingVideo] = useState(false);
+  const [videoForm, setVideoForm] = useState({ title: '', description: '', youtubeUrl: '', thumbnailUrl: '', duration: '', category: 'WELLNESS', tags: '' });
+  const [bulkEnrollCourseId, setBulkEnrollCourseId] = useState('');
+  const [bulkEnrollEmails, setBulkEnrollEmails] = useState('');
+  const [bulkEnrolling, setBulkEnrolling] = useState(false);
 
   const transformEventsData = (rawEvents: any[]) => rawEvents.map((event: any) => ({
     id: event.id,
@@ -203,7 +212,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') as Tab;
-      if (hash && ['new-events', 'event-status', 'past-records', 'calendar', 'events', 'courses', 'members', 'volunteers', 'approvals', 'roles', 'settings', 'analytics'].includes(hash)) {
+      if (hash && ['new-events', 'event-status', 'past-records', 'calendar', 'events', 'courses', 'members', 'volunteers', 'approvals', 'roles', 'settings', 'analytics', 'videos'].includes(hash)) {
         setActiveTab(hash);
       } else if (!hash) {
         setActiveTab('new-events');
@@ -311,6 +320,60 @@ export default function AdminDashboard() {
 
     fetchDashboardData();
   }, []);
+
+  // Fetch videos when videos tab is opened
+  useEffect(() => {
+    if (activeTab !== 'videos') return;
+    const fetchVideos = async () => {
+      setVideosLoading(true);
+      try {
+        const res = await apiCall('/videos');
+        setVideos(res.data || []);
+      } catch { toast.error('Failed to load videos'); }
+      finally { setVideosLoading(false); }
+    };
+    fetchVideos();
+  }, [activeTab]);
+
+  const handleSaveVideo = async () => {
+    if (!videoForm.title || !videoForm.youtubeUrl) { toast.error('Title and YouTube URL required'); return; }
+    setSavingVideo(true);
+    try {
+      const payload = { ...videoForm, tags: videoForm.tags.split(',').map(t => t.trim()).filter(Boolean) };
+      await apiCall('/videos', { method: 'POST', body: JSON.stringify(payload) });
+      toast.success('Video added!');
+      setShowVideoModal(false);
+      setVideoForm({ title: '', description: '', youtubeUrl: '', thumbnailUrl: '', duration: '', category: 'WELLNESS', tags: '' });
+      const res = await apiCall('/videos');
+      setVideos(res.data || []);
+    } catch { toast.error('Failed to save video'); }
+    finally { setSavingVideo(false); }
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    if (!confirm('Delete this video?')) return;
+    try {
+      await apiCall(`/videos/${videoId}`, { method: 'DELETE' });
+      setVideos(prev => prev.filter(v => v.id !== videoId));
+      toast.success('Video deleted');
+    } catch { toast.error('Failed to delete video'); }
+  };
+
+  const handleBulkEnroll = async () => {
+    if (!bulkEnrollCourseId || !bulkEnrollEmails.trim()) { toast.error('Course and emails required'); return; }
+    const userEmails = bulkEnrollEmails.split(/[\n,;]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (userEmails.length === 0) { toast.error('No valid emails entered'); return; }
+    setBulkEnrolling(true);
+    try {
+      const res = await apiCall(`/courses/${bulkEnrollCourseId}/bulk-enroll`, {
+        method: 'POST',
+        body: JSON.stringify({ userEmails }),
+      });
+      toast.success(`Enrolled ${res.data.enrolled} registrations across ${res.data.workshopCount} workshops`);
+      setBulkEnrollEmails('');
+    } catch (e: any) { toast.error(e.message || 'Bulk enroll failed'); }
+    finally { setBulkEnrolling(false); }
+  };
 
   // Fetch analytics when analytics tab is opened
   useEffect(() => {
@@ -704,6 +767,7 @@ export default function AdminDashboard() {
       duration: course.duration || '',
       instructorName: course.instructorName || '',
       status: course.status as CourseStatus,
+      isCompulsory: course.isCompulsory === true,
       startDate: course.startDate ? new Date(course.startDate).toISOString().split('T')[0] : '',
       endDate: course.endDate ? new Date(course.endDate).toISOString().split('T')[0] : '',
       capacity: course.capacity ? String(course.capacity) : '',
@@ -727,6 +791,7 @@ export default function AdminDashboard() {
         duration: courseForm.duration,
         instructorName: courseForm.instructorName,
         status: courseForm.status,
+        isCompulsory: courseForm.isCompulsory,
         startDate: courseForm.startDate || null,
         endDate: courseForm.endDate || null,
         capacity: courseForm.capacity ? parseInt(courseForm.capacity) : null,
@@ -926,6 +991,7 @@ export default function AdminDashboard() {
     { id: 'approvals', label: 'Approvals', icon: UserCog },
     { id: 'roles', label: 'Roles', icon: Shield },
     { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'videos', label: 'Videos', icon: Play },
   ];
 
   return (
@@ -2480,8 +2546,147 @@ export default function AdminDashboard() {
               ))}
             </div>
           )}
+
+          {/* Videos Tab */}
+          {activeTab === 'videos' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Video Library</h3>
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowVideoModal(true)} className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Add Video
+                </motion.button>
+              </div>
+
+              {/* Bulk Enroll Section */}
+              <div className="glass-card rounded-2xl p-5 border border-amber-500/20">
+                <h4 className="text-sm font-semibold text-white mb-3">Bundle Auto-Enroll</h4>
+                <p className="text-xs text-white/50 mb-3">Enroll students to all workshops in a compulsory course bundle at once</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Course / Bundle</label>
+                    <select value={bulkEnrollCourseId} onChange={e => setBulkEnrollCourseId(e.target.value)} className="input-dark w-full px-3 py-2 rounded-xl text-sm">
+                      <option value="">— Select Course —</option>
+                      {courses.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}{c.isCompulsory ? ' ★' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Student Emails (one per line)</label>
+                    <textarea
+                      value={bulkEnrollEmails}
+                      onChange={e => setBulkEnrollEmails(e.target.value)}
+                      placeholder="student1@iitb.ac.in&#10;student2@iitb.ac.in"
+                      rows={3}
+                      className="input-dark w-full px-3 py-2 rounded-xl text-sm resize-none"
+                    />
+                  </div>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  onClick={handleBulkEnroll}
+                  disabled={bulkEnrolling}
+                  className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                >
+                  {bulkEnrolling ? 'Enrolling…' : 'Auto-Enroll to All Workshops'}
+                </motion.button>
+              </div>
+
+              {videosLoading ? (
+                <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>
+              ) : videos.length === 0 ? (
+                <div className="glass-card rounded-2xl p-12 text-center">
+                  <Play className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                  <p className="text-white/40">No videos yet</p>
+                  <p className="text-xs text-white/25 mt-1">Click &quot;Add Video&quot; to add the first one</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {videos.map((v: any) => (
+                    <div key={v.id} className="glass-card rounded-xl overflow-hidden">
+                      <div className="relative h-36 bg-gradient-to-br from-primary/20 to-accent/20">
+                        {(v.thumbnailUrl || v.youtubeUrl) && (
+                          <img
+                            src={v.thumbnailUrl || `https://img.youtube.com/vi/${v.youtubeUrl.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/)?.[1]}/mqdefault.jpg`}
+                            alt={v.title}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        <div className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full border font-semibold ${
+                          v.category === 'WELLNESS' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                          v.category === 'MENTORSHIP' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                          'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                        }`}>{v.category.charAt(0) + v.category.slice(1).toLowerCase()}</div>
+                      </div>
+                      <div className="p-3">
+                        <h4 className="text-xs font-semibold text-white mb-1 line-clamp-1">{v.title}</h4>
+                        <p className="text-[10px] text-white/40 mb-2 line-clamp-1">{v.description}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-white/30">{v.duration} · {v.viewCount} views</span>
+                          <button onClick={() => handleDeleteVideo(v.id)} className="w-6 h-6 rounded-lg bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center transition-colors">
+                            <Trash2 className="w-3 h-3 text-red-400" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Add Video Modal */}
+      <AnimatePresence>
+        {showVideoModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={e => e.target === e.currentTarget && setShowVideoModal(false)}
+          >
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
+              style={{ background: '#1A1A2E' }}
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+                <h3 className="text-base font-semibold text-white">Add Video</h3>
+                <button onClick={() => setShowVideoModal(false)} className="text-white/40 hover:text-white"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-6 space-y-4">
+                {[
+                  { label: 'Title *', key: 'title', placeholder: 'e.g. Managing Exam Stress' },
+                  { label: 'YouTube URL *', key: 'youtubeUrl', placeholder: 'https://youtu.be/...' },
+                  { label: 'Description', key: 'description', placeholder: 'Short description…' },
+                  { label: 'Duration', key: 'duration', placeholder: 'e.g. 12:30' },
+                  { label: 'Thumbnail URL (optional)', key: 'thumbnailUrl', placeholder: 'https://...' },
+                  { label: 'Tags (comma-separated)', key: 'tags', placeholder: 'stress, meditation, focus' },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">{f.label}</label>
+                    <input value={(videoForm as any)[f.key]} onChange={e => setVideoForm({ ...videoForm, [f.key]: e.target.value })}
+                      placeholder={f.placeholder} className="input-dark w-full px-4 py-2.5 rounded-xl text-sm" />
+                  </div>
+                ))}
+                <div>
+                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Category</label>
+                  <select value={videoForm.category} onChange={e => setVideoForm({ ...videoForm, category: e.target.value })} className="input-dark w-full px-4 py-2.5 rounded-xl text-sm">
+                    <option value="WELLNESS">Wellness</option>
+                    <option value="MENTORSHIP">Mentorship</option>
+                    <option value="LEADERSHIP">Leadership</option>
+                  </select>
+                </div>
+              </div>
+              <div className="px-6 pb-6 flex gap-3">
+                <button onClick={() => setShowVideoModal(false)} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10">Cancel</button>
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleSaveVideo} disabled={savingVideo}
+                  className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50">
+                  {savingVideo ? 'Saving…' : 'Add Video'}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Create/Edit Event Modal */}
       <AnimatePresence>
@@ -2946,6 +3151,20 @@ export default function AdminDashboard() {
                       <option value="INACTIVE">Inactive</option>
                       <option value="ARCHIVED">Archived</option>
                     </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <div
+                        onClick={() => setCourseForm({ ...courseForm, isCompulsory: !courseForm.isCompulsory })}
+                        className={`w-10 h-5 rounded-full transition-colors relative ${courseForm.isCompulsory ? 'bg-amber-500' : 'bg-white/10'}`}
+                      >
+                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${courseForm.isCompulsory ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-white/80">Compulsory Bundle</p>
+                        <p className="text-[10px] text-white/40">Students are auto-enrolled to all workshops</p>
+                      </div>
+                    </label>
                   </div>
                 </div>
               </div>

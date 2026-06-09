@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Video, Users, Clock, CheckCircle, Wifi, WifiOff, MapPin, 
-  Calendar, ExternalLink, Bell, User, Filter
+import {
+  Video, Users, Clock, CheckCircle, Wifi, WifiOff, MapPin,
+  Calendar, ExternalLink, Bell, User, Filter, Star, MessageSquare
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
@@ -178,6 +178,8 @@ function PastSessionCard({ session }: { session: Session }) {
 export default function InstructorDashboard() {
   const [data, setData] = useState<InstructorData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [feedbackData, setFeedbackData] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'workshops' | 'feedback'>('workshops');
   const [workshopFilter, setWorkshopFilter] = useState<WorkshopFilter>('all');
   const [courseFilter, setCourseFilter] = useState<CourseFilter>('all');
   const [pastWorkshopFilter, setPastWorkshopFilter] = useState<WorkshopFilter>('all');
@@ -197,9 +199,7 @@ export default function InstructorDashboard() {
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instructor/dashboard`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
 
       const result = await response.json();
@@ -209,6 +209,15 @@ export default function InstructorDashboard() {
       }
 
       setData(result.data);
+
+      // Fetch feedback in parallel
+      const fbRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instructor/feedback`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (fbRes.ok) {
+        const fbResult = await fbRes.json();
+        setFeedbackData(fbResult.data || []);
+      }
     } catch (error) {
       console.error('Dashboard fetch error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to load dashboard');
@@ -332,6 +341,35 @@ export default function InstructorDashboard() {
         </div>
       </motion.div>
 
+      {/* Tab Switcher */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setActiveTab('workshops')}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+            activeTab === 'workshops'
+              ? 'bg-primary/20 text-primary border-primary/30'
+              : 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10'
+          }`}
+        >
+          <Video className="w-4 h-4 inline mr-1.5" />Workshops
+        </button>
+        <button
+          onClick={() => setActiveTab('feedback')}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all flex items-center gap-1.5 ${
+            activeTab === 'feedback'
+              ? 'bg-primary/20 text-primary border-primary/30'
+              : 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />Feedback
+          {feedbackData.reduce((s: number, e: any) => s + (e.totalFeedback || 0), 0) > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary/30 text-primary text-[10px]">
+              {feedbackData.reduce((s: number, e: any) => s + (e.totalFeedback || 0), 0)}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
@@ -417,7 +455,70 @@ export default function InstructorDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Feedback Tab Content */}
+      {activeTab === 'feedback' && (
+        <div className="space-y-4">
+          {feedbackData.length === 0 ? (
+            <div className="glass-card rounded-2xl p-12 text-center">
+              <MessageSquare className="w-12 h-12 text-white/20 mx-auto mb-3" />
+              <p className="text-white/40">No feedback received yet</p>
+              <p className="text-xs text-white/25 mt-1">Feedback will appear here after workshops complete</p>
+            </div>
+          ) : (
+            feedbackData.map((entry: any) => (
+              <div key={entry.eventId} className="glass-card rounded-2xl p-6">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">{entry.eventTitle}</h3>
+                    <p className="text-xs text-white/40 mt-0.5">{entry.totalFeedback} responses · {entry.totalRegistrations} registered</p>
+                  </div>
+                  <div className="flex gap-4 shrink-0">
+                    {entry.avgEventRating !== null && (
+                      <div className="text-center">
+                        <div className="flex items-center gap-0.5">
+                          {[1,2,3,4,5].map(s => (
+                            <Star key={s} className={`w-3 h-3 ${s <= Math.round(entry.avgEventRating) ? 'fill-yellow-400 text-yellow-400' : 'text-white/20'}`} />
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-white/40 mt-0.5">Event {entry.avgEventRating}/5</p>
+                      </div>
+                    )}
+                    {entry.avgInstructorRating !== null && (
+                      <div className="text-center">
+                        <div className="flex items-center gap-0.5">
+                          {[1,2,3,4,5].map(s => (
+                            <Star key={s} className={`w-3 h-3 ${s <= Math.round(entry.avgInstructorRating) ? 'fill-primary text-primary' : 'text-white/20'}`} />
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-white/40 mt-0.5">Instructor {entry.avgInstructorRating}/5</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {entry.comments.length > 0 && (
+                  <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-hide">
+                    {entry.comments.map((c: any, i: number) => (
+                      <div key={i} className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
+                        {c.instructorComment && (
+                          <p className="text-xs text-white/70"><span className="text-primary/70 font-medium">About instructor: </span>{c.instructorComment}</p>
+                        )}
+                        {c.eventComment && (
+                          <p className="text-xs text-white/60"><span className="text-white/40 font-medium">About event: </span>{c.eventComment}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {entry.comments.length === 0 && entry.totalFeedback > 0 && (
+                  <p className="text-xs text-white/30 italic">No written comments submitted</p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'workshops' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Upcoming Workshops */}
@@ -703,7 +804,7 @@ export default function InstructorDashboard() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
     </DashboardLayout>
   );
 }

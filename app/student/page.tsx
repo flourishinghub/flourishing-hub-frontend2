@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Calendar, CheckCircle, Clock, MapPin, Star, Users, BookOpen } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, MapPin, Star, Users, BookOpen, PlayCircle } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
@@ -14,6 +14,23 @@ import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
 import { getRegistrationMetrics, getRegisteredEventIds } from '@/lib/registrationUtils';
 import type { CompletedEvent, AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
+
+function RadialProgress({ percentage, size = 80 }: { percentage: number; size?: number }) {
+  const r = (size - 10) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (percentage / 100) * circ;
+  return (
+    <svg width={size} height={size} className="-rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="8" className="stroke-white/10" />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="8"
+        strokeDasharray={`${dash} ${circ}`}
+        strokeLinecap="round"
+        className="stroke-primary transition-all duration-700"
+      />
+    </svg>
+  );
+}
 
 function CompletedEventCard({ event }: { event: CompletedEvent }) {
   const [hovered, setHovered] = useState(false);
@@ -64,6 +81,7 @@ export default function StudentDashboard() {
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [registeredEvents, setRegisteredEvents] = useState<string[]>([]);
+  const [bundleProgress, setBundleProgress] = useState<any[]>([]);
   const router = useRouter();
 
   // Fetch user data, events, and registrations from backend API
@@ -123,12 +141,14 @@ export default function StudentDashboard() {
         localStorage.setItem("user", JSON.stringify(transformedUser));
         console.log("✅ Fresh user data loaded and cached:", transformedUser.name);
 
-        // Fetch events, registrations and attendance in parallel
-        const [eventsResponse, registrationsResponse, attendanceResponse] = await Promise.all([
+        // Fetch events, registrations, attendance, and bundle progress in parallel
+        const [eventsResponse, registrationsResponse, attendanceResponse, bundleResponse] = await Promise.all([
           apiCall('/events'),
           apiCall('/registrations/me'),
-          apiCall('/event-operations/attendance/me').catch(() => ({ data: [] }))
+          apiCall('/event-operations/attendance/me').catch(() => ({ data: [] })),
+          apiCall('/student/bundle-progress').catch(() => ({ data: [] })),
         ]);
+        setBundleProgress(bundleResponse.data || []);
         
         console.log("📦 Student events received:", eventsResponse);
         console.log("📦 User registrations received:", registrationsResponse);
@@ -346,6 +366,35 @@ export default function StudentDashboard() {
         <StatCard title="Active Registrations" value={activeRegistrations.length} icon={Calendar} color="purple" />
         <StatCard title="Completed Events" value={completedRegistrations.length} icon={CheckCircle} color="teal" />
       </div>
+
+      {/* Bundle Progress */}
+      {bundleProgress.length > 0 && (
+        <div className="glass-card rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-white">Course Bundle Progress</h2>
+            <span className="text-xs text-white/40">{bundleProgress.length} bundle{bundleProgress.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {bundleProgress.map((bundle: any) => (
+              <motion.div
+                key={bundle.courseId}
+                whileHover={{ y: -2 }}
+                className="glass-card rounded-xl p-4 flex flex-col items-center gap-2 relative"
+              >
+                {bundle.isCompulsory && (
+                  <span className="absolute top-2 right-2 text-[9px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-full">Required</span>
+                )}
+                <div className="relative flex items-center justify-center">
+                  <RadialProgress percentage={bundle.percentage} size={72} />
+                  <span className="absolute text-sm font-bold text-white">{bundle.percentage}%</span>
+                </div>
+                <p className="text-xs font-semibold text-white text-center line-clamp-2">{bundle.courseName}</p>
+                <p className="text-[10px] text-white/40">{bundle.attended} of {bundle.totalWorkshops} workshops</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
