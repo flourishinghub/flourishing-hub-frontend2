@@ -26,6 +26,11 @@ export default function EventDetailPage() {
   const [checkIn, setCheckIn] = useState<any>(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
+  const [myAttendanceRec, setMyAttendanceRec] = useState<any>(null);
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackHover, setFeedbackHover] = useState(0);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
   const params = useParams();
@@ -66,7 +71,7 @@ export default function EventDetailPage() {
         }
 
         const [eventsResponse, registrationsResponse, attendanceResponse] = await Promise.all([
-          apiCall('/events'),
+          apiCall('/events?limit=200'),
           apiCall('/registrations/me'),
           apiCall('/event-operations/attendance/me').catch(() => ({ data: [] })),
         ]);
@@ -83,6 +88,8 @@ export default function EventDetailPage() {
           id: eventData.id,
           title: eventData.title || 'Untitled Event',
           description: eventData.description || '',
+          startAt: eventData.startAt,
+          endAt: eventData.endAt || null,
           date: startDate.toISOString().split('T')[0],
           time: startDate.toTimeString().slice(0, 5),
           venue: eventData.venue || 'TBD',
@@ -104,19 +111,30 @@ export default function EventDetailPage() {
         const registered = registeredEventIds.includes(eventId);
         setIsRegistered(registered);
 
-        if (isEventLive(startDate.toISOString()) && registered) {
+        if (isEventLive(eventData.startAt, eventData.endAt) && registered) {
           await fetchCheckInStatus();
         }
 
-        // Build history from attended events
-        const history = (attendanceResponse.data || [])
-          .filter((a: any) => a.status === 'PRESENT')
+        // Store this event's attendance record (for feedback section)
+        const allAttendance: any[] = attendanceResponse.data || [];
+        const thisEventRec = allAttendance.find((a: any) => a.eventId === eventId);
+        setMyAttendanceRec(thisEventRec || null);
+        if (thisEventRec?.starRating) {
+          setFeedbackRating(thisEventRec.starRating);
+          setFeedbackSubmitted(true);
+        }
+
+        // Build history from attended events (field names from getMyAttendance API)
+        const history = allAttendance
+          .filter((a: any) => a.status === 'PRESENT' && a.eventId !== eventId)
           .slice(0, 5)
           .map((a: any) => ({
-            eventTitle: a.event?.title || 'Workshop',
-            date: a.event?.startAt || a.markedAt,
-            score: a.marks || null,
-            courseName: a.event?.course?.name || null,
+            eventTitle: a.eventTitle || 'Workshop',
+            date: a.date,
+            marks: a.marks,
+            maxMarks: a.maxMarks,
+            starRating: a.starRating,
+            courseName: a.courseName,
           }));
         setAttendanceHistory(history);
       } catch (error) {
@@ -152,6 +170,24 @@ export default function EventDetailPage() {
     }
   };
 
+  const handleFeedback = async (rating: number) => {
+    if (feedbackSubmitting) return;
+    setFeedbackRating(rating);
+    setFeedbackSubmitting(true);
+    try {
+      await apiCall('/event-operations/' + eventId + '/feedback', {
+        method: 'POST',
+        body: JSON.stringify({ eventRating: rating }),
+      });
+      setFeedbackSubmitted(true);
+      toast.success('Thanks for your rating!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to submit rating.');
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
   const handleCheckIn = async () => {
     setCheckingIn(true);
     try {
@@ -179,8 +215,8 @@ export default function EventDetailPage() {
     );
   }
 
-  const isLive = isEventLive(event.date + 'T' + event.time);
-  const isUpcoming = isEventUpcoming(event.date + 'T' + event.time);
+  const isLive = isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt);
+  const isUpcoming = isEventUpcoming(event.startAt || (event.date + 'T' + event.time));
   const isFull = event.registeredCount >= event.capacity && event.capacity > 0;
 
   // ── LIVE EVENT FULL PAGE ──
@@ -715,6 +751,56 @@ export default function EventDetailPage() {
             </div>
           </motion.div>
 
+          {/* Rate this Event — shown for completed events with verified attendance */}
+          {!isUpcoming && !isLive && myAttendanceRec?.status === 'PRESENT' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="glass-card rounded-2xl p-6"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <Star className="w-4 h-4 text-yellow-400" />
+                <h3 className="text-lg font-semibold text-white">Rate this Event</h3>
+              </div>
+              {feedbackSubmitted ? (
+                <div className="text-center py-3">
+                  <div className="flex justify-center gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className={`w-6 h-6 ${s <= feedbackRating ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`} />
+                    ))}
+                  </div>
+                  <p className="text-white/60 text-sm">Your rating is saved</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-white/50 text-xs mb-3">Tap a star to rate your experience</p>
+                  <div className="flex justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <motion.button
+                        key={s}
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.9 }}
+                        onMouseEnter={() => setFeedbackHover(s)}
+                        onMouseLeave={() => setFeedbackHover(0)}
+                        onClick={() => handleFeedback(s)}
+                        disabled={feedbackSubmitting}
+                        className="disabled:opacity-50"
+                      >
+                        <Star className={`w-7 h-7 transition-all ${
+                          s <= (feedbackHover || feedbackRating)
+                            ? 'text-yellow-400 fill-yellow-400'
+                            : 'text-white/20'
+                        }`} />
+                      </motion.button>
+                    ))}
+                  </div>
+                  {feedbackSubmitting && <p className="text-white/40 text-xs text-center mt-2">Saving...</p>}
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {/* History Tab — student only */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -740,18 +826,27 @@ export default function EventDetailPage() {
                     {item.courseName && (
                       <p className="text-primary/80 text-xs mb-1">{item.courseName}</p>
                     )}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="text-white/40 text-xs">
                         {item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                       </span>
-                      {item.score != null ? (
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30">
-                          <Star className="w-3 h-3 text-emerald-400" />
-                          <span className="text-emerald-400 text-xs font-bold">{item.score}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Present</span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {item.marks != null && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">
+                            {item.marks}/{item.maxMarks ?? 100}
+                          </span>
+                        )}
+                        {item.starRating != null && (
+                          <div className="flex items-center gap-0.5">
+                            {[1,2,3,4,5].map(s => (
+                              <Star key={s} className={`w-2.5 h-2.5 ${s <= item.starRating ? 'text-yellow-400 fill-yellow-400' : 'text-white/15'}`} />
+                            ))}
+                          </div>
+                        )}
+                        {item.marks == null && item.starRating == null && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Present</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

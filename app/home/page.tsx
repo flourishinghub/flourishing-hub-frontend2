@@ -69,7 +69,7 @@ export default function HomePage() {
 
         // Fetch real events from backend
         console.log("🔄 Fetching events from backend...");
-        const eventsResponse = await apiCall('/events'); // Use public events endpoint
+        const eventsResponse = await apiCall('/events?limit=200');
         console.log("📦 Events received:", eventsResponse);
         
         // Transform events to match frontend format

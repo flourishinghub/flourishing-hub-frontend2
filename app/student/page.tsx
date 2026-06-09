@@ -145,7 +145,7 @@ export default function StudentDashboard() {
 
         // Fetch events, registrations, attendance, and bundle progress in parallel
         const [eventsResponse, registrationsResponse, attendanceResponse, bundleResponse] = await Promise.all([
-          apiCall('/events'),
+          apiCall('/events?limit=200'),
           apiCall('/registrations/me'),
           apiCall('/event-operations/attendance/me').catch(() => ({ data: [] })),
           apiCall('/student/bundle-progress').catch(() => ({ data: [] })),
@@ -163,6 +163,8 @@ export default function StudentDashboard() {
               id: event.id,
               title: event.title || 'Untitled Event',
               description: event.description || '',
+              startAt: event.startAt,
+              endAt: event.endAt || null,
               date: startDate.toISOString().split('T')[0],
               time: startDate.toTimeString().slice(0, 5),
               venue: event.venue || 'TBD',
@@ -178,8 +180,10 @@ export default function StudentDashboard() {
               id: event.id || 'unknown',
               title: event.title || 'Untitled Event',
               description: event.description || '',
-              date: '2026-05-04', // Fallback date
-              time: '10:00', // Fallback time
+              startAt: event.startAt || null,
+              endAt: event.endAt || null,
+              date: '2026-05-04',
+              time: '10:00',
               venue: event.venue || 'TBD',
               mode: 'In Classroom',
               capacity: 0,
@@ -228,17 +232,17 @@ export default function StudentDashboard() {
     fetchData();
   }, []);
 
-  // Calculate active and upcoming events using safe date utilities
+  // Calculate active and upcoming events using actual startAt/endAt
   const now = new Date();
-  
-  // Active event: currently happening (using timezone-safe logic)
+
+  // Active event: currently happening (uses real endAt from backend)
   const activeEvent = events.find(event => {
-    return isEventLive(event.date + 'T' + event.time);
+    return isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt);
   });
-  
-  // Upcoming events: future events (using timezone-safe logic)
+
+  // Upcoming events: future events
   const upcomingEvents = events.filter(event => {
-    return isEventUpcoming(event.date + 'T' + event.time);
+    return isEventUpcoming(event.startAt || (event.date + 'T' + event.time));
   });
 
   // 🔥 CRITICAL: Calculate registered events using safe utilities
@@ -282,36 +286,38 @@ export default function StudentDashboard() {
   console.log("🎯 Completed registrations:", completedRegistrations.length);
   console.log("📈 Total participations:", totalParticipations);
 
-  // Mock past records (will be replaced with API data later)
-  const pastRecords = [
-    {
-      title: 'Academic Stress Workshop',
-      date: formatDate('2026-04-15'),
-      venue: 'LT 101',
-      marks: '85/100',
-      rating: renderStars(4),
-      status: 'Completed',
-    },
-    {
-      title: 'Mental Health Awareness Talk',
-      date: formatDate('2026-04-10'),
-      venue: 'Seminar Hall',
-      marks: '92/100',
-      rating: renderStars(5),
-      status: 'Completed',
-    }
-  ];
+  // Build lookup from attendance API response (includes marks + starRating from backend)
+  const attendanceLookup: Record<string, any> = {};
+  for (const rec of attendanceRecords) {
+    attendanceLookup[rec.eventId] = rec;
+  }
 
-  // Transform completed registrations to CompletedEvent format
-  const completedEvents: CompletedEvent[] = completedRegistrations.map(registration => ({
-    eventId: registration.eventId,
-    title: registration.event.title,
-    date: new Date(registration.event.startAt).toISOString().split('T')[0],
-    venue: registration.event.venue || 'TBD',
-    marks: 85, // TODO: Get from ModuleProgress when available
-    maxMarks: 100,
-    starRating: 4, // TODO: Get from Feedback when available
+  // Past records table — real data from attendance API
+  const pastRecords = attendanceRecords.map((rec: any) => ({
+    title: rec.eventTitle,
+    date: formatDate(rec.date),
+    venue: rec.venue || '—',
+    marks: rec.marks != null && rec.maxMarks != null ? `${rec.marks}/${rec.maxMarks}` : '—',
+    rating: rec.starRating != null ? renderStars(rec.starRating) : '—',
+    status: rec.status === 'PRESENT' ? 'Present' : rec.status === 'EXCUSED' ? 'Excused' : 'Absent',
   }));
+
+  // Transform completed registrations to CompletedEvent format with real marks/ratings
+  // Exclude events that are currently live (endAt not yet passed)
+  const completedEvents: CompletedEvent[] = completedRegistrations
+    .filter(registration => !isEventLive(registration.event.startAt, registration.event.endAt))
+    .map(registration => {
+    const attRec = attendanceLookup[registration.eventId];
+    return {
+      eventId: registration.eventId,
+      title: registration.event.title,
+      date: new Date(registration.event.startAt).toISOString().split('T')[0],
+      venue: registration.event.venue || 'TBD',
+      marks: attRec?.marks ?? undefined,
+      maxMarks: attRec?.maxMarks ?? undefined,
+      starRating: attRec?.starRating ?? undefined,
+    };
+  });
 
   const handleRegister = async (eventId: string) => {
     try {
@@ -406,14 +412,14 @@ export default function StudentDashboard() {
             <h2 className="text-base font-semibold text-white mb-4">Event Status</h2>
 
             {/* Live Events - NEW SECTION */}
-            {events.filter(event => isEventLive(event.date + 'T' + event.time)).length > 0 && (
+            {events.filter(event => isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt)).length > 0 && (
               <>
                 <h3 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                   <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
                   Live Events
                 </h3>
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide mb-6">
-                  {events.filter(event => isEventLive(event.date + 'T' + event.time)).map((event) => (
+                  {events.filter(event => isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt)).map((event) => (
                     <div 
                       key={event.id} 
                       className="flex-shrink-0 w-72 p-3 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/15 transition-all cursor-pointer"
@@ -542,7 +548,7 @@ export default function StudentDashboard() {
                 <div ref={sliderRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide scroll-smooth">
                   {filteredSliderEvents.map((event) => {
                     const isReg = registeredEvents.includes(event.id);
-                    const isLive = isEventLive(event.date + 'T' + event.time);
+                    const isLive = isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt);
                     return (
                       <motion.div
                         key={event.id}
@@ -627,7 +633,13 @@ export default function StudentDashboard() {
                 { key: 'rating', label: 'Rating' },
                 {
                   key: 'status', label: 'Status',
-                  render: () => <span className="badge-green">Completed</span>,
+                  render: (row: any) => (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                      row.status === 'Present' ? 'bg-emerald-500/15 text-emerald-400' :
+                      row.status === 'Excused' ? 'bg-yellow-500/15 text-yellow-400' :
+                      'bg-red-500/15 text-red-400'
+                    }`}>{row.status}</span>
+                  ),
                 },
               ]}
               searchKeys={['title'] as never[]}

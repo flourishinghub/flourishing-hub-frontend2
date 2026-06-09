@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getCurrentUser, apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import { isEventLive } from '@/lib/dateUtils';
+import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
 import { getRegisteredEventIds } from '@/lib/registrationUtils';
 import type { AuthPayload } from '@/types';
 
@@ -31,7 +31,7 @@ export default function StudentEventsPage() {
         if (cachedUser) setUser(JSON.parse(cachedUser));
 
         const [eventsResponse, registrationsResponse] = await Promise.all([
-          apiCall('/events'),
+          apiCall('/events?limit=200'),
           apiCall('/registrations/me'),
         ]);
 
@@ -41,6 +41,8 @@ export default function StudentEventsPage() {
             id: event.id,
             title: event.title || 'Untitled Event',
             description: event.description || '',
+            startAt: event.startAt,
+            endAt: event.endAt || null,
             date: startDate.toISOString().split('T')[0],
             time: startDate.toTimeString().slice(0, 5),
             venue: event.venue || 'TBD',
@@ -69,23 +71,19 @@ export default function StudentEventsPage() {
 
   const filteredEvents = events
     .filter((event) => {
-      const eventStart = new Date(`${event.date}T${event.time}`);
-      const eventEnd = new Date(eventStart.getTime() + 2 * 60 * 60 * 1000);
-      const isLive = now >= eventStart && now <= eventEnd;
-      const isUpcoming = eventStart > now;
+      const isLive = isEventLive(event.startAt || `${event.date}T${event.time}`, event.endAt);
+      const isUpcoming = isEventUpcoming(event.startAt || `${event.date}T${event.time}`);
 
       if (filter === 'live') return isLive;
       if (filter === 'registered') return registeredEvents.includes(event.id) && (isLive || isUpcoming);
       return isLive || isUpcoming; // 'all'
     })
     .sort((a, b) => {
-      const aStart = new Date(`${a.date}T${a.time}`);
-      const bStart = new Date(`${b.date}T${b.time}`);
-      const aLive = isEventLive(`${a.date}T${a.time}`);
-      const bLive = isEventLive(`${b.date}T${b.time}`);
+      const aLive = isEventLive(a.startAt || `${a.date}T${a.time}`, a.endAt);
+      const bLive = isEventLive(b.startAt || `${b.date}T${b.time}`, b.endAt);
       if (aLive && !bLive) return -1;
       if (!aLive && bLive) return 1;
-      return aStart.getTime() - bStart.getTime();
+      return new Date(a.startAt || `${a.date}T${a.time}`).getTime() - new Date(b.startAt || `${b.date}T${b.time}`).getTime();
     });
 
   return (
@@ -138,7 +136,7 @@ export default function StudentEventsPage() {
           </div>
         ) : (
           filteredEvents.map((event, i) => {
-            const isLive = isEventLive(`${event.date}T${event.time}`);
+            const isLive = isEventLive(event.startAt || `${event.date}T${event.time}`, event.endAt);
             const isRegistered = registeredEvents.includes(event.id);
             const isFull = event.registeredCount >= event.capacity && event.capacity > 0;
 

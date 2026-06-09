@@ -20,6 +20,7 @@ export default function AssociateInstructorDashboard() {
   const [liveEvents, setLiveEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const [refreshingEvents, setRefreshingEvents] = useState(false);
 
   // ── Attendance state ──
   const [checkIns, setCheckIns] = useState<any[]>([]);
@@ -50,21 +51,34 @@ export default function AssociateInstructorDashboard() {
   }, []);
 
   // ── Fetch assigned events ──
+  const fetchLiveEvents = async (silent = false) => {
+    if (!silent) setLoadingEvents(true);
+    else setRefreshingEvents(true);
+    try {
+      const response = await apiCall('/event-operations/my-assigned-events');
+      const assigned: any[] = response.data || [];
+      setLiveEvents(assigned);
+      const ids = assigned.map((e: any) => e.id);
+      // Auto-select if only one event; clear selection if selected event was deleted
+      setSelectedEventId((prev) => {
+        if (assigned.length === 1) return assigned[0].id;
+        if (prev && !ids.includes(prev)) return null; // event was deleted
+        return prev;
+      });
+    } catch {
+      toast.error('Could not load assigned events');
+    } finally {
+      setLoadingEvents(false);
+      setRefreshingEvents(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchLiveEvents = async () => {
-      setLoadingEvents(true);
-      try {
-        const response = await apiCall('/event-operations/my-assigned-events');
-        const assigned: any[] = response.data || [];
-        setLiveEvents(assigned);
-        if (assigned.length === 1) setSelectedEventId(assigned[0].id || null);
-      } catch {
-        toast.error('Could not load assigned events');
-      } finally {
-        setLoadingEvents(false);
-      }
-    };
     fetchLiveEvents();
+    // Re-fetch every 60s so computedStatus stays current and deleted events disappear
+    const interval = setInterval(() => fetchLiveEvents(true), 60000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Fetch check-ins ──
@@ -108,7 +122,13 @@ export default function AssociateInstructorDashboard() {
 
   // ── Fetch all data when event is selected ──
   useEffect(() => {
-    if (!selectedEventId) return;
+    if (!selectedEventId) {
+      // Clear stale data when event is deselected (e.g. deleted by admin)
+      setCheckIns([]);
+      setRegistrants([]);
+      setVolunteers([]);
+      return;
+    }
 
     fetchCheckIns(selectedEventId);
     fetchRegistrants(selectedEventId);
@@ -200,9 +220,18 @@ export default function AssociateInstructorDashboard() {
     { id: 'registrants', label: 'Registrants', icon: FileText },
   ];
 
-  const liveNow = liveEvents.filter((e) => e.computedStatus === 'live');
-  const upcoming = liveEvents.filter((e) => e.computedStatus === 'upcoming');
-  const completed = liveEvents.filter((e) => e.computedStatus === 'completed');
+  // Recompute status from actual timestamps (overrides cached backend value)
+  const recomputeStatus = (e: any): 'live' | 'upcoming' | 'completed' => {
+    const now = new Date();
+    const start = new Date(e.startAt);
+    const end = e.endAt ? new Date(e.endAt) : new Date(start.getTime() + 2 * 60 * 60 * 1000);
+    if (now > end) return 'completed';
+    if (now >= start && now <= end) return 'live';
+    return 'upcoming';
+  };
+  const liveNow = liveEvents.filter((e) => recomputeStatus(e) === 'live');
+  const upcoming = liveEvents.filter((e) => recomputeStatus(e) === 'upcoming');
+  const completed = liveEvents.filter((e) => recomputeStatus(e) === 'completed');
 
   // ── Reusable event selector ──
   const EventSelector = () => (
@@ -295,6 +324,17 @@ export default function AssociateInstructorDashboard() {
           {/* ─── Events Tab ─── */}
           {activeTab === 'events' && (
             <div className="space-y-6">
+              {/* Refresh button */}
+              <div className="flex justify-end">
+                <button
+                  onClick={() => fetchLiveEvents(true)}
+                  disabled={refreshingEvents || loadingEvents}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/50 hover:text-white border border-white/10 text-xs font-medium transition-all disabled:opacity-40"
+                >
+                  <RefreshCw className={`w-3 h-3 ${refreshingEvents ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
               {loadingEvents ? (
                 <div className="flex items-center gap-2 text-white/50 text-sm py-10 justify-center">
                   <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />

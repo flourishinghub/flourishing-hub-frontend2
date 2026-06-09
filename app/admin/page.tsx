@@ -19,7 +19,7 @@ import VolunteerAssignment from '@/components/VolunteerAssignment';
 import PendingApprovalsTab from '@/components/PendingApprovalsTab';
 import { apiCall, getCurrentUser } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
+import { isEventLive, isEventUpcoming, isEventPast } from '@/lib/dateUtils';
 import type { Event, MemberDirectory, UserRole } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -186,6 +186,8 @@ export default function AdminDashboard() {
     id: event.id,
     title: event.title,
     description: event.description,
+    startAt: event.startAt,
+    endAt: event.endAt || null,
     date: new Date(event.startAt).toISOString().split('T')[0],
     time: new Date(event.startAt).toTimeString().slice(0, 5),
     endTime: event.endAt ? new Date(event.endAt).toTimeString().slice(0, 5) : '',
@@ -399,10 +401,10 @@ export default function AdminDashboard() {
   const now = new Date();
 
   // Event filters
-  const liveEvents = events.filter(e => e.status === 'published' && isEventLive(e.date + 'T' + e.time));
-  const upcomingEventsAll = events.filter(e => e.status === 'published' && isEventUpcoming(e.date + 'T' + e.time));
+  const liveEvents = events.filter(e => e.status === 'published' && isEventLive(e.startAt || (e.date + 'T' + e.time), e.endAt));
+  const upcomingEventsAll = events.filter(e => e.status === 'published' && isEventUpcoming(e.startAt || (e.date + 'T' + e.time)));
   const completedEventsAll = events.filter(e =>
-    e.status === 'completed' || (e.date < now.toISOString().split('T')[0])
+    e.status === 'completed' || isEventPast(e.startAt || (e.date + 'T' + e.time), e.endAt)
   );
 
   const filterByType = (list: Event[]) => {
@@ -1216,7 +1218,7 @@ export default function AdminDashboard() {
               ) : (
                 <div className="space-y-3">
                   {overviewEvents.map((event) => {
-                    const live = isEventLive(event.date + 'T' + event.time);
+                    const live = isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt);
                     return (
                       <div key={event.id}
                         className={`flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${live ? 'bg-red-500/5 border-red-500/20 hover:bg-red-500/10' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'}`}
