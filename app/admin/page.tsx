@@ -574,16 +574,18 @@ export default function AdminDashboard() {
       setShowModal(false);
       setEditingEvent(null);
       setForm(emptyForm);
-
-      // Refresh events list with registration details in background
-      const eventsResponse = await apiCall('/admin/events-with-registrations');
-      setEvents(transformEventsData(eventsResponse.data));
     } catch (error: any) {
       console.error('Error saving event:', error);
       toast.error(error?.message || 'Failed to save event');
     } finally {
-      setSaving(false); // Re-enable button
+      setSaving(false);
     }
+
+    // Refresh events list silently in background (outside try so it never blocks success)
+    try {
+      const eventsResponse = await apiCall('/admin/events-with-registrations');
+      if (eventsResponse?.data) setEvents(transformEventsData(eventsResponse.data));
+    } catch {}
   };
 
   const handleDelete = async (eventId: string, eventTitle: string) => {
