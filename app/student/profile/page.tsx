@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { User, Edit3, Save, X, Mail, Phone, MapPin, Calendar, Book, Users, GraduationCap, Hash } from 'lucide-react';
+import { User, Edit3, Save, X, Mail, Calendar, Book, Users, GraduationCap, Hash, Camera } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getCurrentUser, apiCall } from '@/lib/api';
 import type { AuthPayload } from '@/types';
@@ -19,6 +19,7 @@ interface ProfileData {
   section?: string;
   designation?: string;
   employeeId?: string;
+  profileImageUrl?: string;
 }
 
 export default function ProfilePage() {
@@ -26,6 +27,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [profileData, setProfileData] = useState<ProfileData>({
     name: '',
     email: '',
@@ -83,6 +86,7 @@ export default function ProfilePage() {
           section: userData.studentProfile?.section || '',
           designation: userData.instructorProfile?.designation || '',
           employeeId: userData.employeeId || userData.adminProfile?.employeeId || '',
+          profileImageUrl: userData.profileImageUrl || '',
         });
 
         console.log("✅ Profile data loaded successfully");
@@ -104,6 +108,33 @@ export default function ProfilePage() {
     }));
   };
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error('Photo must be under 2 MB'); return; }
+    setUploadingPhoto(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const dataUrl = ev.target?.result as string;
+        // Save photo URL immediately
+        const res = await apiCall('/profile', {
+          method: 'PUT',
+          body: { name: profileData.name, email: profileData.email, profileImageUrl: dataUrl },
+        });
+        if (res.success) {
+          setProfileData((prev) => ({ ...prev, profileImageUrl: dataUrl }));
+          toast.success('Photo updated!');
+        }
+        setUploadingPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      toast.error('Failed to update photo');
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -113,6 +144,7 @@ export default function ProfilePage() {
       const updatePayload: any = {
         name: profileData.name,
         email: profileData.email,
+        profileImageUrl: profileData.profileImageUrl || undefined,
       };
 
       // Add role-specific profile data
@@ -326,11 +358,44 @@ export default function ProfilePage() {
           className="glass-card rounded-2xl p-6"
         >
           <div className="text-center mb-6">
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl font-bold text-white">
-                {profileData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
-              </span>
+            <div className="relative w-24 h-24 mx-auto mb-4 group">
+              {profileData.profileImageUrl ? (
+                <img
+                  src={profileData.profileImageUrl}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-2xl object-cover"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white">
+                    {profileData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                  </span>
+                </div>
+              )}
+              {/* Photo upload overlay — always visible for easy access */}
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="absolute inset-0 rounded-2xl bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-wait"
+              >
+                {uploadingPhoto ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Camera className="w-5 h-5 text-white mb-1" />
+                    <span className="text-[10px] text-white font-medium">Change</span>
+                  </>
+                )}
+              </button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
             </div>
+            <p className="text-[10px] text-white/30 mb-2">Hover photo to change</p>
             <h2 className="text-xl font-semibold text-white mb-1">{profileData.name || 'User'}</h2>
             <p className="text-sm text-white/50 capitalize">{user?.role || 'User'}</p>
             <p className="text-xs text-white/40 mt-1">{profileData.department || 'IIT Bombay'}</p>

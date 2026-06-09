@@ -31,13 +31,10 @@ export default function EventDetailPage() {
   const params = useParams();
   const eventId = params.id as string;
 
-  const fetchCheckInStatus = async (currentUserId?: string) => {
+  const fetchCheckInStatus = async (_currentUserId?: string) => {
     try {
-      const checkInsResponse = await apiCall('/event-operations/' + eventId + '/check-ins');
-      const checkIns = checkInsResponse.data || [];
-      const uid = currentUserId || user?.id;
-      const myCheckIn = checkIns.find((ci: any) => ci.userId === uid || ci.user?.id === uid);
-      setCheckIn(myCheckIn || null);
+      const res = await apiCall('/event-operations/' + eventId + '/my-check-in');
+      setCheckIn(res.data || null);
     } catch (err) {
       console.warn('Could not fetch check-in status:', err);
     }
@@ -107,8 +104,8 @@ export default function EventDetailPage() {
         const registered = registeredEventIds.includes(eventId);
         setIsRegistered(registered);
 
-        if (isEventLive(startDate.toISOString()) && registered && currentUserId) {
-          await fetchCheckInStatus(currentUserId);
+        if (isEventLive(startDate.toISOString()) && registered) {
+          await fetchCheckInStatus();
         }
 
         // Build history from attended events

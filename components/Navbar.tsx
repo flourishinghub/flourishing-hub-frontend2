@@ -13,9 +13,10 @@ interface NavbarProps {
   user: AuthPayload;
   notifications?: Notification[];
   onLogout?: () => void;
+  onMarkAllRead?: () => void;
 }
 
-export default function Navbar({ user, notifications = [], onLogout }: NavbarProps) {
+export default function Navbar({ user, notifications = [], onLogout, onMarkAllRead }: NavbarProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const unread = notifications.filter((n) => !n.read).length;
@@ -61,7 +62,7 @@ export default function Navbar({ user, notifications = [], onLogout }: NavbarPro
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => { setNotifOpen((v) => !v); setProfileOpen(false); }}
+            onClick={() => { const opening = !notifOpen; setNotifOpen(opening); setProfileOpen(false); if (opening && unread > 0) onMarkAllRead?.(); }}
             className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all"
           >
             <Bell className="w-4 h-4" />

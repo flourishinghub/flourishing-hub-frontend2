@@ -37,6 +37,15 @@ export default function DashboardLayout({ children, user: propUser, loading }: D
     }
   }, []);
 
+  const markAllNotificationsRead = useCallback(async () => {
+    try {
+      await apiCall('/notifications/read-all', { method: 'PATCH' });
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch {
+      // non-critical
+    }
+  }, []);
+
   useEffect(() => {
     if (propUser) {
       setUser(propUser);
@@ -51,8 +60,8 @@ export default function DashboardLayout({ children, user: propUser, loading }: D
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      // Re-fetch every 60 seconds
-      const interval = setInterval(fetchNotifications, 60000);
+      // Re-fetch every 30 seconds
+      const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
   }, [user, fetchNotifications]);
@@ -72,7 +81,7 @@ export default function DashboardLayout({ children, user: propUser, loading }: D
     <div className="flex h-screen overflow-hidden bg-dark">
       <Sidebar role={user.role} userName={user.name} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar user={user} notifications={notifications} />
+        <Navbar user={user} notifications={notifications} onMarkAllRead={markAllNotificationsRead} />
         <motion.main
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

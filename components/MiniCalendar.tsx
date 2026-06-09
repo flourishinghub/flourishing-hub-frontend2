@@ -100,7 +100,11 @@ export default function MiniCalendar({
     isSameDay(day, tomorrow) && (hasRegistered(day) || hasUnregistered(day));
 
   const handleSelect = (day: Date) => {
-    setSelectedDate(day);
+    if (selectedDate && isSameDay(day, selectedDate)) {
+      setSelectedDate(null); // toggle off on second click
+    } else {
+      setSelectedDate(day);
+    }
     onDateSelect?.(day);
   };
 
@@ -192,51 +196,50 @@ export default function MiniCalendar({
         })}
       </div>
 
-      {/* Event Tooltip */}
+      {/* Selected date events — shown below calendar grid */}
       <AnimatePresence>
-        {showTooltip && hoveredDate && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="absolute top-full left-0 right-0 mt-2 z-50 bg-[#1A1A2E] border border-white/10 rounded-xl p-4 shadow-2xl"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar className="w-4 h-4 text-primary" />
-              <span className="text-sm font-semibold text-white">
-                {format(hoveredDate, 'MMMM d, yyyy')}
-              </span>
-            </div>
-            
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {getEventsForDate(hoveredDate).map((event) => (
-                <div key={event.id} className="p-2 rounded-lg bg-white/[0.03] border border-white/5">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <h4 className="text-xs font-medium text-white line-clamp-1">{event.title}</h4>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                      event.isRegistered 
-                        ? 'bg-primary/20 text-primary' 
-                        : 'bg-accent/20 text-accent'
-                    }`}>
-                      {event.isRegistered ? 'Registered' : 'Available'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[10px] text-white/50">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-2.5 h-2.5" />
-                      {event.time}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-2.5 h-2.5" />
-                      {event.venue}
-                    </span>
-                  </div>
+        {selectedDate && (() => {
+          const selectedEvents = getEventsForDate(selectedDate);
+          return (
+            <motion.div
+              key={selectedDate.toISOString()}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden mt-3 border-t border-white/5 pt-3"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold text-white">
+                  {format(selectedDate, 'MMMM d, yyyy')}
+                </span>
+              </div>
+              {selectedEvents.length === 0 ? (
+                <p className="text-[11px] text-white/30 py-2 text-center">No events on this date</p>
+              ) : (
+                <div className="space-y-2">
+                  {selectedEvents.map((event) => (
+                    <div key={event.id} className="p-2.5 rounded-lg bg-white/[0.04] border border-white/8">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className="text-xs font-medium text-white leading-tight">{event.title}</p>
+                        <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          event.isRegistered ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'
+                        }`}>
+                          {event.isRegistered ? 'Registered' : 'Open'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[10px] text-white/50">
+                        <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{event.time}</span>
+                        <span className="flex items-center gap-1"><MapPin className="w-2.5 h-2.5" />{event.venue}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
+              )}
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
       {(registeredCount > 0 || unregisteredCount > 0) && (
