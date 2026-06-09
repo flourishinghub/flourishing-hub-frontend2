@@ -49,6 +49,18 @@ export default function AssociateInstructorDashboard() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ── Hash-based tab navigation (sidebar links use #attendance etc.) ──
+  useEffect(() => {
+    const validTabs: Tab[] = ['attendance', 'volunteers', 'quiz', 'registrants'];
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '') as Tab;
+      if (hash && validTabs.includes(hash)) setActiveTab(hash);
+    };
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   // ── Fetch events assigned to this associate instructor ──
   useEffect(() => {
     const fetchLiveEvents = async () => {
@@ -377,8 +389,8 @@ export default function AssociateInstructorDashboard() {
                               {checkIns.map((ci: any) => {
                                 const ciId = ci.id;
                                 const isActing = verifyingId === ciId;
-                                const checkinTime = ci.createdAt
-                                  ? new Date(ci.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                const checkinTime = (ci.checkedInAt || ci.createdAt)
+                                  ? new Date(ci.checkedInAt || ci.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                                   : '—';
                                 const userName = ci.user?.name || ci.studentName || '—';
                                 const rollNo = ci.user?.studentProfile?.rollNumber || ci.rollNo || '—';
