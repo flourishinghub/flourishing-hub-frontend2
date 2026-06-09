@@ -2876,7 +2876,14 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Start Time *</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-medium text-white/60">Start Time *</label>
+                      {form.time && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
+                          {formatTime(form.time)}
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="time"
                       value={form.time}
@@ -2885,7 +2892,14 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">End Time</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-medium text-white/60">End Time</label>
+                      {form.endTime && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-accent/20 text-accent border border-accent/30">
+                          {formatTime(form.endTime)}
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="time"
                       value={form.endTime}
