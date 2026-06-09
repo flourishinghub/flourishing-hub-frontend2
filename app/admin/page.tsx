@@ -8,7 +8,8 @@ import {
   Wifi, WifiOff, Shield, Settings, Check, TrendingUp, Filter,
   Download, FileSpreadsheet, Search, ChevronDown, UserCheck,
   UserCog, BookOpen, Layers, ArrowLeft, Link2, ClipboardList,
-  Clock, MapPin, Zap,
+  Clock, MapPin, Zap, BarChart2, Upload, FileText, ChevronRight,
+  Star, Eye,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
@@ -23,7 +24,7 @@ import type { Event, MemberDirectory, UserRole } from '@/types';
 import toast from 'react-hot-toast';
 
 type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
-type Tab = 'overview' | 'new-events' | 'event-status' | 'past-records' | 'calendar' | 'events' | 'courses' | 'members' | 'volunteers' | 'approvals' | 'roles' | 'settings';
+type Tab = 'overview' | 'new-events' | 'event-status' | 'past-records' | 'calendar' | 'events' | 'courses' | 'members' | 'volunteers' | 'approvals' | 'roles' | 'settings' | 'analytics';
 type CourseStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 
 interface CourseFormData {
@@ -112,7 +113,7 @@ const statusColors: Record<EventStatus, string> = {
 // Admin Dashboard Component
 export default function AdminDashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activeTab, setActiveTab] = useState<Tab>('new-events');
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [members, setMembers] = useState<MemberDirectory[]>([]);
@@ -160,6 +161,13 @@ export default function AdminDashboard() {
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | null>(null);
   const [instructors, setInstructors] = useState<any[]>([]);
   const [associateInstructors, setAssociateInstructors] = useState<any[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<any[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [selectedAnalyticsEvent, setSelectedAnalyticsEvent] = useState<any | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [draftFilter, setDraftFilter] = useState(false);
 
   const transformEventsData = (rawEvents: any[]) => rawEvents.map((event: any) => ({
     id: event.id,
@@ -195,10 +203,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') as Tab;
-      if (hash && ['overview', 'new-events', 'event-status', 'past-records', 'calendar', 'events', 'courses', 'members', 'volunteers', 'approvals', 'roles', 'settings'].includes(hash)) {
+      if (hash && ['new-events', 'event-status', 'past-records', 'calendar', 'events', 'courses', 'members', 'volunteers', 'approvals', 'roles', 'settings', 'analytics'].includes(hash)) {
         setActiveTab(hash);
       } else if (!hash) {
-        setActiveTab('overview');
+        setActiveTab('new-events');
       }
     };
 
@@ -303,6 +311,23 @@ export default function AdminDashboard() {
 
     fetchDashboardData();
   }, []);
+
+  // Fetch analytics when analytics tab is opened
+  useEffect(() => {
+    if (activeTab !== 'analytics' || analyticsData.length > 0) return;
+    const fetchAnalytics = async () => {
+      setAnalyticsLoading(true);
+      try {
+        const res = await apiCall('/admin/analytics/workshops');
+        setAnalyticsData(res.data || []);
+      } catch {
+        toast.error('Failed to load analytics');
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    };
+    fetchAnalytics();
+  }, [activeTab]);
 
   if (loading) {
     return (
@@ -889,12 +914,12 @@ export default function AdminDashboard() {
   };
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
-    { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'new-events', label: 'New Events', icon: Zap },
     { id: 'event-status', label: 'Event Status', icon: TrendingUp },
     { id: 'past-records', label: 'Past Records', icon: ClipboardList },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'events', label: 'Events', icon: Edit2 },
+    { id: 'analytics', label: 'Analytics', icon: BarChart2 },
     { id: 'courses', label: 'Courses', icon: BookOpen },
     { id: 'members', label: 'Members', icon: Users },
     { id: 'volunteers', label: 'Volunteers', icon: UserCheck },
@@ -969,11 +994,7 @@ export default function AdminDashboard() {
               key={id}
               onClick={() => {
                 setActiveTab(id);
-                if (id === 'overview') {
-                  window.history.pushState(null, '', '/admin');
-                } else {
-                  window.history.pushState(null, '', `/admin#${id}`);
-                }
+                window.history.pushState(null, '', `/admin#${id}`);
               }}
               className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap transition-all ${
                 activeTab === id
@@ -1189,6 +1210,154 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* Analytics Tab */}
+          {activeTab === 'analytics' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Workshop Analytics</h3>
+                  <p className="text-xs text-white/40 mt-0.5">Past workshops — click a row for full details</p>
+                </div>
+                {analyticsData.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const headers = ['Workshop Name', 'Course', 'Instructor', 'Date', 'Batch', 'Registered', 'Attended', 'Absent', 'Avg Rating'];
+                      const rows = analyticsData.map(r => [r.workshopName, r.courseName, r.instructorName, new Date(r.date).toLocaleDateString('en-IN'), r.batch, r.totalRegistered, r.totalAttended, r.totalAbsent, r.avgRating || 'N/A']);
+                      const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a'); a.href = url; a.download = 'workshop-analytics.csv'; a.click();
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all text-sm font-semibold"
+                  >
+                    <Download className="w-4 h-4" /> Export CSV
+                  </button>
+                )}
+              </div>
+
+              {analyticsLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : selectedAnalyticsEvent ? (
+                /* Workshop Detail View */
+                <div className="space-y-4">
+                  <button onClick={() => setSelectedAnalyticsEvent(null)} className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
+                    <ArrowLeft className="w-4 h-4" /> Back to Analytics
+                  </button>
+                  <div className="glass-card rounded-2xl p-6 space-y-4">
+                    <div>
+                      <h4 className="text-xl font-bold text-white">{selectedAnalyticsEvent.workshopName}</h4>
+                      <p className="text-primary text-sm mt-1">{selectedAnalyticsEvent.courseName}</p>
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      {[
+                        { label: 'Date', value: new Date(selectedAnalyticsEvent.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) },
+                        { label: 'Batch', value: selectedAnalyticsEvent.batch },
+                        { label: 'Instructor', value: selectedAnalyticsEvent.instructorName },
+                        { label: 'Avg Rating', value: selectedAnalyticsEvent.avgRating ? `${selectedAnalyticsEvent.avgRating} / 5` : 'N/A' },
+                        { label: 'Registered', value: selectedAnalyticsEvent.totalRegistered },
+                        { label: 'Attended', value: selectedAnalyticsEvent.totalAttended },
+                        { label: 'Absent', value: selectedAnalyticsEvent.totalAbsent },
+                        { label: 'Venue', value: selectedAnalyticsEvent.venue },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                          <p className="text-white/40 text-xs mb-1">{label}</p>
+                          <p className="text-white font-semibold text-sm">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div>
+                        <h5 className="text-emerald-400 font-semibold text-sm mb-2">Present ({selectedAnalyticsEvent.presentStudents?.length || 0})</h5>
+                        <div className="space-y-1 max-h-48 overflow-y-auto">
+                          {(selectedAnalyticsEvent.presentStudents || []).map((s: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10 text-xs">
+                              <span className="text-white">{s.name}</span>
+                              <span className="text-white/40">{s.rollNo}</span>
+                            </div>
+                          ))}
+                          {(selectedAnalyticsEvent.presentStudents || []).length === 0 && <p className="text-white/30 text-xs">No data</p>}
+                        </div>
+                      </div>
+                      <div>
+                        <h5 className="text-red-400 font-semibold text-sm mb-2">Absent ({selectedAnalyticsEvent.absentStudents?.length || 0})</h5>
+                        <div className="space-y-1 max-h-48 overflow-y-auto">
+                          {(selectedAnalyticsEvent.absentStudents || []).map((s: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-red-500/5 border border-red-500/10 text-xs">
+                              <span className="text-white">{s.name}</span>
+                              <span className="text-white/40">{s.rollNo}</span>
+                            </div>
+                          ))}
+                          {(selectedAnalyticsEvent.absentStudents || []).length === 0 && <p className="text-white/30 text-xs">No data</p>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Export this workshop */}
+                    <button
+                      onClick={() => {
+                        const headers = ['Name', 'Email', 'Roll No', 'Status'];
+                        const rows = (selectedAnalyticsEvent.allRegistrants || []).map((r: any) => [r.name, r.email, r.rollNo, r.status]);
+                        const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+                        const blob = new Blob([csv], { type: 'text/csv' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a'); a.href = url; a.download = `${selectedAnalyticsEvent.workshopName}-attendance.csv`; a.click();
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition-all text-sm font-semibold w-fit"
+                    >
+                      <Download className="w-4 h-4" /> Export Attendance
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Analytics Table */
+                <div className="rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/5">
+                          {['Course Name', 'Workshop Name', 'Instructor', 'Rating', 'Attended', 'Action'].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-white/40 uppercase tracking-wider">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analyticsData.length === 0 ? (
+                          <tr><td colSpan={6} className="text-center py-12 text-white/30">No completed workshops yet</td></tr>
+                        ) : analyticsData.map((row, i) => (
+                          <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.03] transition-colors cursor-pointer" onClick={() => setSelectedAnalyticsEvent(row)}>
+                            <td className="px-4 py-3 text-white/70">{row.courseName}</td>
+                            <td className="px-4 py-3 text-white font-medium">{row.workshopName}</td>
+                            <td className="px-4 py-3 text-white/60">{row.instructorName}</td>
+                            <td className="px-4 py-3">
+                              {row.avgRating ? (
+                                <div className="flex items-center gap-1">
+                                  <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                                  <span className="text-yellow-400 font-semibold">{row.avgRating}</span>
+                                </div>
+                              ) : <span className="text-white/30">—</span>}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-emerald-400 font-semibold">{row.totalAttended}</span>
+                              <span className="text-white/30"> / {row.totalRegistered}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button className="flex items-center gap-1 text-primary hover:text-primary/80 text-xs font-medium">
+                                <Eye className="w-3.5 h-3.5" /> View
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Calendar Tab */}
           {activeTab === 'calendar' && (
             <div className="space-y-4">
@@ -1258,9 +1427,19 @@ export default function AdminDashboard() {
           {/* Events Tab */}
           {activeTab === 'events' && (
             <div className="space-y-6" id="events">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <h3 className="text-lg font-semibold text-white">Event Management</h3>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Draft filter toggle */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setDraftFilter(f => !f)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${draftFilter ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                  >
+                    <FileText className="w-4 h-4" /> Drafts
+                  </motion.button>
+
                   {/* Course Filter */}
                   <select
                     value={courseFilter}
@@ -1272,7 +1451,17 @@ export default function AdminDashboard() {
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
-                  
+
+                  {/* Bulk Import */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setShowBulkImport(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white/5 text-white/70 border border-white/10 hover:bg-white/10 transition-all"
+                  >
+                    <Upload className="w-4 h-4" /> Bulk Import
+                  </motion.button>
+
                   <motion.button
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
@@ -1287,6 +1476,7 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 {sortedEvents
                   .filter(event => {
+                    if (draftFilter) return event.status === 'draft';
                     if (!courseFilter) return true;
                     return (event as any).courseId === courseFilter;
                   })
@@ -3003,6 +3193,104 @@ export default function AdminDashboard() {
                     </>
                   )}
                 </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Import Modal */}
+      <AnimatePresence>
+        {showBulkImport && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => e.target === e.currentTarget && setShowBulkImport(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
+              style={{ background: '#1A1A2E' }}
+            >
+              <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Upload className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-semibold text-white">Bulk Import Events</h2>
+                </div>
+                <button onClick={() => setShowBulkImport(false)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-white/60 text-sm">Upload a CSV or Excel file with event data. Download the template below to get started.</p>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await apiCall('/imports/templates/EVENTS');
+                      toast.success('Template downloaded');
+                    } catch {
+                      toast.error('Template not available');
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 text-white/70 border border-white/10 hover:bg-white/10 transition-all text-sm"
+                >
+                  <Download className="w-4 h-4" /> Download Template
+                </button>
+
+                <div
+                  className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-primary/40 transition-all cursor-pointer"
+                  onClick={() => document.getElementById('bulk-import-input')?.click()}
+                >
+                  <FileSpreadsheet className="w-10 h-10 text-white/20 mx-auto mb-3" />
+                  <p className="text-white/50 text-sm">{bulkImportFile ? bulkImportFile.name : 'Click to select file (.csv or .xlsx)'}</p>
+                  <input
+                    id="bulk-import-input"
+                    type="file"
+                    accept=".csv,.xlsx"
+                    className="hidden"
+                    onChange={(e) => setBulkImportFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+              </div>
+              <div className="px-6 pb-6 flex gap-3">
+                <button onClick={() => { setShowBulkImport(false); setBulkImportFile(null); }} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+                  Cancel
+                </button>
+                <button
+                  disabled={!bulkImportFile || bulkImporting}
+                  onClick={async () => {
+                    if (!bulkImportFile) return;
+                    setBulkImporting(true);
+                    try {
+                      const formData = new FormData();
+                      formData.append('file', bulkImportFile);
+                      const token = localStorage.getItem('token');
+                      const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/imports/upload`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}` },
+                        body: formData,
+                      });
+                      const uploadData = await uploadRes.json();
+                      if (!uploadData.success) throw new Error(uploadData.message);
+                      await apiCall('/imports', { method: 'POST', body: JSON.stringify({ type: 'EVENTS', fileUrl: uploadData.data.fileUrl, fileName: bulkImportFile.name }) });
+                      toast.success('Import job created! Events will be imported shortly.');
+                      setShowBulkImport(false);
+                      setBulkImportFile(null);
+                    } catch (err: any) {
+                      toast.error(err.message || 'Import failed');
+                    } finally {
+                      setBulkImporting(false);
+                    }
+                  }}
+                  className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {bulkImporting ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Importing...</> : <><Upload className="w-4 h-4" /> Import Events</>}
+                </button>
               </div>
             </motion.div>
           </motion.div>

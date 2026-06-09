@@ -7,7 +7,7 @@ import {
   ArrowLeft, Calendar, Clock, MapPin, Users, ExternalLink,
   Share2, Heart, CheckCircle, AlertCircle, Radio, Loader2,
   BookOpen, GraduationCap, Fingerprint, ShieldCheck, Zap,
-  Wifi
+  Wifi, History, Star, Award
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getCurrentUser, apiCall } from '@/lib/api';
@@ -25,6 +25,7 @@ export default function EventDetailPage() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [checkIn, setCheckIn] = useState<any>(null);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
   const params = useParams();
@@ -67,9 +68,10 @@ export default function EventDetailPage() {
           currentUserId = userData.id;
         }
 
-        const [eventsResponse, registrationsResponse] = await Promise.all([
+        const [eventsResponse, registrationsResponse, attendanceResponse] = await Promise.all([
           apiCall('/events'),
           apiCall('/registrations/me'),
+          apiCall('/event-operations/attendance/me').catch(() => ({ data: [] })),
         ]);
 
         const eventData = eventsResponse.data.items.find((e: any) => e.id === eventId);
@@ -108,6 +110,18 @@ export default function EventDetailPage() {
         if (isEventLive(startDate.toISOString()) && registered && currentUserId) {
           await fetchCheckInStatus(currentUserId);
         }
+
+        // Build history from attended events
+        const history = (attendanceResponse.data || [])
+          .filter((a: any) => a.status === 'PRESENT')
+          .slice(0, 5)
+          .map((a: any) => ({
+            eventTitle: a.event?.title || 'Workshop',
+            date: a.event?.startAt || a.markedAt,
+            score: a.marks || null,
+            courseName: a.event?.course?.name || null,
+          }));
+        setAttendanceHistory(history);
       } catch (error) {
         console.error('❌ Failed to fetch event details:', error);
         toast.error('Failed to load event details');
@@ -430,6 +444,27 @@ export default function EventDetailPage() {
           </div>
         </motion.div>
 
+        {/* Quiz link — always visible when live */}
+        {event.quizLink && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mb-4">
+            <a
+              href={event.quizLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-3 px-5 py-4 rounded-2xl bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <BookOpen className="w-5 h-5 text-orange-400" />
+                <div>
+                  <p className="text-orange-400 font-semibold text-sm">Quiz Link Available</p>
+                  <p className="text-orange-400/60 text-xs">Open quiz after check-in verification</p>
+                </div>
+              </div>
+              <ExternalLink className="w-4 h-4 text-orange-400 group-hover:translate-x-0.5 transition-transform" />
+            </a>
+          </motion.div>
+        )}
+
         {/* Bottom info row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <motion.div
@@ -681,6 +716,50 @@ export default function EventDetailPage() {
                 <Heart className="w-4 h-4" />
               </button>
             </div>
+          </motion.div>
+
+          {/* History Tab — student only */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="glass-card rounded-2xl p-6"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <History className="w-4 h-4 text-primary" />
+              <h3 className="text-lg font-semibold text-white">My History</h3>
+            </div>
+
+            {attendanceHistory.length === 0 ? (
+              <div className="text-center py-6">
+                <Award className="w-8 h-8 text-white/20 mx-auto mb-2" />
+                <p className="text-white/40 text-sm">No attended workshops yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {attendanceHistory.map((item, idx) => (
+                  <div key={idx} className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                    <p className="text-white text-sm font-medium leading-tight mb-1">{item.eventTitle}</p>
+                    {item.courseName && (
+                      <p className="text-primary/80 text-xs mb-1">{item.courseName}</p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/40 text-xs">
+                        {item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                      </span>
+                      {item.score != null ? (
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30">
+                          <Star className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400 text-xs font-bold">{item.score}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Present</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         </div>
       </div>

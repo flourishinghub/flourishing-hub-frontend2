@@ -1,26 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import { getStoredUser } from '@/lib/auth';
-import {
-  studentNotifications, instructorNotifications,
-  volunteerNotifications, adminNotifications,
-} from '@/lib/mockData';
-import type { AuthPayload, UserRole, Notification } from '@/types';
-
-function getNotifications(role: UserRole): Notification[] {
-  switch (role) {
-    case 'student': return studentNotifications;
-    case 'instructor': return instructorNotifications;
-    case 'volunteer': return volunteerNotifications;
-    case 'admin': return adminNotifications;
-    default: return [];
-  }
-}
+import { apiCall } from '@/lib/api';
+import type { AuthPayload, Notification } from '@/types';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -30,31 +17,45 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, user: propUser, loading }: DashboardLayoutProps) {
   const [user, setUser] = useState<AuthPayload | null>(propUser || null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const router = useRouter();
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await apiCall('/notifications');
+      const raw = res.data?.notifications || [];
+      setNotifications(raw.map((n: any) => ({
+        id: n.id,
+        title: n.title,
+        message: n.message,
+        time: new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+        read: n.isRead,
+        type: n.type?.toLowerCase() || 'info',
+      })));
+    } catch {
+      // Silently fail — notifications are non-critical
+    }
+  }, []);
 
   useEffect(() => {
     if (propUser) {
-      console.log("🔄 DashboardLayout: Received prop user:", propUser.name);
       setUser(propUser);
       return;
     }
-    
-    // Don't redirect if we're still loading (propUser might come later)
-    if (loading) {
-      console.log("🔄 DashboardLayout: Still loading, waiting for prop user");
-      return;
-    }
-    
-    // Only check stored user as fallback if not loading and no prop user
+    if (loading) return;
     const stored = getStoredUser();
-    if (!stored) { 
-      console.log("🔄 DashboardLayout: No stored user found, redirecting to login");
-      router.push('/login'); 
-      return; 
-    }
-    console.log("🔄 DashboardLayout: Using stored user:", stored.name);
+    if (!stored) { router.push('/login'); return; }
     setUser(stored);
   }, [router, propUser, loading]);
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      // Re-fetch every 60 seconds
+      const interval = setInterval(fetchNotifications, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchNotifications]);
 
   if (loading || !user) {
     return (
@@ -66,8 +67,6 @@ export default function DashboardLayout({ children, user: propUser, loading }: D
       </div>
     );
   }
-
-  const notifications = getNotifications(user.role);
 
   return (
     <div className="flex h-screen overflow-hidden bg-dark">
