@@ -507,8 +507,8 @@ export default function AdminDashboard() {
   };
 
   const handleSave = async () => {
-    if (!form.title || !form.date || !form.time || !form.venue || !form.capacity) {
-      toast.error('Please fill in all required fields');
+    if (!form.title || !form.description || !form.date || !form.time || !form.venue || !form.capacity) {
+      toast.error('Please fill in all required fields (title, description, date, time, venue, capacity)');
       return;
     }
 
@@ -578,9 +578,9 @@ export default function AdminDashboard() {
       // Refresh events list with registration details in background
       const eventsResponse = await apiCall('/admin/events-with-registrations');
       setEvents(transformEventsData(eventsResponse.data));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving event:', error);
-      toast.error('Failed to save event');
+      toast.error(error?.message || 'Failed to save event');
     } finally {
       setSaving(false); // Re-enable button
     }

@@ -66,7 +66,13 @@ export const apiCall = async (endpoint: string, options: RequestInit = {}) => {
         window.location.href = "/login";
         return;
       }
-      throw new ApiError(response.status, `API call failed: ${response.statusText}`);
+      let errMsg = `${response.status} ${response.statusText}`;
+      try {
+        const errBody = await response.json();
+        if (errBody?.message) errMsg = errBody.message;
+      } catch {}
+      console.error(`❌ API Error ${response.status} for ${endpoint}:`, errMsg);
+      throw new ApiError(response.status, errMsg);
     }
 
     const data = await response.json();
