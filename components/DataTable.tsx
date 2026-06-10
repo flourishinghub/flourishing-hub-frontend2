@@ -107,7 +107,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                 >
                   {columns.map((col) => (
                     <td key={String(col.key)} className="px-4 py-3 text-sm text-white/80">
-                      {col.render ? col.render(row) : String(row[col.key as keyof T] ?? '—')}
+                      {col.render ? col.render(row[col.key as keyof T] as any) : String(row[col.key as keyof T] ?? '—')}
                     </td>
                   ))}
                 </motion.tr>

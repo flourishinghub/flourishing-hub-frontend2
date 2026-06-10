@@ -78,15 +78,15 @@ export default function AdminEventDetailPage() {
 
   const exportRegistrants = () => {
     if (!event) return;
-    const data = event.registrants.map(r => ({
-      Name: r.user.name,
-      Email: r.user.email,
-      'Roll No': r.user.studentProfile?.rollNumber || 'N/A',
-      Department: r.user.studentProfile?.department || 'N/A',
+    const data = (event.registrants || []).map(r => ({
+      Name: r.user?.name || '',
+      Email: r.user?.email || '',
+      'Roll No': r.user?.studentProfile?.rollNumber || 'N/A',
+      Department: r.user?.studentProfile?.department || 'N/A',
       'Registered At': formatDate(r.registeredAt),
       Status: r.status
     }));
-    
+    if (data.length === 0) { toast.error('No registrants to export'); return; }
     const csv = [
       Object.keys(data[0]).join(','),
       ...data.map(row => Object.values(row).join(','))
@@ -102,15 +102,15 @@ export default function AdminEventDetailPage() {
 
   const exportAttendees = () => {
     if (!event) return;
-    const data = event.attendees.map(a => ({
-      Name: a.user.name,
-      Email: a.user.email,
-      'Roll No': a.user.studentProfile?.rollNumber || 'N/A',
-      Department: a.user.studentProfile?.department || 'N/A',
+    const data = (event.attendees || []).map(a => ({
+      Name: a.user?.name || '',
+      Email: a.user?.email || '',
+      'Roll No': a.user?.studentProfile?.rollNumber || 'N/A',
+      Department: a.user?.studentProfile?.department || 'N/A',
       Status: a.status,
       'Marked At': formatDate(a.markedAt)
     }));
-    
+    if (data.length === 0) { toast.error('No attendees to export'); return; }
     const csv = [
       Object.keys(data[0]).join(','),
       ...data.map(row => Object.values(row).join(','))
