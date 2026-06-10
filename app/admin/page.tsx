@@ -502,7 +502,7 @@ export default function AdminDashboard() {
         startAt: new Date(`${form.date}T${form.time}`).toISOString(),
         endAt: form.endTime
           ? new Date(`${form.date}T${form.endTime}`).toISOString()
-          : new Date(`${form.date}T${form.time}`).toISOString(),
+          : new Date(new Date(`${form.date}T${form.time}`).getTime() + 2 * 60 * 60 * 1000).toISOString(),
         venue: form.venue,
         meetLink: form.mode === 'Online' ? 'https://meet.google.com/placeholder' : null,
         capacity: parseInt(form.capacity),
