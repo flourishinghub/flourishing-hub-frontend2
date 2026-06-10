@@ -120,7 +120,8 @@ export default function EventDetailPage() {
           status: eventData.status?.toLowerCase() || 'draft',
           organizer: eventData.createdBy?.name || 'Admin',
           meetLink: eventData.meetLink,
-          quizLink: eventData.modules?.[0]?.quizLink || null,
+          quizLink: eventData.courseModule?.quizLink || eventData.modules?.[0]?.quizLink || null,
+          feedbackLink: eventData.courseModule?.feedbackLink || eventData.modules?.[0]?.feedbackLink || null,
           courseName: eventData.course?.name || null,
           batch: eventData.batch || null,
         };
