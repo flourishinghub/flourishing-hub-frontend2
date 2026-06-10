@@ -31,7 +31,9 @@ export default function EventDetailPage() {
   const [feedbackHover, setFeedbackHover] = useState(0);
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [quizScore, setQuizScore] = useState<{ totalMarks: number | null; totalMax: number | null; scores: any[] } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scorePollerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
@@ -45,6 +47,15 @@ export default function EventDetailPage() {
     }
   };
 
+  const fetchMyProgress = async () => {
+    try {
+      const res = await apiCall('/event-operations/' + eventId + '/my-progress');
+      if (res.data) setQuizScore(res.data);
+    } catch {
+      // silent
+    }
+  };
+
   // Poll every 2s while PENDING so page transitions immediately when instructor verifies
   useEffect(() => {
     if (checkIn?.status === 'PENDING') {
@@ -53,6 +64,18 @@ export default function EventDetailPage() {
       if (pollRef.current) clearInterval(pollRef.current);
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkIn?.status]);
+
+  // Poll quiz score every 15s once verified
+  useEffect(() => {
+    if (checkIn?.status === 'VERIFIED') {
+      fetchMyProgress();
+      scorePollerRef.current = setInterval(() => fetchMyProgress(), 15000);
+    } else {
+      if (scorePollerRef.current) clearInterval(scorePollerRef.current);
+    }
+    return () => { if (scorePollerRef.current) clearInterval(scorePollerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkIn?.status]);
 
@@ -435,12 +458,85 @@ export default function EventDetailPage() {
                 </div>
               </motion.div>
 
+              {/* Quiz Score */}
+              {quizScore && quizScore.totalMarks !== null && (
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="rounded-2xl p-5"
+                  style={{ background: 'linear-gradient(135deg,#0a1628,#0d1f3c)', border: '1px solid rgba(99,102,241,0.35)', boxShadow: '0 0 25px rgba(99,102,241,0.08)' }}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <Award className="w-5 h-5 text-indigo-400" />
+                    <h2 className="text-white font-bold text-base">Quiz Score</h2>
+                  </div>
+                  <div className="flex items-end gap-2 mb-3">
+                    <span className="text-4xl font-bold text-white">{quizScore.totalMarks}</span>
+                    <span className="text-white/40 text-lg mb-1">/ {quizScore.totalMax}</span>
+                  </div>
+                  {/* Score bar */}
+                  <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.round((quizScore.totalMarks / (quizScore.totalMax || 1)) * 100)}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                      className="h-full rounded-full"
+                      style={{ background: 'linear-gradient(90deg,#6366f1,#818cf8)' }}
+                    />
+                  </div>
+                  <p className="text-white/40 text-xs mt-2">{Math.round((quizScore.totalMarks / (quizScore.totalMax || 1)) * 100)}% score</p>
+                </motion.div>
+              )}
+
+              {/* Feedback */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="glass-card rounded-2xl p-5"
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <Star className="w-4 h-4 text-yellow-400" />
+                  <h3 className="text-base font-bold text-white">Rate This Session</h3>
+                </div>
+                {feedbackSubmitted ? (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    <div className="flex gap-1">
+                      {[1,2,3,4,5].map(s => (
+                        <Star key={s} className={`w-7 h-7 ${s <= feedbackRating ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`} />
+                      ))}
+                    </div>
+                    <p className="text-white/50 text-sm">Thanks for your feedback!</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <p className="text-white/40 text-sm">How was this session?</p>
+                    <div className="flex gap-2">
+                      {[1,2,3,4,5].map(s => (
+                        <motion.button
+                          key={s}
+                          whileHover={{ scale: 1.2 }}
+                          whileTap={{ scale: 0.9 }}
+                          onMouseEnter={() => setFeedbackHover(s)}
+                          onMouseLeave={() => setFeedbackHover(0)}
+                          onClick={() => handleFeedback(s)}
+                          disabled={feedbackSubmitting}
+                        >
+                          <Star className={`w-8 h-8 transition-all ${s <= (feedbackHover || feedbackRating) ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`} />
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+
               {/* About + Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
+                  transition={{ delay: 0.4 }}
                   className="glass-card rounded-2xl p-5"
                 >
                   <h3 className="text-sm font-semibold text-white mb-3">About This Session</h3>
@@ -451,7 +547,7 @@ export default function EventDetailPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.25 }}
+                  transition={{ delay: 0.45 }}
                   className="glass-card rounded-2xl p-5"
                 >
                   <h3 className="text-sm font-semibold text-white mb-3">Session Details</h3>
