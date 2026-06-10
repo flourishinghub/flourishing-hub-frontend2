@@ -253,7 +253,7 @@ export default function EventDetailPage() {
               transition={{ duration: 0.4 }}
               className="space-y-5"
             >
-              {/* Session Active Hero */}
+              {/* Session Active Hero — full event info */}
               <div
                 className="relative rounded-3xl overflow-hidden"
                 style={{
@@ -265,47 +265,76 @@ export default function EventDetailPage() {
                 <div className="absolute inset-0 pointer-events-none">
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-0.5 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent blur-sm" />
                   <div className="absolute -top-16 left-1/4 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl" />
+                  <div className="absolute -top-16 right-1/4 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl" />
                 </div>
 
-                <div className="relative p-8 lg:p-10">
-                  {/* Badges */}
-                  <div className="flex items-center gap-3 mb-5">
-                    <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold">
+                <div className="relative p-8 lg:p-12">
+                  {/* Status badges */}
+                  <div className="flex flex-wrap items-center gap-3 mb-6">
+                    <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold">
                       <ShieldCheck className="w-3.5 h-3.5" /> Attendance Verified
                     </span>
                     <motion.span
                       animate={{ scale: [1, 1.04, 1] }}
                       transition={{ repeat: Infinity, duration: 2 }}
-                      className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold"
                     >
                       <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 1.2 }} className="w-1.5 h-1.5 bg-red-400 rounded-full" />
                       LIVE NOW
                     </motion.span>
                   </div>
 
-                  <h1 className="text-2xl lg:text-3xl font-bold text-white mb-1">{event.title}</h1>
-                  <p className="text-white/40 text-sm mb-6">
-                    {event.courseName && <span className="text-primary/80 mr-2">{event.courseName} ·</span>}
-                    {event.venue} · Started {formatTime(event.time)}
+                  <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2 leading-tight">{event.title}</h1>
+                  <p className="text-white/50 text-sm mb-8">
+                    Organized by <span className="text-white/70">{event.organizer}</span>
                   </p>
 
-                  {/* Links row */}
+                  {/* Event meta chips */}
+                  <div className="flex flex-wrap gap-4 mb-8">
+                    {event.courseName && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+                        <BookOpen className="w-4 h-4 text-violet-400" />
+                        <div><p className="text-white text-sm font-medium">{event.courseName}</p><p className="text-white/40 text-[10px]">Course</p></div>
+                      </div>
+                    )}
+                    {event.batch && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+                        <GraduationCap className="w-4 h-4 text-blue-400" />
+                        <div><p className="text-white text-sm font-medium">{event.batch}</p><p className="text-white/40 text-[10px]">Batch</p></div>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+                      <MapPin className="w-4 h-4 text-emerald-400" />
+                      <div><p className="text-white text-sm font-medium">{event.venue}</p><p className="text-white/40 text-[10px]">Venue</p></div>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+                      <Clock className="w-4 h-4 text-amber-400" />
+                      <div><p className="text-white text-sm font-medium">{formatTime(event.time)}</p><p className="text-white/40 text-[10px]">Started at</p></div>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+                      <Calendar className="w-4 h-4 text-primary" />
+                      <div><p className="text-white text-sm font-medium">{formatDate(event.date)}</p><p className="text-white/40 text-[10px]">Date</p></div>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
                   <div className="flex flex-wrap gap-3">
                     {event.meetLink && (
                       <a
                         href={event.meetLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25 transition-all text-sm font-semibold"
+                        className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all"
+                        style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)', color: '#fff', boxShadow: '0 0 24px rgba(59,130,246,0.3)' }}
                       >
-                        <Wifi className="w-4 h-4" /> Join Meeting
+                        <Wifi className="w-4 h-4" /> Join Online Meeting
                       </a>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Quiz Card */}
+              {/* Quiz Card — UNLOCKED */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -329,21 +358,15 @@ export default function EventDetailPage() {
                     </span>
                   </div>
                   <p className="text-white/40 text-sm mb-5">Your attendance is verified. Complete the quiz to earn your score.</p>
-
                   {event.quizLink ? (
                     <a
                       href={event.quizLink}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2.5 px-6 py-3 rounded-xl font-bold text-sm transition-all"
-                      style={{
-                        background: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)',
-                        color: '#fff',
-                        boxShadow: '0 0 24px rgba(249,115,22,0.35)',
-                      }}
+                      style={{ background: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)', color: '#fff', boxShadow: '0 0 24px rgba(249,115,22,0.35)' }}
                     >
-                      <ExternalLink className="w-4 h-4" />
-                      Open Quiz
+                      <ExternalLink className="w-4 h-4" /> Open Quiz
                     </a>
                   ) : (
                     <p className="text-white/30 text-sm italic">No quiz link configured for this session</p>
@@ -351,18 +374,48 @@ export default function EventDetailPage() {
                 </div>
               </motion.div>
 
-              {/* Session info */}
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                className="glass-card rounded-2xl p-5"
-              >
-                <h3 className="text-sm font-semibold text-white mb-3">About This Session</h3>
-                <p className="text-white/60 text-sm leading-relaxed">
-                  {event.description || 'An interactive session designed to enhance your wellbeing and personal growth.'}
-                </p>
-              </motion.div>
+              {/* About + Details row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25 }}
+                  className="glass-card rounded-2xl p-5"
+                >
+                  <h3 className="text-sm font-semibold text-white mb-3">About This Session</h3>
+                  <p className="text-white/60 text-sm leading-relaxed">
+                    {event.description || 'An interactive session designed to enhance your wellbeing and personal growth.'}
+                  </p>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="glass-card rounded-2xl p-5"
+                >
+                  <h3 className="text-sm font-semibold text-white mb-3">Session Details</h3>
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <Calendar className="w-4 h-4 text-primary shrink-0" />
+                      <span className="text-white/70">{formatDate(event.date)}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <Clock className="w-4 h-4 text-primary shrink-0" />
+                      <span className="text-white/70">{formatTime(event.time)}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <MapPin className="w-4 h-4 text-primary shrink-0" />
+                      <span className="text-white/70">{event.venue}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <Users className="w-4 h-4 text-primary shrink-0" />
+                      <span className="text-white/70">
+                        {event.registeredCount}{event.capacity > 0 ? `/${event.capacity}` : ''} participants
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
             </motion.div>
 
           ) : (
