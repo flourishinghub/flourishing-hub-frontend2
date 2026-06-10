@@ -59,7 +59,7 @@ export default function EventDetailPage() {
   // Poll every 2s while PENDING so page transitions immediately when instructor verifies
   useEffect(() => {
     if (checkIn?.status === 'PENDING') {
-      pollRef.current = setInterval(() => fetchCheckInStatus(), 2000);
+      pollRef.current = setInterval(() => fetchCheckInStatus(), 5000);
     } else {
       if (pollRef.current) clearInterval(pollRef.current);
     }
