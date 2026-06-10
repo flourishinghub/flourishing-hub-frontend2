@@ -169,6 +169,8 @@ export default function AdminDashboard() {
   const [analyticsData, setAnalyticsData] = useState<any[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [selectedAnalyticsEvent, setSelectedAnalyticsEvent] = useState<any | null>(null);
+  const [courseStaff, setCourseStaff] = useState<any | null>(null);
+  const [courseStaffLoading, setCourseStaffLoading] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
   const [bulkImporting, setBulkImporting] = useState(false);
@@ -837,20 +839,27 @@ export default function AdminDashboard() {
 
   const handleViewModules = async (course: any) => {
     setSelectedCourse(course);
+    setCourseStaff(null);
     setLoadingModules(true);
+    setCourseStaffLoading(true);
     try {
-      const res = await apiCall(`/courses/${course.id}/modules`);
-      setCourseModules(res.data || []);
-    } catch {
-      toast.error('Failed to load modules');
+      const [modulesRes, staffRes] = await Promise.allSettled([
+        apiCall(`/courses/${course.id}/modules`),
+        apiCall(`/admin/courses/${course.id}/staff`),
+      ]);
+      if (modulesRes.status === 'fulfilled') setCourseModules(modulesRes.value?.data || []);
+      else toast.error('Failed to load modules');
+      if (staffRes.status === 'fulfilled') setCourseStaff(staffRes.value?.data || null);
     } finally {
       setLoadingModules(false);
+      setCourseStaffLoading(false);
     }
   };
 
   const handleBackToCourses = () => {
     setSelectedCourse(null);
     setCourseModules([]);
+    setCourseStaff(null);
   };
 
   const openCreateModule = () => {
@@ -1351,47 +1360,102 @@ export default function AdminDashboard() {
                       ))}
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div>
-                        <h5 className="text-emerald-400 font-semibold text-sm mb-2">Present ({selectedAnalyticsEvent.presentStudents?.length || 0})</h5>
-                        <div className="space-y-1 max-h-48 overflow-y-auto">
-                          {(selectedAnalyticsEvent.presentStudents || []).map((s: any, i: number) => (
-                            <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10 text-xs">
-                              <span className="text-white">{s.name}</span>
-                              <span className="text-white/40">{s.rollNo}</span>
-                            </div>
-                          ))}
-                          {(selectedAnalyticsEvent.presentStudents || []).length === 0 && <p className="text-white/30 text-xs">No data</p>}
-                        </div>
+                    {/* Staff Info */}
+                    {(selectedAnalyticsEvent.associateInstructorName !== '—' || selectedAnalyticsEvent.volunteerNames?.length > 0) && (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        {selectedAnalyticsEvent.associateInstructorName !== '—' && (
+                          <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/15">
+                            <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider mb-1">Associate Instructor</p>
+                            <p className="text-white text-sm font-medium">{selectedAnalyticsEvent.associateInstructorName}</p>
+                          </div>
+                        )}
+                        {selectedAnalyticsEvent.volunteerNames?.length > 0 && (
+                          <div className="p-3 rounded-xl bg-teal-500/5 border border-teal-500/15">
+                            <p className="text-teal-400 text-xs font-semibold uppercase tracking-wider mb-1">Volunteers ({selectedAnalyticsEvent.volunteerNames.length})</p>
+                            <p className="text-white text-sm">{selectedAnalyticsEvent.volunteerNames.join(', ')}</p>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <h5 className="text-red-400 font-semibold text-sm mb-2">Absent ({selectedAnalyticsEvent.absentStudents?.length || 0})</h5>
-                        <div className="space-y-1 max-h-48 overflow-y-auto">
-                          {(selectedAnalyticsEvent.absentStudents || []).map((s: any, i: number) => (
-                            <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-red-500/5 border border-red-500/10 text-xs">
-                              <span className="text-white">{s.name}</span>
-                              <span className="text-white/40">{s.rollNo}</span>
-                            </div>
-                          ))}
-                          {(selectedAnalyticsEvent.absentStudents || []).length === 0 && <p className="text-white/30 text-xs">No data</p>}
+                    )}
+
+                    {/* Full Student Table */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="text-white font-semibold text-sm">Registered Students ({(selectedAnalyticsEvent.students || []).length})</h5>
+                        <button
+                          onClick={() => {
+                            const headers = ['Name', 'Email', 'Roll No', 'Batch', 'Attendance', 'Quiz Completed', 'Score', 'Rating', 'Registration Status'];
+                            const rows = (selectedAnalyticsEvent.students || []).map((s: any) => [
+                              s.name, s.email, s.rollNo, s.batch,
+                              s.attendanceStatus, s.quizCompleted ? 'Yes' : 'No',
+                              s.score ?? '—', s.rating ?? '—', s.registrationStatus
+                            ]);
+                            const csv = [headers, ...rows].map(r => r.map((v: any) => `"${v}"`).join(',')).join('\n');
+                            const blob = new Blob([csv], { type: 'text/csv' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a'); a.href = url; a.download = `${selectedAnalyticsEvent.workshopName}-students.csv`; a.click();
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition-all text-xs font-semibold"
+                        >
+                          <Download className="w-3.5 h-3.5" /> Export CSV
+                        </button>
+                      </div>
+                      <div className="rounded-xl border border-white/5 overflow-hidden">
+                        <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                          <table className="w-full text-xs">
+                            <thead className="sticky top-0 bg-[#1A1A2E]">
+                              <tr className="border-b border-white/5">
+                                {['Name', 'Roll No', 'Batch', 'Attendance', 'Quiz', 'Score', 'Rating'].map(h => (
+                                  <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold text-white/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(selectedAnalyticsEvent.students || []).length === 0 ? (
+                                <tr><td colSpan={7} className="text-center py-8 text-white/30">No students registered</td></tr>
+                              ) : (selectedAnalyticsEvent.students || []).map((s: any, i: number) => (
+                                <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                                  <td className="px-3 py-2.5 text-white font-medium whitespace-nowrap">{s.name}</td>
+                                  <td className="px-3 py-2.5 text-white/60 font-mono">{s.rollNo}</td>
+                                  <td className="px-3 py-2.5 text-white/60">{s.batch}</td>
+                                  <td className="px-3 py-2.5">
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                      s.attendanceStatus === 'PRESENT'
+                                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                        : s.attendanceStatus === 'ABSENT'
+                                        ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                                        : s.attendanceStatus === 'EXCUSED'
+                                        ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30'
+                                        : 'bg-white/5 text-white/30 border-white/10'
+                                    }`}>
+                                      {s.attendanceStatus === 'NOT_MARKED' ? 'N/A' : s.attendanceStatus}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2.5">
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                      s.quizCompleted
+                                        ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                                        : 'bg-white/5 text-white/30 border-white/10'
+                                    }`}>
+                                      {s.quizCompleted ? 'Done' : 'Pending'}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-white/70 font-semibold">{s.score != null ? s.score : '—'}</td>
+                                  <td className="px-3 py-2.5">
+                                    {s.rating ? (
+                                      <div className="flex items-center gap-1">
+                                        <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                                        <span className="text-yellow-400 font-semibold">{s.rating}</span>
+                                      </div>
+                                    ) : <span className="text-white/30">—</span>}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     </div>
-
-                    {/* Export this workshop */}
-                    <button
-                      onClick={() => {
-                        const headers = ['Name', 'Email', 'Roll No', 'Status'];
-                        const rows = (selectedAnalyticsEvent.allRegistrants || []).map((r: any) => [r.name, r.email, r.rollNo, r.status]);
-                        const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-                        const blob = new Blob([csv], { type: 'text/csv' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a'); a.href = url; a.download = `${selectedAnalyticsEvent.workshopName}-attendance.csv`; a.click();
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition-all text-sm font-semibold w-fit"
-                    >
-                      <Download className="w-4 h-4" /> Export Attendance
-                    </button>
                   </div>
                 </div>
               ) : (
@@ -2020,6 +2084,60 @@ export default function AdminDashboard() {
                       <Plus className="w-4 h-4" /> Add Module
                     </motion.button>
                   </div>
+
+                  {/* Course Staff: Associate Instructors & Volunteers */}
+                  {(courseStaffLoading || courseStaff) && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/15">
+                        <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider mb-3">
+                          Associate Instructors {courseStaff ? `(${courseStaff.associateInstructors?.length || 0})` : ''}
+                        </p>
+                        {courseStaffLoading ? (
+                          <div className="h-8 w-32 bg-white/5 rounded animate-pulse" />
+                        ) : courseStaff?.associateInstructors?.length > 0 ? (
+                          <div className="space-y-2">
+                            {courseStaff.associateInstructors.map((ai: any) => (
+                              <div key={ai.id} className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-xs shrink-0">
+                                  {ai.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-white text-xs font-medium truncate">{ai.name}</p>
+                                  {ai.department !== '—' && <p className="text-white/40 text-[10px] truncate">{ai.department}</p>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-white/30 text-xs">None assigned</p>
+                        )}
+                      </div>
+                      <div className="p-4 rounded-2xl bg-teal-500/5 border border-teal-500/15">
+                        <p className="text-teal-400 text-xs font-semibold uppercase tracking-wider mb-3">
+                          Volunteers {courseStaff ? `(${courseStaff.volunteers?.length || 0})` : ''}
+                        </p>
+                        {courseStaffLoading ? (
+                          <div className="h-8 w-32 bg-white/5 rounded animate-pulse" />
+                        ) : courseStaff?.volunteers?.length > 0 ? (
+                          <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {courseStaff.volunteers.map((v: any) => (
+                              <div key={v.id} className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-lg bg-teal-500/20 flex items-center justify-center text-teal-400 font-bold text-xs shrink-0">
+                                  {v.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-white text-xs font-medium truncate">{v.name}</p>
+                                  <p className="text-white/40 text-[10px] font-mono truncate">{v.rollNo}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-white/30 text-xs">None assigned</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {loadingModules ? (
                     <div className="flex items-center justify-center py-12">
