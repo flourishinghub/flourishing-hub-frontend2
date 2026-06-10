@@ -80,6 +80,7 @@ const transformEventsData = (rawEvents: any[]) => rawEvents.map((event: any) => 
   instructorId: event.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.id || null,
   associateInstructorName: event.assignments?.find((a: any) => a.role === 'ASSOCIATE_INSTRUCTOR')?.user?.name || null,
   associateInstructorId: event.assignments?.find((a: any) => a.role === 'ASSOCIATE_INSTRUCTOR')?.user?.id || null,
+  quizLink: event.modules?.[0]?.quizLink || null,
 }));
 
 export default function AdminEventsPage() {
@@ -199,6 +200,16 @@ export default function AdminEventsPage() {
         instructorId: form.instructorId || null,
         associateInstructorId: form.associateInstructorId || null,
         ...(form.maxVolunteers && { maxVolunteers: parseInt(form.maxVolunteers) }),
+        ...(form.quizLink && {
+          modules: [{
+            title: form.title,
+            startAt: new Date(`${form.date}T${form.time}`).toISOString(),
+            endAt: form.endTime
+              ? new Date(`${form.date}T${form.endTime}`).toISOString()
+              : new Date(new Date(`${form.date}T${form.time}`).getTime() + 2 * 60 * 60 * 1000).toISOString(),
+            quizLink: form.quizLink,
+          }]
+        }),
       };
 
       if (editingEvent) {
