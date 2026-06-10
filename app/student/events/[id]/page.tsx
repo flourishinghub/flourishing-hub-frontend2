@@ -7,10 +7,10 @@ import {
   ArrowLeft, Calendar, Clock, MapPin, Users, ExternalLink,
   Share2, Heart, CheckCircle, AlertCircle, Radio, Loader2,
   BookOpen, GraduationCap, Fingerprint, ShieldCheck, Zap,
-  Wifi, History, Star, Award
+  Wifi, History, Star, Award, Lock, Video, FileText
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { getCurrentUser, apiCall } from '@/lib/api';
+import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
 import { getRegisteredEventIds } from '@/lib/registrationUtils';
@@ -36,19 +36,19 @@ export default function EventDetailPage() {
   const params = useParams();
   const eventId = params.id as string;
 
-  const fetchCheckInStatus = async (_currentUserId?: string) => {
+  const fetchCheckInStatus = async () => {
     try {
       const res = await apiCall('/event-operations/' + eventId + '/my-check-in');
       setCheckIn(res.data || null);
-    } catch (err) {
-      console.warn('Could not fetch check-in status:', err);
+    } catch {
+      // silent
     }
   };
 
-  // Poll every 5s while PENDING so page auto-transitions to verified state
+  // Poll every 2s while PENDING so page transitions immediately when instructor verifies
   useEffect(() => {
     if (checkIn?.status === 'PENDING') {
-      pollRef.current = setInterval(() => fetchCheckInStatus(), 5000);
+      pollRef.current = setInterval(() => fetchCheckInStatus(), 2000);
     } else {
       if (pollRef.current) clearInterval(pollRef.current);
     }
@@ -62,12 +62,10 @@ export default function EventDetailPage() {
 
     const fetchData = async () => {
       try {
-        let currentUserId: string | undefined;
         const cachedUser = localStorage.getItem('user');
         if (cachedUser) {
           const userData = JSON.parse(cachedUser);
           setUser(userData);
-          currentUserId = userData.id;
         }
 
         const [eventsResponse, registrationsResponse, attendanceResponse] = await Promise.all([
@@ -107,19 +105,15 @@ export default function EventDetailPage() {
         setEvent(transformedEvent);
 
         const userRegistrations = registrationsResponse.data || [];
-        // Include ATTENDED status — backend may update registration from REGISTERED→ATTENDED
-        // after check-in verification, but student should still see the live event page
         const registered = userRegistrations.some((reg: any) =>
           reg.eventId === eventId && (reg.status === 'REGISTERED' || reg.status === 'ATTENDED')
         );
         setIsRegistered(registered);
 
-        // Always fetch check-in status when event is live (don't gate on registration status)
         if (isEventLive(eventData.startAt, eventData.endAt)) {
           await fetchCheckInStatus();
         }
 
-        // Store this event's attendance record (for feedback section)
         const allAttendance: any[] = attendanceResponse.data || [];
         const thisEventRec = allAttendance.find((a: any) => a.eventId === eventId);
         setMyAttendanceRec(thisEventRec || null);
@@ -128,7 +122,6 @@ export default function EventDetailPage() {
           setFeedbackSubmitted(true);
         }
 
-        // Build history from attended events (field names from getMyAttendance API)
         const history = allAttendance
           .filter((a: any) => a.status === 'PRESENT' && a.eventId !== eventId)
           .slice(0, 5)
@@ -142,7 +135,7 @@ export default function EventDetailPage() {
           }));
         setAttendanceHistory(history);
       } catch (error) {
-        console.error('❌ Failed to fetch event details:', error);
+        console.error('Failed to fetch event details:', error);
         toast.error('Failed to load event details');
         router.push('/student/events');
       } finally {
@@ -164,10 +157,10 @@ export default function EventDetailPage() {
       });
       if (response.success) {
         setIsRegistered(true);
-        toast.success('Successfully registered for event!');
+        toast.success('Successfully registered!');
         setEvent((prev: any) => ({ ...prev, registeredCount: prev.registeredCount + 1 }));
       }
-    } catch (error) {
+    } catch {
       toast.error('Registration failed. Please try again.');
     } finally {
       setRegistering(false);
@@ -202,8 +195,7 @@ export default function EventDetailPage() {
       toast.success('Check-in submitted! Awaiting verification.');
       await fetchCheckInStatus();
     } catch (error: any) {
-      const msg = error?.message || 'Failed to check in.';
-      toast.error(msg);
+      toast.error(error?.message || 'Failed to check in.');
     } finally {
       setCheckingIn(false);
     }
@@ -223,148 +215,217 @@ export default function EventDetailPage() {
   const isUpcoming = isEventUpcoming(event.startAt || (event.date + 'T' + event.time));
   const isFull = event.registeredCount >= event.capacity && event.capacity > 0;
 
-  // ── LIVE EVENT FULL PAGE ──
-  // Show live page if: registered (any status) OR has a check-in record for this event
+  // ─── LIVE EVENT PAGE ───────────────────────────────────────────────
   if (isLive && (isRegistered || checkIn !== null)) {
     const isVerified = checkIn?.status === 'VERIFIED';
+    const isPending = checkIn?.status === 'PENDING';
+    const isRejected = checkIn?.status === 'REJECTED';
+    const hasCheckedIn = !!checkIn;
+
+    // Step indicator: 0 = not checked in, 1 = pending, 2 = verified
+    const step = isVerified ? 2 : isPending ? 1 : 0;
 
     return (
       <DashboardLayout user={user} loading={false}>
+        {/* Back button */}
         <motion.button
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-6"
+          className="flex items-center gap-2 text-white/50 hover:text-white transition-colors mb-5"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="text-sm">Back to Events</span>
         </motion.button>
 
+        {/* ── Top bar: title + status badges ── */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <motion.span
+              animate={{ scale: [1, 1.04, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold"
+            >
+              <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 1.2 }} className="w-1.5 h-1.5 bg-red-400 rounded-full" />
+              LIVE NOW
+            </motion.span>
+            {isVerified && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" /> Attendance Verified
+              </motion.span>
+            )}
+            {isPending && (
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold">
+                <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ repeat: Infinity, duration: 1.2 }} className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
+                Awaiting Verification
+              </span>
+            )}
+          </div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-white leading-tight">{event.title}</h1>
+          <p className="text-white/40 text-sm mt-1">Organized by <span className="text-white/60">{event.organizer}</span></p>
+        </motion.div>
+
+        {/* ── Step Progress Bar ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex items-center gap-0 mb-7 p-4 rounded-2xl"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          {[
+            { label: 'Check In', icon: Fingerprint },
+            { label: 'Verification', icon: Zap },
+            { label: 'Session Active', icon: ShieldCheck },
+          ].map((s, i) => (
+            <div key={i} className="flex items-center flex-1">
+              <div className="flex flex-col items-center flex-1">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
+                  step > i ? 'bg-emerald-500 text-white' :
+                  step === i ? 'bg-primary/20 border-2 border-primary text-primary' :
+                  'bg-white/5 border border-white/10 text-white/20'
+                }`}>
+                  {step > i
+                    ? <CheckCircle className="w-4 h-4" />
+                    : <s.icon className="w-4 h-4" />
+                  }
+                </div>
+                <span className={`text-[10px] mt-1.5 font-medium transition-colors ${
+                  step > i ? 'text-emerald-400' : step === i ? 'text-primary' : 'text-white/25'
+                }`}>{s.label}</span>
+              </div>
+              {i < 2 && (
+                <div className="h-px flex-1 mx-1 transition-all duration-500" style={{
+                  background: step > i ? 'rgba(16,185,129,0.6)' : 'rgba(255,255,255,0.08)'
+                }} />
+              )}
+            </div>
+          ))}
+        </motion.div>
+
         <AnimatePresence mode="wait">
-          {/* ══════════════════════════════════════════════
-              PHASE 2 — SESSION ACTIVE (auto-appears when verified)
-          ══════════════════════════════════════════════ */}
+          {/* ══════════════════════════════════════════════════════
+              PHASE 2 — VERIFIED: Session Active
+          ══════════════════════════════════════════════════════ */}
           {isVerified ? (
             <motion.div
               key="phase2"
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -24 }}
+              exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4 }}
               className="space-y-5"
             >
-              {/* Session Active Hero — full event info */}
+              {/* Verified Hero */}
               <div
-                className="relative rounded-3xl overflow-hidden"
+                className="relative rounded-2xl overflow-hidden p-6 lg:p-8"
                 style={{
-                  background: 'linear-gradient(135deg, #0a1f14 0%, #0d2a1a 50%, #061a24 100%)',
-                  border: '1px solid rgba(16,185,129,0.35)',
-                  boxShadow: '0 0 60px rgba(16,185,129,0.08)',
+                  background: 'linear-gradient(135deg, #061a0f 0%, #0a2016 50%, #061820 100%)',
+                  border: '1px solid rgba(16,185,129,0.3)',
+                  boxShadow: '0 0 50px rgba(16,185,129,0.07)',
                 }}
               >
                 <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-0.5 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent blur-sm" />
-                  <div className="absolute -top-16 left-1/4 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl" />
-                  <div className="absolute -top-16 right-1/4 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl" />
+                  <div className="absolute -top-12 left-1/4 w-72 h-72 bg-emerald-500/5 rounded-full blur-3xl" />
+                  <div className="absolute -top-12 right-1/4 w-72 h-72 bg-teal-500/5 rounded-full blur-3xl" />
                 </div>
-
-                <div className="relative p-8 lg:p-12">
-                  {/* Status badges */}
-                  <div className="flex flex-wrap items-center gap-3 mb-6">
-                    <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold">
-                      <ShieldCheck className="w-3.5 h-3.5" /> Attendance Verified
-                    </span>
-                    <motion.span
-                      animate={{ scale: [1, 1.04, 1] }}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold"
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-5">
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                      className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center"
                     >
-                      <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 1.2 }} className="w-1.5 h-1.5 bg-red-400 rounded-full" />
-                      LIVE NOW
-                    </motion.span>
+                      <ShieldCheck className="w-6 h-6 text-emerald-400" />
+                    </motion.div>
+                    <div>
+                      <p className="text-emerald-400 font-bold text-base">Attendance Confirmed</p>
+                      <p className="text-white/40 text-xs">Your presence has been verified by the instructor</p>
+                    </div>
                   </div>
 
-                  <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2 leading-tight">{event.title}</h1>
-                  <p className="text-white/50 text-sm mb-8">
-                    Organized by <span className="text-white/70">{event.organizer}</span>
-                  </p>
-
-                  {/* Event meta chips */}
-                  <div className="flex flex-wrap gap-4 mb-8">
+                  {/* Info chips */}
+                  <div className="flex flex-wrap gap-2.5">
                     {event.courseName && (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                        <BookOpen className="w-4 h-4 text-violet-400" />
-                        <div><p className="text-white text-sm font-medium">{event.courseName}</p><p className="text-white/40 text-[10px]">Course</p></div>
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 text-xs">
+                        <BookOpen className="w-3.5 h-3.5 text-violet-400" />
+                        <span className="text-white/70">{event.courseName}</span>
                       </div>
                     )}
                     {event.batch && (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                        <GraduationCap className="w-4 h-4 text-blue-400" />
-                        <div><p className="text-white text-sm font-medium">{event.batch}</p><p className="text-white/40 text-[10px]">Batch</p></div>
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 text-xs">
+                        <GraduationCap className="w-3.5 h-3.5 text-blue-400" />
+                        <span className="text-white/70">{event.batch}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                      <MapPin className="w-4 h-4 text-emerald-400" />
-                      <div><p className="text-white text-sm font-medium">{event.venue}</p><p className="text-white/40 text-[10px]">Venue</p></div>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 text-xs">
+                      <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-white/70">{event.venue}</span>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                      <Clock className="w-4 h-4 text-amber-400" />
-                      <div><p className="text-white text-sm font-medium">{formatTime(event.time)}</p><p className="text-white/40 text-[10px]">Started at</p></div>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 text-xs">
+                      <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-white/70">{formatTime(event.time)}</span>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                      <Calendar className="w-4 h-4 text-primary" />
-                      <div><p className="text-white text-sm font-medium">{formatDate(event.date)}</p><p className="text-white/40 text-[10px]">Date</p></div>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 text-xs">
+                      <Calendar className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-white/70">{formatDate(event.date)}</span>
                     </div>
                   </div>
 
-                  {/* Action buttons */}
-                  <div className="flex flex-wrap gap-3">
-                    {event.meetLink && (
-                      <a
-                        href={event.meetLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all"
-                        style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)', color: '#fff', boxShadow: '0 0 24px rgba(59,130,246,0.3)' }}
-                      >
-                        <Wifi className="w-4 h-4" /> Join Online Meeting
-                      </a>
-                    )}
-                  </div>
+                  {/* Meeting link */}
+                  {event.meetLink && (
+                    <a
+                      href={event.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-5 inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-bold text-sm transition-all"
+                      style={{ background: 'linear-gradient(135deg,#1d4ed8,#3b82f6)', color: '#fff', boxShadow: '0 0 20px rgba(59,130,246,0.25)' }}
+                    >
+                      <Video className="w-4 h-4" /> Join Online Meeting
+                    </a>
+                  )}
                 </div>
               </div>
 
-              {/* Quiz Card — UNLOCKED */}
+              {/* Quiz — UNLOCKED */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
                 className="relative rounded-2xl overflow-hidden"
                 style={{
-                  background: 'linear-gradient(135deg, #1a0e04 0%, #1f1408 100%)',
-                  border: '1px solid rgba(249,115,22,0.35)',
-                  boxShadow: '0 0 40px rgba(249,115,22,0.07)',
+                  background: 'linear-gradient(135deg, #1a0e04, #1f1408)',
+                  border: '1px solid rgba(249,115,22,0.4)',
+                  boxShadow: '0 0 30px rgba(249,115,22,0.08)',
                 }}
               >
-                <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute -top-10 right-0 w-48 h-48 bg-orange-500/5 rounded-full blur-3xl" />
-                </div>
-                <div className="relative p-6">
-                  <div className="flex items-center gap-2 mb-1">
-                    <BookOpen className="w-5 h-5 text-orange-400" />
-                    <h2 className="text-white font-bold text-lg">Session Quiz</h2>
-                    <span className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[10px] font-bold">
+                <div className="p-5 lg:p-6">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-orange-400" />
+                      <h2 className="text-white font-bold text-base">Session Quiz</h2>
+                    </div>
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[10px] font-bold">
                       <CheckCircle className="w-3 h-3" /> UNLOCKED
                     </span>
                   </div>
-                  <p className="text-white/40 text-sm mb-5">Your attendance is verified. Complete the quiz to earn your score.</p>
+                  <p className="text-white/40 text-sm mb-4">Attendance verified — complete the quiz to earn your score.</p>
                   {event.quizLink ? (
                     <a
                       href={event.quizLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2.5 px-6 py-3 rounded-xl font-bold text-sm transition-all"
-                      style={{ background: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)', color: '#fff', boxShadow: '0 0 24px rgba(249,115,22,0.35)' }}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all"
+                      style={{ background: 'linear-gradient(135deg,#ea580c,#f97316)', color: '#fff', boxShadow: '0 0 20px rgba(249,115,22,0.3)' }}
                     >
                       <ExternalLink className="w-4 h-4" /> Open Quiz
                     </a>
@@ -374,226 +435,231 @@ export default function EventDetailPage() {
                 </div>
               </motion.div>
 
-              {/* About + Details row */}
+              {/* About + Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.25 }}
+                  transition={{ delay: 0.2 }}
                   className="glass-card rounded-2xl p-5"
                 >
                   <h3 className="text-sm font-semibold text-white mb-3">About This Session</h3>
-                  <p className="text-white/60 text-sm leading-relaxed">
+                  <p className="text-white/55 text-sm leading-relaxed">
                     {event.description || 'An interactive session designed to enhance your wellbeing and personal growth.'}
                   </p>
                 </motion.div>
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
+                  transition={{ delay: 0.25 }}
                   className="glass-card rounded-2xl p-5"
                 >
                   <h3 className="text-sm font-semibold text-white mb-3">Session Details</h3>
                   <div className="space-y-2.5">
-                    <div className="flex items-center gap-2.5 text-sm">
-                      <Calendar className="w-4 h-4 text-primary shrink-0" />
-                      <span className="text-white/70">{formatDate(event.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-sm">
-                      <Clock className="w-4 h-4 text-primary shrink-0" />
-                      <span className="text-white/70">{formatTime(event.time)}</span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-sm">
-                      <MapPin className="w-4 h-4 text-primary shrink-0" />
-                      <span className="text-white/70">{event.venue}</span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-sm">
-                      <Users className="w-4 h-4 text-primary shrink-0" />
-                      <span className="text-white/70">
-                        {event.registeredCount}{event.capacity > 0 ? `/${event.capacity}` : ''} participants
-                      </span>
-                    </div>
+                    {[
+                      { icon: Calendar, label: formatDate(event.date) },
+                      { icon: Clock, label: formatTime(event.time) },
+                      { icon: MapPin, label: event.venue },
+                      { icon: Users, label: `${event.registeredCount}${event.capacity > 0 ? `/${event.capacity}` : ''} participants` },
+                    ].map(({ icon: Icon, label }, i) => (
+                      <div key={i} className="flex items-center gap-2.5 text-sm">
+                        <Icon className="w-4 h-4 text-primary shrink-0" />
+                        <span className="text-white/60">{label}</span>
+                      </div>
+                    ))}
                   </div>
                 </motion.div>
               </div>
             </motion.div>
 
           ) : (
-            /* ══════════════════════════════════════════════
-                PHASE 1 — CHECK-IN (before verification)
-            ══════════════════════════════════════════════ */
+            /* ══════════════════════════════════════════════════════
+                PHASE 1 — CHECK-IN / PENDING
+            ══════════════════════════════════════════════════════ */
             <motion.div
               key="phase1"
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -24 }}
+              exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.35 }}
-              className="space-y-5"
+              className="grid grid-cols-1 lg:grid-cols-5 gap-5"
             >
-              {/* Live Hero Banner */}
-              <div
-                className="relative rounded-3xl overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #0f0f23 0%, #1a0a2e 50%, #0a1628 100%)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  boxShadow: '0 0 60px rgba(239, 68, 68, 0.1)',
-                }}
-              >
-                <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-1 bg-gradient-to-r from-transparent via-red-500/50 to-transparent blur-sm" />
-                  <div className="absolute -top-20 left-1/4 w-64 h-64 bg-red-500/5 rounded-full blur-3xl" />
-                  <div className="absolute -top-20 right-1/4 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl" />
+              {/* Left: Check-in card (wider) */}
+              <div className="lg:col-span-3 space-y-4">
+                {/* Check-in / Pending card */}
+                <div
+                  className="relative rounded-2xl overflow-hidden"
+                  style={{
+                    background: isPending
+                      ? 'linear-gradient(135deg, #1a1400, #1f1800)'
+                      : 'linear-gradient(135deg, #0f0f23, #1a0a2e)',
+                    border: isPending
+                      ? '1px solid rgba(245,158,11,0.35)'
+                      : '1px solid rgba(239,68,68,0.25)',
+                    boxShadow: isPending
+                      ? '0 0 40px rgba(245,158,11,0.06)'
+                      : '0 0 40px rgba(239,68,68,0.08)',
+                  }}
+                >
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className={`absolute -top-16 left-1/4 w-64 h-64 rounded-full blur-3xl ${isPending ? 'bg-amber-500/5' : 'bg-violet-500/5'}`} />
+                    <div className={`absolute -top-16 right-1/4 w-64 h-64 rounded-full blur-3xl ${isPending ? 'bg-yellow-500/5' : 'bg-red-500/5'}`} />
+                  </div>
+
+                  <div className="relative p-6 lg:p-8">
+                    <AnimatePresence mode="wait">
+                      {/* ── NOT CHECKED IN ── */}
+                      {(!hasCheckedIn || isRejected) && (
+                        <motion.div
+                          key="checkin-btn"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="flex flex-col items-center gap-6 py-4"
+                        >
+                          {isRejected && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
+                            >
+                              <AlertCircle className="w-4 h-4 shrink-0" />
+                              Check-in was rejected — tap to try again
+                            </motion.div>
+                          )}
+
+                          <div className="text-center">
+                            <p className="text-white/70 text-base font-medium mb-1">Mark Your Attendance</p>
+                            <p className="text-white/35 text-sm">Tap the button below to check in</p>
+                          </div>
+
+                          {/* Big check-in button */}
+                          <motion.button
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={handleCheckIn}
+                            disabled={checkingIn}
+                            className="relative flex flex-col items-center justify-center w-48 h-48 rounded-full transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                            style={{
+                              background: 'rgba(16,185,129,0.08)',
+                              border: '2px solid rgba(16,185,129,0.4)',
+                              boxShadow: '0 0 50px rgba(16,185,129,0.15)',
+                            }}
+                          >
+                            {!checkingIn && (
+                              <>
+                                <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0, 0.4] }} transition={{ repeat: Infinity, duration: 2.5 }} className="absolute inset-0 rounded-full border border-emerald-500/25" />
+                                <motion.div animate={{ scale: [1, 1.6, 1], opacity: [0.2, 0, 0.2] }} transition={{ repeat: Infinity, duration: 2.5, delay: 0.5 }} className="absolute inset-0 rounded-full border border-emerald-500/15" />
+                              </>
+                            )}
+                            {checkingIn
+                              ? <Loader2 className="w-14 h-14 text-emerald-400 animate-spin" />
+                              : <Fingerprint className="w-14 h-14 text-emerald-400" />
+                            }
+                            <span className="mt-3 text-emerald-400 font-bold text-base">
+                              {checkingIn ? 'Checking in…' : 'Check In'}
+                            </span>
+                          </motion.button>
+                        </motion.div>
+                      )}
+
+                      {/* ── PENDING VERIFICATION ── */}
+                      {isPending && (
+                        <motion.div
+                          key="pending"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          className="flex flex-col items-center gap-5 py-4"
+                        >
+                          {/* Animated spinner */}
+                          <div className="relative w-28 h-28">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ repeat: Infinity, duration: 2.5, ease: 'linear' }}
+                              className="absolute inset-0 rounded-full border-2 border-amber-500/20 border-t-amber-400"
+                            />
+                            <motion.div
+                              animate={{ rotate: -360 }}
+                              transition={{ repeat: Infinity, duration: 4, ease: 'linear' }}
+                              className="absolute inset-2 rounded-full border border-amber-500/10 border-b-amber-500/40"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Zap className="w-10 h-10 text-amber-400" />
+                            </div>
+                          </div>
+
+                          <div className="text-center">
+                            <p className="text-amber-400 font-bold text-xl mb-1.5">Verification in Progress</p>
+                            <p className="text-white/50 text-sm">Associate Instructor is reviewing your check-in</p>
+                          </div>
+
+                          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/8 border border-amber-500/15 text-amber-400/60 text-xs">
+                            <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
+                            Page updates automatically every 2 seconds
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
 
-                <div className="relative p-8 lg:p-12">
-                  <div className="flex items-center gap-3 mb-6">
-                    <motion.div
-                      animate={{ scale: [1, 1.05, 1] }}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                      className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-bold text-sm"
-                    >
-                      <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 1.2 }} className="w-2 h-2 bg-red-400 rounded-full" />
-                      LIVE NOW
-                    </motion.div>
-                    <div className="flex items-center gap-1.5 text-white/30 text-xs">
-                      <Wifi className="w-3 h-3" /> Session Active
-                    </div>
-                  </div>
-
-                  <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2 leading-tight">{event.title}</h1>
-                  <p className="text-white/50 text-sm mb-8">
-                    Organized by <span className="text-white/70">{event.organizer}</span>
+                {/* About */}
+                <div className="glass-card rounded-2xl p-5">
+                  <h3 className="text-sm font-semibold text-white mb-3">About This Session</h3>
+                  <p className="text-white/55 text-sm leading-relaxed">
+                    {event.description || 'An interactive session designed to enhance your wellbeing and personal growth.'}
                   </p>
-
-                  <div className="flex flex-wrap gap-4 mb-10">
-                    {event.courseName && (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                        <BookOpen className="w-4 h-4 text-violet-400" />
-                        <div><p className="text-white text-sm font-medium">{event.courseName}</p><p className="text-white/40 text-[10px]">Course</p></div>
-                      </div>
-                    )}
-                    {event.batch && (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                        <GraduationCap className="w-4 h-4 text-blue-400" />
-                        <div><p className="text-white text-sm font-medium">{event.batch}</p><p className="text-white/40 text-[10px]">Batch</p></div>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                      <MapPin className="w-4 h-4 text-emerald-400" />
-                      <div><p className="text-white text-sm font-medium">{event.venue}</p><p className="text-white/40 text-[10px]">Venue</p></div>
-                    </div>
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                      <Clock className="w-4 h-4 text-amber-400" />
-                      <div><p className="text-white text-sm font-medium">{formatTime(event.time)}</p><p className="text-white/40 text-[10px]">Started at</p></div>
-                    </div>
-                  </div>
-
-                  {/* Check-in / Pending states */}
-                  <AnimatePresence mode="wait">
-                    {(!checkIn || checkIn.status === 'REJECTED') ? (
-                      <motion.div
-                        key="checkin"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="flex flex-col items-center gap-6 py-6"
-                      >
-                        {checkIn?.status === 'REJECTED' && (
-                          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                            <AlertCircle className="w-4 h-4" /> Check-in was rejected — you can try again
-                          </div>
-                        )}
-                        <div className="text-center">
-                          <p className="text-white/60 text-sm mb-1">You&apos;re registered for this session</p>
-                          <p className="text-white/40 text-xs">Tap below to mark your attendance</p>
-                        </div>
-                        <motion.button
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={handleCheckIn}
-                          disabled={checkingIn}
-                          className="relative group flex flex-col items-center gap-3 w-52 h-52 rounded-full border-2 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/60 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                          style={{ boxShadow: '0 0 40px rgba(16, 185, 129, 0.15)' }}
-                        >
-                          {!checkingIn && (
-                            <>
-                              <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0, 0.4] }} transition={{ repeat: Infinity, duration: 2.5, ease: 'easeOut' }} className="absolute inset-0 rounded-full border border-emerald-500/30" />
-                              <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0, 0.2] }} transition={{ repeat: Infinity, duration: 2.5, delay: 0.4, ease: 'easeOut' }} className="absolute inset-0 rounded-full border border-emerald-500/20" />
-                            </>
-                          )}
-                          <div className="flex flex-col items-center gap-3 relative z-10 mt-16">
-                            {checkingIn ? <Loader2 className="w-12 h-12 text-emerald-400 animate-spin" /> : <Fingerprint className="w-12 h-12 text-emerald-400 group-hover:text-emerald-300 transition-colors" />}
-                            <span className="text-emerald-400 group-hover:text-emerald-300 font-bold text-lg transition-colors">
-                              {checkingIn ? 'Checking in...' : 'Check In'}
-                            </span>
-                          </div>
-                        </motion.button>
-                      </motion.div>
-
-                    ) : checkIn.status === 'PENDING' ? (
-                      <motion.div
-                        key="pending"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="flex flex-col items-center gap-5 py-6"
-                      >
-                        <div className="relative">
-                          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 3, ease: 'linear' }} className="w-24 h-24 rounded-full border-2 border-amber-500/30 border-t-amber-400" />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Zap className="w-8 h-8 text-amber-400" />
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-amber-400 font-bold text-xl mb-1">Verification in Progress</p>
-                          <p className="text-white/50 text-sm">Your check-in is with the Associate Instructor</p>
-                          <p className="text-white/30 text-xs mt-1">This page updates automatically</p>
-                        </div>
-                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400/70 text-xs">
-                          <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-                          Checking every 5 seconds...
-                        </div>
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
                 </div>
               </div>
 
-              {/* Quiz Card — LOCKED while not verified */}
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="relative rounded-2xl overflow-hidden opacity-60"
-                style={{
-                  background: 'linear-gradient(135deg, #111 0%, #1a1410 100%)',
-                  border: '1px solid rgba(249,115,22,0.15)',
-                }}
-              >
-                <div className="relative p-6">
-                  <div className="flex items-center gap-2 mb-1">
-                    <BookOpen className="w-5 h-5 text-orange-400/60" />
-                    <h2 className="text-white/60 font-bold text-lg">Session Quiz</h2>
-                    <span className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/30 text-[10px] font-bold">
-                      🔒 LOCKED
+              {/* Right: Event info + locked quiz */}
+              <div className="lg:col-span-2 space-y-4">
+                {/* Event info card */}
+                <div className="glass-card rounded-2xl p-5">
+                  <h3 className="text-sm font-semibold text-white mb-4">Session Info</h3>
+                  <div className="space-y-3">
+                    {[
+                      { icon: Calendar, label: 'Date', value: formatDate(event.date) },
+                      { icon: Clock, label: 'Started at', value: formatTime(event.time) },
+                      { icon: MapPin, label: 'Venue', value: event.venue },
+                      ...(event.courseName ? [{ icon: BookOpen, label: 'Course', value: event.courseName }] : []),
+                      ...(event.batch ? [{ icon: GraduationCap, label: 'Batch', value: event.batch }] : []),
+                      { icon: Users, label: 'Participants', value: `${event.registeredCount}${event.capacity > 0 ? `/${event.capacity}` : ''}` },
+                    ].map(({ icon: Icon, label, value }, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                          <Icon className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-white/30 uppercase tracking-wider">{label}</p>
+                          <p className="text-sm text-white/75 font-medium">{value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quiz — LOCKED */}
+                <div
+                  className="rounded-2xl p-5 opacity-50"
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-white/30" />
+                      <h3 className="text-sm font-semibold text-white/50">Session Quiz</h3>
+                    </div>
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/25 text-[10px] font-bold">
+                      <Lock className="w-2.5 h-2.5" /> LOCKED
                     </span>
                   </div>
-                  <p className="text-white/30 text-sm">Complete check-in and get verified by your instructor to unlock the quiz.</p>
+                  <p className="text-white/25 text-xs">Get verified by the instructor to unlock the quiz.</p>
                 </div>
-              </motion.div>
-
-              {/* Session info */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="glass-card rounded-2xl p-5"
-              >
-                <h3 className="text-sm font-semibold text-white mb-3">About This Session</h3>
-                <p className="text-white/60 text-sm leading-relaxed">
-                  {event.description || 'An interactive session designed to enhance your wellbeing and personal growth.'}
-                </p>
-              </motion.div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -601,10 +667,9 @@ export default function EventDetailPage() {
     );
   }
 
-  // ── STANDARD EVENT PAGE (not live / not registered) ──
+  // ─── STANDARD EVENT PAGE (not live / not registered) ───────────────
   return (
     <DashboardLayout user={user} loading={false}>
-      {/* Back Button */}
       <motion.button
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -616,264 +681,117 @@ export default function EventDetailPage() {
       </motion.button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Event Banner */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative h-64 rounded-2xl overflow-hidden"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative h-64 rounded-2xl overflow-hidden">
             <img
               src={`https://source.unsplash.com/800x400/?workshop,meditation,wellness,${encodeURIComponent(event.title.split(' ').slice(0, 2).join(' '))}`}
               alt={event.title}
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
             {isLive && (
               <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-emerald-500/90 text-white text-sm font-semibold flex items-center gap-2">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                LIVE NOW
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse" /> LIVE NOW
               </div>
             )}
-
-            <div className="absolute top-4 right-4 px-3 py-1 rounded-lg bg-black/50 text-white text-sm font-medium">
-              {event.mode}
-            </div>
-
             <div className="absolute bottom-4 left-4 right-4">
-              <h1 className="text-2xl lg:text-3xl font-bold text-white mb-2">{event.title}</h1>
+              <h1 className="text-2xl lg:text-3xl font-bold text-white mb-1">{event.title}</h1>
               <p className="text-white/80 text-sm">Organized by {event.organizer}</p>
             </div>
           </motion.div>
 
-          {/* Event Description */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass-card rounded-2xl p-6"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-2xl p-6">
             <h2 className="text-xl font-semibold text-white mb-4">About This Event</h2>
-            <p className="text-white/70 leading-relaxed mb-4">
-              {event.description || 'Join us for an amazing workshop experience designed to enhance your wellbeing and personal growth.'}
+            <p className="text-white/70 leading-relaxed">
+              {event.description || 'Join us for an amazing workshop experience.'}
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 p-4 rounded-xl bg-white/[0.03] border border-white/5">
-              <div>
-                <h4 className="text-white font-semibold mb-2">What You&apos;ll Learn</h4>
-                <ul className="text-white/60 text-sm space-y-1">
-                  <li>• Practical mindfulness techniques</li>
-                  <li>• Stress management strategies</li>
-                  <li>• Building emotional resilience</li>
-                  <li>• Creating healthy daily habits</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-white font-semibold mb-2">What to Bring</h4>
-                <ul className="text-white/60 text-sm space-y-1">
-                  <li>• Comfortable clothing</li>
-                  <li>• Notebook and pen</li>
-                  <li>• Open mind and positive attitude</li>
-                  <li>• Water bottle (recommended)</li>
-                </ul>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Instructor Info */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass-card rounded-2xl p-6"
-          >
-            <h2 className="text-xl font-semibold text-white mb-4">Meet the Instructor</h2>
-            <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center text-white font-bold text-lg">
-                {event.organizer.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-1">{event.organizer}</h3>
-                <p className="text-white/60 text-sm mb-2">Wellness &amp; Mindfulness Instructor</p>
-                <p className="text-white/50 text-sm leading-relaxed">
-                  Experienced instructor with over 5 years in wellness coaching and mindfulness practices.
-                </p>
-              </div>
-            </div>
           </motion.div>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Event Details + Registration Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass-card rounded-2xl p-6"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card rounded-2xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4">Event Details</h3>
-
             <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-primary" />
-                <div>
-                  <p className="text-white font-medium">{formatDate(event.date)}</p>
-                  <p className="text-white/50 text-sm">Date</p>
+              {[
+                { icon: Calendar, label: 'Date', value: formatDate(event.date) },
+                { icon: Clock, label: 'Time', value: formatTime(event.time) },
+                { icon: MapPin, label: 'Venue', value: event.venue },
+                { icon: Users, label: 'Participants', value: `${event.registeredCount}${event.capacity > 0 ? `/${event.capacity}` : ''} registered` },
+              ].map(({ icon: Icon, label, value }, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Icon className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-white font-medium">{value}</p>
+                    <p className="text-white/50 text-sm">{label}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-primary" />
-                <div>
-                  <p className="text-white font-medium">{formatTime(event.time)}</p>
-                  <p className="text-white/50 text-sm">Time</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <MapPin className="w-5 h-5 text-primary" />
-                <div>
-                  <p className="text-white font-medium">{event.venue}</p>
-                  <p className="text-white/50 text-sm">Venue</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-primary" />
-                <div>
-                  <p className="text-white font-medium">
-                    {event.registeredCount}{event.capacity > 0 ? `/${event.capacity}` : ''} registered
-                  </p>
-                  <p className="text-white/50 text-sm">Participants</p>
-                </div>
-              </div>
+              ))}
             </div>
 
-            {/* Registration Button */}
             <div className="mt-6 space-y-3">
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={handleRegister}
                 disabled={isRegistered || isFull || registering || !isUpcoming}
                 className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                  isRegistered
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-default'
-                    : isFull
-                    ? 'bg-red-500/20 text-red-400 border border-red-500/30 cursor-not-allowed'
-                    : !isUpcoming
-                    ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30 cursor-not-allowed'
-                    : 'bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20'
+                  isRegistered ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-default'
+                  : isFull ? 'bg-red-500/20 text-red-400 border border-red-500/30 cursor-not-allowed'
+                  : !isUpcoming ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30 cursor-not-allowed'
+                  : 'bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20'
                 }`}
               >
-                {registering ? (
-                  <><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" /> Registering...</>
-                ) : isRegistered ? (
-                  <><CheckCircle className="w-4 h-4" /> Registered</>
-                ) : isFull ? (
-                  <><AlertCircle className="w-4 h-4" /> Event Full</>
-                ) : !isUpcoming ? (
-                  <><AlertCircle className="w-4 h-4" /> Event Ended</>
-                ) : (
-                  'Register Now'
-                )}
+                {registering ? <><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" /> Registering…</>
+                : isRegistered ? <><CheckCircle className="w-4 h-4" /> Registered</>
+                : isFull ? <><AlertCircle className="w-4 h-4" /> Event Full</>
+                : !isUpcoming ? <><AlertCircle className="w-4 h-4" /> Event Ended</>
+                : 'Register Now'}
               </motion.button>
 
               {event.meetLink && isRegistered && (
-                <motion.a
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  href={event.meetLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <a href={event.meetLink} target="_blank" rel="noopener noreferrer"
                   className="w-full px-4 py-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 text-sm font-semibold"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                  Join Meeting
-                </motion.a>
+                  <ExternalLink className="w-4 h-4" /> Join Meeting
+                </a>
               )}
             </div>
           </motion.div>
 
-          {/* Share Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass-card rounded-2xl p-6"
-          >
-            <h3 className="text-lg font-semibold text-white mb-4">Share Event</h3>
-            <div className="flex gap-2">
-              <button className="flex-1 px-4 py-2 rounded-lg bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center gap-2">
-                <Share2 className="w-4 h-4" />
-                Share
-              </button>
-              <button className="px-4 py-2 rounded-lg bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 transition-all">
-                <Heart className="w-4 h-4" />
-              </button>
-            </div>
-          </motion.div>
-
-          {/* Rate this Event — shown for completed events with verified attendance */}
+          {/* Rate — completed + present */}
           {!isUpcoming && !isLive && myAttendanceRec?.status === 'PRESENT' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
-              className="glass-card rounded-2xl p-6"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-2xl p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Star className="w-4 h-4 text-yellow-400" />
                 <h3 className="text-lg font-semibold text-white">Rate this Event</h3>
               </div>
               {feedbackSubmitted ? (
-                <div className="text-center py-3">
+                <div className="text-center py-2">
                   <div className="flex justify-center gap-1 mb-2">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star key={s} className={`w-6 h-6 ${s <= feedbackRating ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`} />
-                    ))}
+                    {[1,2,3,4,5].map(s => <Star key={s} className={`w-6 h-6 ${s <= feedbackRating ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`} />)}
                   </div>
                   <p className="text-white/60 text-sm">Your rating is saved</p>
                 </div>
               ) : (
-                <div>
-                  <p className="text-white/50 text-xs mb-3">Tap a star to rate your experience</p>
-                  <div className="flex justify-center gap-2">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <motion.button
-                        key={s}
-                        whileHover={{ scale: 1.15 }}
-                        whileTap={{ scale: 0.9 }}
-                        onMouseEnter={() => setFeedbackHover(s)}
-                        onMouseLeave={() => setFeedbackHover(0)}
-                        onClick={() => handleFeedback(s)}
-                        disabled={feedbackSubmitting}
-                        className="disabled:opacity-50"
-                      >
-                        <Star className={`w-7 h-7 transition-all ${
-                          s <= (feedbackHover || feedbackRating)
-                            ? 'text-yellow-400 fill-yellow-400'
-                            : 'text-white/20'
-                        }`} />
-                      </motion.button>
-                    ))}
-                  </div>
-                  {feedbackSubmitting && <p className="text-white/40 text-xs text-center mt-2">Saving...</p>}
+                <div className="flex justify-center gap-2">
+                  {[1,2,3,4,5].map(s => (
+                    <motion.button key={s} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}
+                      onMouseEnter={() => setFeedbackHover(s)} onMouseLeave={() => setFeedbackHover(0)}
+                      onClick={() => handleFeedback(s)} disabled={feedbackSubmitting}
+                    >
+                      <Star className={`w-7 h-7 transition-all ${s <= (feedbackHover || feedbackRating) ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`} />
+                    </motion.button>
+                  ))}
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* History Tab — student only */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass-card rounded-2xl p-6"
-          >
+          {/* History */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <History className="w-4 h-4 text-primary" />
               <h3 className="text-lg font-semibold text-white">My History</h3>
             </div>
-
             {attendanceHistory.length === 0 ? (
               <div className="text-center py-6">
                 <Award className="w-8 h-8 text-white/20 mx-auto mb-2" />
@@ -884,9 +802,7 @@ export default function EventDetailPage() {
                 {attendanceHistory.map((item, idx) => (
                   <div key={idx} className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
                     <p className="text-white text-sm font-medium leading-tight mb-1">{item.eventTitle}</p>
-                    {item.courseName && (
-                      <p className="text-primary/80 text-xs mb-1">{item.courseName}</p>
-                    )}
+                    {item.courseName && <p className="text-primary/80 text-xs mb-1">{item.courseName}</p>}
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-white/40 text-xs">
                         {item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
@@ -898,10 +814,8 @@ export default function EventDetailPage() {
                           </span>
                         )}
                         {item.starRating != null && (
-                          <div className="flex items-center gap-0.5">
-                            {[1,2,3,4,5].map(s => (
-                              <Star key={s} className={`w-2.5 h-2.5 ${s <= item.starRating ? 'text-yellow-400 fill-yellow-400' : 'text-white/15'}`} />
-                            ))}
+                          <div className="flex gap-0.5">
+                            {[1,2,3,4,5].map(s => <Star key={s} className={`w-2.5 h-2.5 ${s <= item.starRating ? 'text-yellow-400 fill-yellow-400' : 'text-white/15'}`} />)}
                           </div>
                         )}
                         {item.marks == null && item.starRating == null && (
