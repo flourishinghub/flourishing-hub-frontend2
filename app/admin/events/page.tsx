@@ -197,8 +197,8 @@ export default function AdminEventsPage() {
         ...(form.courseModuleId && { courseModuleId: form.courseModuleId }),
         ...(form.batch && { batch: form.batch }),
         ...(form.posterUrl && { bannerImageUrl: form.posterUrl }),
-        instructorId: form.instructorId || null,
-        associateInstructorId: form.associateInstructorId || null,
+        ...(form.instructorId ? { instructorId: form.instructorId } : {}),
+        ...(form.associateInstructorId ? { associateInstructorId: form.associateInstructorId } : {}),
         ...(form.maxVolunteers && { maxVolunteers: parseInt(form.maxVolunteers) }),
         ...(form.quizLink && {
           modules: [{
