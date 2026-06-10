@@ -107,11 +107,15 @@ export default function EventDetailPage() {
         setEvent(transformedEvent);
 
         const userRegistrations = registrationsResponse.data || [];
-        const registeredEventIds = getRegisteredEventIds(userRegistrations);
-        const registered = registeredEventIds.includes(eventId);
+        // Include ATTENDED status — backend may update registration from REGISTERED→ATTENDED
+        // after check-in verification, but student should still see the live event page
+        const registered = userRegistrations.some((reg: any) =>
+          reg.eventId === eventId && (reg.status === 'REGISTERED' || reg.status === 'ATTENDED')
+        );
         setIsRegistered(registered);
 
-        if (isEventLive(eventData.startAt, eventData.endAt) && registered) {
+        // Always fetch check-in status when event is live (don't gate on registration status)
+        if (isEventLive(eventData.startAt, eventData.endAt)) {
           await fetchCheckInStatus();
         }
 
@@ -220,7 +224,8 @@ export default function EventDetailPage() {
   const isFull = event.registeredCount >= event.capacity && event.capacity > 0;
 
   // ── LIVE EVENT FULL PAGE ──
-  if (isLive && isRegistered) {
+  // Show live page if: registered (any status) OR has a check-in record for this event
+  if (isLive && (isRegistered || checkIn !== null)) {
     const isVerified = checkIn?.status === 'VERIFIED';
 
     return (
