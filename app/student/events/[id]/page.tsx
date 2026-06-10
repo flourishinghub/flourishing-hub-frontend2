@@ -105,6 +105,13 @@ export default function EventDetailPage() {
         }
 
         const startDate = new Date(eventData.startAt);
+        const rawQuizLink = eventData.courseModule?.quizLink || eventData.modules?.[0]?.quizLink || null;
+        const rawFeedbackLink = eventData.courseModule?.feedbackLink || eventData.modules?.[0]?.feedbackLink || null;
+        const ensureHttps = (url: string | null) => {
+          if (!url) return null;
+          return url.startsWith('http') ? url : `https://${url}`;
+        };
+
         const transformedEvent = {
           id: eventData.id,
           title: eventData.title || 'Untitled Event',
@@ -120,8 +127,8 @@ export default function EventDetailPage() {
           status: eventData.status?.toLowerCase() || 'draft',
           organizer: eventData.createdBy?.name || 'Admin',
           meetLink: eventData.meetLink,
-          quizLink: eventData.courseModule?.quizLink || eventData.modules?.[0]?.quizLink || null,
-          feedbackLink: eventData.courseModule?.feedbackLink || eventData.modules?.[0]?.feedbackLink || null,
+          quizLink: ensureHttps(rawQuizLink),
+          feedbackLink: ensureHttps(rawFeedbackLink),
           courseName: eventData.course?.name || null,
           batch: eventData.batch || null,
         };
