@@ -518,9 +518,15 @@ export default function AdminDashboard() {
       console.log("📤 Sending event data:", eventData);
 
       if (editingEvent) {
+        const editData: any = {
+          ...eventData,
+          // Always send staff IDs on edit so backend can sync assignments
+          instructorId: form.instructorId || null,
+          associateInstructorId: form.associateInstructorId || null,
+        };
         await apiCall(`/admin/events/${editingEvent.id}`, {
           method: 'PUT',
-          body: JSON.stringify(eventData)
+          body: JSON.stringify(editData)
         });
         toast.success('Event updated!');
       } else {
@@ -528,21 +534,21 @@ export default function AdminDashboard() {
           method: 'POST',
           body: JSON.stringify(eventData)
         });
-        if (form.instructorId && createdEvent?.data?.id) {
-          try {
-            await apiCall('/admin/assign-staff', {
-              method: 'POST',
-              body: JSON.stringify({ eventId: createdEvent.data.id, userId: form.instructorId, role: 'INSTRUCTOR' })
-            });
-          } catch {}
-        }
-        if (form.associateInstructorId && createdEvent?.data?.id) {
-          try {
-            await apiCall('/admin/assign-staff', {
-              method: 'POST',
-              body: JSON.stringify({ eventId: createdEvent.data.id, userId: form.associateInstructorId, role: 'ASSOCIATE_INSTRUCTOR' })
-            });
-          } catch {}
+        if (createdEvent?.data?.id) {
+          const staffCalls = [
+            form.instructorId && { userId: form.instructorId, role: 'INSTRUCTOR' },
+            form.associateInstructorId && { userId: form.associateInstructorId, role: 'ASSOCIATE_INSTRUCTOR' },
+          ].filter(Boolean) as { userId: string; role: string }[];
+          for (const s of staffCalls) {
+            try {
+              await apiCall('/admin/assign-staff', {
+                method: 'POST',
+                body: JSON.stringify({ eventId: createdEvent.data.id, userId: s.userId, role: s.role })
+              });
+            } catch (e: any) {
+              toast.error(`Could not assign ${s.role === 'INSTRUCTOR' ? 'instructor' : 'associate instructor'}: ${e?.message || 'unknown error'}`);
+            }
+          }
         }
         toast.success(form.status === 'published' ? 'Event published!' : 'Event saved as draft');
       }
