@@ -2772,8 +2772,8 @@ export default function AdminDashboard() {
 
               {/* Bulk Enroll Section */}
               <div className="glass-card rounded-2xl p-5 border border-amber-500/20">
-                <h4 className="text-sm font-semibold text-white mb-3">Bundle Auto-Enroll</h4>
-                <p className="text-xs text-white/50 mb-3">Enroll students to all workshops in a compulsory course bundle at once</p>
+                <h4 className="text-sm font-semibold text-white mb-1">Bundle Auto-Enroll (Type 1 — Compulsory)</h4>
+                <p className="text-xs text-white/50 mb-3">Upload a CSV roster or paste emails to enroll students into all workshops of a compulsory bundle</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   <div>
                     <label className="text-xs font-medium text-white/60 mb-1.5 block">Course / Bundle</label>
@@ -2785,7 +2785,38 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Student Emails (one per line)</label>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Student Emails (one per line, or upload CSV)</label>
+                    {/* CSV Upload */}
+                    <label className="flex items-center gap-2 cursor-pointer mb-2 w-fit px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-white/60 hover:text-white">
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload CSV / Excel
+                      <input
+                        type="file"
+                        accept=".csv,.txt"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            const text = evt.target?.result as string || '';
+                            // Extract all email-like strings from CSV
+                            const emails = text
+                              .split(/[\r\n,;\t]+/)
+                              .map(s => s.trim().replace(/^["']|["']$/g, ''))
+                              .filter(s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
+                            if (emails.length > 0) {
+                              setBulkEnrollEmails(emails.join('\n'));
+                              toast.success(`${emails.length} email(s) loaded from file`);
+                            } else {
+                              toast.error('No valid emails found in file');
+                            }
+                          };
+                          reader.readAsText(file);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
                     <textarea
                       value={bulkEnrollEmails}
                       onChange={e => setBulkEnrollEmails(e.target.value)}
@@ -2795,14 +2826,21 @@ export default function AdminDashboard() {
                     />
                   </div>
                 </div>
-                <motion.button
-                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                  onClick={handleBulkEnroll}
-                  disabled={bulkEnrolling}
-                  className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
-                >
-                  {bulkEnrolling ? 'Enrolling…' : 'Auto-Enroll to All Workshops'}
-                </motion.button>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                    onClick={handleBulkEnroll}
+                    disabled={bulkEnrolling}
+                    className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                  >
+                    {bulkEnrolling ? 'Enrolling…' : 'Auto-Enroll to All Workshops'}
+                  </motion.button>
+                  {bulkEnrollEmails.trim() && (
+                    <span className="text-xs text-white/40">
+                      {bulkEnrollEmails.split(/[\n,;]+/).map(e => e.trim()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)).length} valid email(s)
+                    </span>
+                  )}
+                </div>
               </div>
 
               {videosLoading ? (

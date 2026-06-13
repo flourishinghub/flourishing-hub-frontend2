@@ -464,6 +464,7 @@ export default function AssociateInstructorDashboard() {
                           <tr className="border-b border-white/5 bg-white/[0.02]">
                             <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Name</th>
                             <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Roll No</th>
+                            <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Batch</th>
                             <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Check-in Time</th>
                             <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Status</th>
                             <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Actions</th>
@@ -480,6 +481,7 @@ export default function AssociateInstructorDashboard() {
                               <tr key={ciId} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                                 <td className="px-4 py-3 text-white font-medium">{ci.user?.name || '—'}</td>
                                 <td className="px-4 py-3 text-white/60 text-xs">{ci.user?.studentProfile?.rollNumber || '—'}</td>
+                                <td className="px-4 py-3 text-white/60 text-xs">{ci.user?.studentProfile?.cohort || ci.user?.studentProfile?.section || '—'}</td>
                                 <td className="px-4 py-3 text-white/60 text-xs">{checkinTime}</td>
                                 <td className="px-4 py-3">
                                   {ci.status === 'PENDING' && (

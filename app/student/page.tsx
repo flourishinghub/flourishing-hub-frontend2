@@ -293,14 +293,25 @@ export default function StudentDashboard() {
   }
 
   // Past records table — real data from attendance API
-  const pastRecords = attendanceRecords.map((rec: any) => ({
-    title: rec.eventTitle,
-    date: formatDate(rec.date),
-    venue: rec.venue || '—',
-    marks: rec.marks != null && rec.maxMarks != null ? `${rec.marks}/${rec.maxMarks}` : '—',
-    rating: rec.starRating != null ? renderStars(rec.starRating) : '—',
-    status: rec.status === 'PRESENT' ? 'Present' : rec.status === 'EXCUSED' ? 'Excused' : 'Absent',
-  }));
+  const pastRecords = attendanceRecords.map((rec: any) => {
+    // Determine pass/fail: if marks recorded and < 3 → Failed; if PRESENT → Completed; else Absent/Excused
+    let statusLabel = 'Absent';
+    if (rec.status === 'EXCUSED') {
+      statusLabel = 'Excused';
+    } else if (rec.marks !== null && rec.marks !== undefined) {
+      statusLabel = rec.marks >= 3 ? 'Completed' : 'Failed';
+    } else if (rec.status === 'PRESENT') {
+      statusLabel = 'Completed';
+    }
+    return {
+      title: rec.eventTitle,
+      date: formatDate(rec.date),
+      venue: rec.venue || '—',
+      marks: rec.marks != null && rec.maxMarks != null ? `${rec.marks}/${rec.maxMarks}` : '—',
+      rating: rec.starRating != null ? renderStars(rec.starRating) : '—',
+      status: statusLabel,
+    };
+  });
 
   // Transform completed registrations to CompletedEvent format with real marks/ratings
   // Exclude events that are currently live (endAt not yet passed)
@@ -635,9 +646,10 @@ export default function StudentDashboard() {
                   key: 'status', label: 'Status',
                   render: (row: any) => (
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      row.status === 'Present' ? 'bg-emerald-500/15 text-emerald-400' :
+                      row.status === 'Completed' ? 'bg-emerald-500/15 text-emerald-400' :
                       row.status === 'Excused' ? 'bg-yellow-500/15 text-yellow-400' :
-                      'bg-red-500/15 text-red-400'
+                      row.status === 'Failed' ? 'bg-red-500/15 text-red-400' :
+                      'bg-gray-500/15 text-gray-400'
                     }`}>{row.status}</span>
                   ),
                 },

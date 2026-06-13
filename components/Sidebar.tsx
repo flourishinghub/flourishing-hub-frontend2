@@ -20,6 +20,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Home', href: '/home', icon: Sparkles },
     { label: 'Dashboard', href: '/student', icon: LayoutDashboard },
     { label: 'Events', href: '/student/events', icon: Calendar },
+    { label: 'Explore Courses', href: '/student/explore', icon: Compass },
     { label: 'Attendance', href: '/student#attendance', icon: CheckCircle },
     { label: 'Videos', href: '/student/videos', icon: Video },
     { label: 'Profile', href: '/student/profile', icon: User },

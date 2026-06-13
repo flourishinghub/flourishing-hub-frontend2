@@ -12,7 +12,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
+import { isEventLive, isEventLiveOrGrace, isGracePeriodActive, getGraceSecondsRemaining, isEventUpcoming } from '@/lib/dateUtils';
 import { getRegisteredEventIds } from '@/lib/registrationUtils';
 import type { AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
@@ -32,8 +32,10 @@ export default function EventDetailPage() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState<{ totalMarks: number | null; totalMax: number | null; scores: any[] } | null>(null);
+  const [graceSecsLeft, setGraceSecsLeft] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scorePollerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const graceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
@@ -78,6 +80,16 @@ export default function EventDetailPage() {
     return () => { if (scorePollerRef.current) clearInterval(scorePollerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkIn?.status]);
+
+  // Grace period countdown timer
+  useEffect(() => {
+    if (!event?.endAt) return;
+    const tick = () => setGraceSecsLeft(getGraceSecondsRemaining(event.endAt));
+    tick();
+    graceTimerRef.current = setInterval(tick, 1000);
+    return () => { if (graceTimerRef.current) clearInterval(graceTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.endAt]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -243,11 +255,14 @@ export default function EventDetailPage() {
   }
 
   const isLive = isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt);
+  const isLiveOrGrace = isEventLiveOrGrace(event.startAt || (event.date + 'T' + event.time), event.endAt);
+  const graceActive = isGracePeriodActive(event.endAt);
+  const quizWindowOpen = isLive || graceActive;
   const isUpcoming = isEventUpcoming(event.startAt || (event.date + 'T' + event.time));
   const isFull = event.registeredCount >= event.capacity && event.capacity > 0;
 
-  // ─── LIVE EVENT PAGE ───────────────────────────────────────────────
-  if (isLive && (isRegistered || checkIn !== null)) {
+  // ─── LIVE EVENT PAGE (includes 30-min grace after endAt) ──────────
+  if (isLiveOrGrace && (isRegistered || checkIn !== null)) {
     const isVerified = checkIn?.status === 'VERIFIED';
     const isPending = checkIn?.status === 'PENDING';
     const isRejected = checkIn?.status === 'REJECTED';
@@ -276,14 +291,21 @@ export default function EventDetailPage() {
           className="mb-6"
         >
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <motion.span
-              animate={{ scale: [1, 1.04, 1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold"
-            >
-              <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 1.2 }} className="w-1.5 h-1.5 bg-red-400 rounded-full" />
-              LIVE NOW
-            </motion.span>
+            {isLive ? (
+              <motion.span
+                animate={{ scale: [1, 1.04, 1] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold"
+              >
+                <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 1.2 }} className="w-1.5 h-1.5 bg-red-400 rounded-full" />
+                LIVE NOW
+              </motion.span>
+            ) : graceActive ? (
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-bold">
+                <Clock className="w-3 h-3" />
+                Session Ended · Quiz window closing in {Math.floor(graceSecsLeft / 60)}:{String(graceSecsLeft % 60).padStart(2, '0')}
+              </span>
+            ) : null}
             {isVerified && (
               <motion.span
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -427,44 +449,101 @@ export default function EventDetailPage() {
                 </div>
               </div>
 
-              {/* Quiz — UNLOCKED */}
+              {/* Quiz — UNLOCKED / Grace / Closed */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
                 className="relative rounded-2xl overflow-hidden"
                 style={{
-                  background: 'linear-gradient(135deg, #1a0e04, #1f1408)',
-                  border: '1px solid rgba(249,115,22,0.4)',
-                  boxShadow: '0 0 30px rgba(249,115,22,0.08)',
+                  background: quizWindowOpen
+                    ? 'linear-gradient(135deg, #1a0e04, #1f1408)'
+                    : 'linear-gradient(135deg, #111, #1a1a1a)',
+                  border: quizWindowOpen
+                    ? '1px solid rgba(249,115,22,0.4)'
+                    : '1px solid rgba(255,255,255,0.07)',
+                  boxShadow: quizWindowOpen ? '0 0 30px rgba(249,115,22,0.08)' : 'none',
                 }}
               >
                 <div className="p-5 lg:p-6">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-orange-400" />
+                      <FileText className={`w-5 h-5 ${quizWindowOpen ? 'text-orange-400' : 'text-white/30'}`} />
                       <h2 className="text-white font-bold text-base">Session Quiz</h2>
                     </div>
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[10px] font-bold">
-                      <CheckCircle className="w-3 h-3" /> UNLOCKED
-                    </span>
+                    {quizWindowOpen ? (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[10px] font-bold">
+                        <CheckCircle className="w-3 h-3" /> UNLOCKED
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/30 text-[10px] font-bold">
+                        <Lock className="w-2.5 h-2.5" /> CLOSED
+                      </span>
+                    )}
                   </div>
-                  <p className="text-white/40 text-sm mb-4">Attendance verified — complete the quiz to earn your score.</p>
-                  {event.quizLink ? (
-                    <a
-                      href={event.quizLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all"
-                      style={{ background: 'linear-gradient(135deg,#ea580c,#f97316)', color: '#fff', boxShadow: '0 0 20px rgba(249,115,22,0.3)' }}
-                    >
-                      <ExternalLink className="w-4 h-4" /> Open Quiz
-                    </a>
+                  {quizWindowOpen ? (
+                    <>
+                      <p className="text-white/40 text-sm mb-1">Attendance verified — complete the quiz to earn your score.</p>
+                      {graceActive && (
+                        <p className="text-orange-400/80 text-xs mb-3 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Quiz window closes in {Math.floor(graceSecsLeft / 60)}:{String(graceSecsLeft % 60).padStart(2, '0')} — submit before time runs out
+                        </p>
+                      )}
+                      {event.quizLink ? (
+                        <a
+                          href={event.quizLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all"
+                          style={{ background: 'linear-gradient(135deg,#ea580c,#f97316)', color: '#fff', boxShadow: '0 0 20px rgba(249,115,22,0.3)' }}
+                        >
+                          <ExternalLink className="w-4 h-4" /> Open Quiz
+                        </a>
+                      ) : (
+                        <p className="text-white/30 text-sm italic">No quiz link configured for this session</p>
+                      )}
+                    </>
                   ) : (
-                    <p className="text-white/30 text-sm italic">No quiz link configured for this session</p>
+                    <p className="text-white/30 text-sm mt-2">Submission window has closed (30-minute grace period ended).</p>
                   )}
                 </div>
               </motion.div>
+
+              {/* Pass/Fail badge after quiz score received */}
+              {quizScore && quizScore.totalMarks !== null && (() => {
+                const passed = quizScore.totalMarks >= 3;
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="rounded-2xl p-4 flex items-center gap-3"
+                    style={passed
+                      ? { background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }
+                      : { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }
+                    }
+                  >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${passed ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+                      {passed
+                        ? <CheckCircle className="w-5 h-5 text-emerald-400" />
+                        : <AlertCircle className="w-5 h-5 text-red-400" />
+                      }
+                    </div>
+                    <div>
+                      <p className={`font-bold text-sm ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {passed ? 'Workshop Completed' : 'Failed'}
+                      </p>
+                      <p className="text-white/40 text-xs mt-0.5">
+                        {passed
+                          ? `Score ${quizScore.totalMarks}/${quizScore.totalMax} — Attendance logged`
+                          : `Score ${quizScore.totalMarks}/${quizScore.totalMax} — Minimum score of 3 required`
+                        }
+                      </p>
+                    </div>
+                  </motion.div>
+                );
+              })()}
 
               {/* Quiz Score */}
               {quizScore && quizScore.totalMarks !== null && (
