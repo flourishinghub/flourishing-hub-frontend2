@@ -213,15 +213,8 @@ export default function StudentDashboard() {
         
       } catch (err: any) {
         console.error("❌ Data fetch failed:", err);
-        // Fallback to mock data if API fails
-        console.log("⚠️ Using fallback mock data for student dashboard");
-        const { mockEvents } = await import('@/lib/mockData');
-        setEvents(mockEvents);
-        
-        console.log("❌ Redirecting due to auth failure");
-        // If 401, token is invalid - redirect handled by apiCall
         if (err.status !== 401) {
-          console.error("❌ Error details:", err.response?.status, err.response?.data);
+          toast.error('Failed to load dashboard data. Please refresh the page.');
         }
       } finally {
         clearTimeout(timeoutId); // Clear the timeout

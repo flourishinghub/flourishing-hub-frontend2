@@ -34,6 +34,9 @@ export default function LoginPage() {
     if (searchParams?.get('verified') === 'true') {
       toast.success('Email verified successfully! You can now login.');
     }
+    if (searchParams?.get('reset') === 'true') {
+      toast.success('Password reset successfully! Please login with your new password.');
+    }
   }, [searchParams]);
 
   const validateEmail = (val: string) => {
@@ -216,6 +219,12 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex justify-end -mt-2 mb-1">
+              <Link href="/forgot-password" className="text-xs text-primary/70 hover:text-primary transition-colors">
+                Forgot password?
+              </Link>
             </div>
 
             <motion.button
