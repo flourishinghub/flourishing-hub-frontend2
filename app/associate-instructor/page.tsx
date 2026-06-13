@@ -28,6 +28,9 @@ export default function AssociateInstructorDashboard() {
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ── Course-level selector for attendance tab ──
+  const [selectedCourseGroup, setSelectedCourseGroup] = useState<string | null>(null);
+
   // ── Registrants state ──
   const [registrants, setRegistrants] = useState<any[]>([]);
   const [loadingRegistrants, setLoadingRegistrants] = useState(false);
@@ -233,6 +236,29 @@ export default function AssociateInstructorDashboard() {
   const upcoming = liveEvents.filter((e) => recomputeStatus(e) === 'upcoming');
   const completed = liveEvents.filter((e) => recomputeStatus(e) === 'completed');
 
+  // ── Course groups for attendance two-level selector ──
+  const courseGroups: { label: string; events: any[] }[] = (() => {
+    const groups: Record<string, any[]> = {};
+    for (const ev of liveEvents) {
+      const key = ev.course?.name || 'Open Workshops';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(ev);
+    }
+    return Object.entries(groups).map(([label, events]) => ({ label, events }));
+  })();
+
+  // Auto-select course group when there is only one
+  useEffect(() => {
+    if (courseGroups.length === 1 && !selectedCourseGroup) {
+      setSelectedCourseGroup(courseGroups[0].label);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveEvents.length]);
+
+  const eventsInSelectedCourse = selectedCourseGroup
+    ? (courseGroups.find(g => g.label === selectedCourseGroup)?.events ?? [])
+    : [];
+
   // ── Reusable event selector ──
   const EventSelector = () => (
     <>
@@ -418,7 +444,86 @@ export default function AssociateInstructorDashboard() {
                 )}
               </div>
 
-              <EventSelector />
+              {/* ── Course Name → Workshop Name two-level selector ── */}
+              {loadingEvents ? (
+                <div className="flex items-center gap-2 text-white/50 text-sm py-6 justify-center">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  Loading events...
+                </div>
+              ) : liveEvents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-white/30" />
+                  </div>
+                  <p className="text-white/50 text-sm">No assigned workshops</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Level 1: Course Name chips */}
+                  {courseGroups.length > 1 && (
+                    <div>
+                      <p className="text-xs text-white/40 font-medium mb-2 uppercase tracking-wider">Select Course</p>
+                      <div className="flex flex-wrap gap-2">
+                        {courseGroups.map(group => (
+                          <button
+                            key={group.label}
+                            onClick={() => { setSelectedCourseGroup(group.label); setSelectedEventId(null); }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
+                              selectedCourseGroup === group.label
+                                ? 'bg-primary/20 border-primary/50 text-primary'
+                                : 'bg-white/5 border-white/10 text-white/50 hover:text-white/80 hover:border-white/20'
+                            }`}
+                          >
+                            <BookOpen className="w-3 h-3" />
+                            {group.label}
+                            <span className="ml-0.5 opacity-60">({group.events.length})</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Level 2: Workshop Name dropdown */}
+                  {selectedCourseGroup && (
+                    <div>
+                      <p className="text-xs text-white/40 font-medium mb-2 uppercase tracking-wider">Select Workshop</p>
+                      <div className="relative max-w-sm">
+                        <select
+                          value={selectedEventId || ''}
+                          onChange={(e) => setSelectedEventId(e.target.value || null)}
+                          className="w-full appearance-none px-4 py-2.5 pr-9 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary/50 cursor-pointer"
+                        >
+                          <option value="" className="bg-gray-900">— Select a workshop —</option>
+                          {eventsInSelectedCourse.map((ev: any) => (
+                            <option key={ev.id} value={ev.id} className="bg-gray-900">
+                              {ev.title}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected event info bar */}
+                  {selectedEvent && (
+                    <div className="flex flex-wrap gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5 text-xs text-white/60">
+                      <span className="text-white/80 font-medium">{selectedEvent.title}</span>
+                      {selectedEvent.course?.name && (
+                        <span>Course: <span className="text-white/80">{selectedEvent.course.name}</span></span>
+                      )}
+                      {selectedEvent.venue && (
+                        <span>Venue: <span className="text-white/80">{selectedEvent.venue}</span></span>
+                      )}
+                      {selectedEvent.startAt && (
+                        <span>Date: <span className="text-white/80">
+                          {new Date(selectedEvent.startAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span></span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {!loadingEvents && selectedEventId && (
                 <>
