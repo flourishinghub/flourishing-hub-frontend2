@@ -7,6 +7,7 @@ import { formatTime } from '@/lib/utils';
 import type { Event } from '@/types';
 
 type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
+type RegistrationMode = 'compulsory' | 'optional' | 'open';
 
 interface EventFormData {
   title: string;
@@ -27,7 +28,23 @@ interface EventFormData {
   instructorId: string;
   associateInstructorId: string;
   maxVolunteers: string;
+  registrationMode: RegistrationMode;
 }
+
+const VENUE_PRESETS = [
+  'LT 101, Lecture Hall Complex',
+  'LT 103, Lecture Hall Complex',
+  'LT 201, Lecture Hall Complex',
+  'LT 301, Main Building',
+  'Seminar Hall, Victor Menezes Convention Centre',
+  'Online (Google Meet)',
+];
+
+const REGISTRATION_MODES: { value: RegistrationMode; label: string; desc: string; color: string }[] = [
+  { value: 'compulsory', label: 'Compulsory Roster', desc: 'Admin uploads CSV/Excel — students auto-enrolled', color: 'amber' },
+  { value: 'optional',   label: 'Optional Bundle',   desc: 'Students opt-in via portal catalog',             color: 'blue'  },
+  { value: 'open',       label: 'Open Workshop',      desc: 'First-come self-registration, standalone',       color: 'teal'  },
+];
 
 interface EventModalProps {
   showModal: boolean;
@@ -85,6 +102,32 @@ export default function EventModal({
             </div>
 
             <div className="p-6 space-y-4">
+
+              {/* ── Registration Mode ── */}
+              <div>
+                <label className="text-xs font-medium text-white/60 mb-2 block">Registration Mode *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {REGISTRATION_MODES.map(({ value, label, desc, color }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setForm({ ...form, registrationMode: value })}
+                      className={`flex flex-col items-start gap-1 p-2.5 rounded-xl border text-left transition-all ${
+                        form.registrationMode === value
+                          ? color === 'amber'
+                            ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                            : color === 'blue'
+                            ? 'bg-blue-500/15 border-blue-500/40 text-blue-400'
+                            : 'bg-teal-500/15 border-teal-500/40 text-teal-400'
+                          : 'bg-white/[0.03] border-white/8 text-white/40 hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <span className="text-[11px] font-semibold leading-tight">{label}</span>
+                      <span className="text-[9px] leading-tight opacity-70">{desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* ── Course & Module Selection ── */}
               {courses.length > 0 && (
@@ -216,11 +259,15 @@ export default function EventModal({
               <div>
                 <label className="text-xs font-medium text-white/60 mb-1.5 block">Venue *</label>
                 <input
+                  list="venue-presets"
                   value={form.venue}
                   onChange={(e) => setForm({ ...form, venue: e.target.value })}
-                  placeholder="e.g. LT 101, Lecture Complex"
+                  placeholder="e.g. LT 103, Lecture Hall Complex"
                   className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
                 />
+                <datalist id="venue-presets">
+                  {VENUE_PRESETS.map((v) => <option key={v} value={v} />)}
+                </datalist>
               </div>
 
               <div>

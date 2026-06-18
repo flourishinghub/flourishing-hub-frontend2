@@ -364,13 +364,40 @@ export default function StudentDashboard() {
 
   return (
     <DashboardLayout user={user} loading={loading}>
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold text-white">
-          Welcome, <span className="gradient-text">{user?.name?.split(' ')[0] || 'User'}</span>
-        </h1>
-        <p className="text-sm text-white/50 mt-1">
-          {user?.programme || 'N/A'} · {user?.department || 'N/A'} · Year {user?.year || 'N/A'}
-        </p>
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">
+            Welcome back, <span className="gradient-text">{user?.name?.split(' ')[0] || 'User'}</span>
+          </h1>
+          <p className="text-sm text-white/50 mt-1">
+            {user?.programme || 'N/A'} · {user?.department || 'N/A'} · Year {user?.year || 'N/A'}
+          </p>
+          {(user as any)?.rollNo && (
+            <p className="text-xs text-white/30 mt-0.5 font-mono">{(user as any).rollNo}</p>
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <button
+            onClick={() => router.push('/student/profile')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 text-primary border border-primary/25 text-xs font-semibold hover:bg-primary/20 transition-colors"
+          >
+            Go to Dashboard
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+            </svg>
+          </button>
+          <a
+            href={(user as any)?.portfolioUrl || '/student/profile'}
+            target={(user as any)?.portfolioUrl ? '_blank' : '_self'}
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors"
+          >
+            Portfolio
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+          </a>
+        </div>
       </motion.div>
 
       {/* Stats */}
@@ -401,6 +428,13 @@ export default function StudentDashboard() {
                   <span className="absolute text-sm font-bold text-white">{bundle.percentage}%</span>
                 </div>
                 <p className="text-xs font-semibold text-white text-center line-clamp-2">{bundle.courseName}</p>
+                <div className="flex gap-1 flex-wrap justify-center">
+                  {Array.from({ length: bundle.totalWorkshops }).map((_, idx) => (
+                    <span key={idx} className="text-base leading-none" title={idx < bundle.attended ? 'Attended' : 'Pending'}>
+                      {idx < bundle.attended ? '🟩' : '⬜'}
+                    </span>
+                  ))}
+                </div>
                 <p className="text-[10px] text-white/40">{bundle.attended} of {bundle.totalWorkshops} workshops</p>
               </motion.div>
             ))}

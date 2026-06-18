@@ -110,6 +110,7 @@ interface EventFormData {
   instructorId: string;
   associateInstructorId: string;
   maxVolunteers: string;
+  registrationMode: 'compulsory' | 'optional' | 'open';
 }
 
 const emptyForm: EventFormData = {
@@ -117,6 +118,7 @@ const emptyForm: EventFormData = {
   venue: '', mode: 'In Classroom', capacity: '', status: 'published',
   courseId: '', courseModuleId: '', batch: '', posterUrl: '', quizLink: '', feedbackLink: '',
   endTime: '', instructorId: '', associateInstructorId: '', maxVolunteers: '',
+  registrationMode: 'open',
 };
 
 const ROLES: UserRole[] = ['student', 'instructor', 'admin', 'volunteer', 'associate-instructor'];
@@ -997,8 +999,9 @@ export default function AdminDashboard() {
       instructorId: '',
       associateInstructorId: '',
       maxVolunteers: '',
+      registrationMode: 'open',
     });
-    
+
     // Open modal after state is set
     setTimeout(() => setShowModal(true), 0);
   };
