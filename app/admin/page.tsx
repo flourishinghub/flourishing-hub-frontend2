@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
+import { 
   Users, Calendar, Activity, Settings,
   TrendingUp, UserCheck, UserCog, BarChart2, Play, Zap,
   BookOpen, Shield, Edit2, ClipboardList,
@@ -488,8 +488,9 @@ export default function AdminDashboard() {
       courseModuleId: ev.courseModuleId || '',
       batch: ev.batch || '',
       posterUrl: ev.bannerImageUrl || '',
-      quizLink: ev.quizLink || '',
-      feedbackLink: ev.feedbackLink || '',
+      quizLink: ev.quizLink || ev.courseModule?.quizLink || '',
+      feedbackLink: ev.feedbackLink || ev.courseModule?.feedbackLink || '',
+      registrationMode: (ev.registrationMode === 'COMPULSORY' ? 'compulsory' : ev.registrationMode === 'OPTIONAL_BUNDLE' ? 'optional' : 'open') as 'compulsory' | 'optional' | 'open',
       instructorId: ev.instructorId || '',
       associateInstructorId: ev.associateInstructorId || '',
       maxVolunteers: ev.volunteersNeeded ? String(ev.volunteersNeeded) : '',
@@ -517,6 +518,11 @@ export default function AdminDashboard() {
     try {
       setSaving(true); // Disable button during save
       
+      const regModeMap: Record<string, string> = {
+        compulsory: 'COMPULSORY',
+        optional: 'OPTIONAL_BUNDLE',
+        open: 'OPEN',
+      };
       const eventData: any = {
         title: form.title,
         description: form.description,
@@ -529,6 +535,9 @@ export default function AdminDashboard() {
         capacity: parseInt(form.capacity),
         status: form.status.toUpperCase(),
         type: 'WELLNESS_COURSE',
+        registrationMode: regModeMap[form.registrationMode] || 'OPEN',
+        ...(form.quizLink && { quizLink: form.quizLink }),
+        ...(form.feedbackLink && { feedbackLink: form.feedbackLink }),
         ...(form.courseId && { courseId: form.courseId }),
         ...(form.courseModuleId && { courseModuleId: form.courseModuleId }),
         ...(form.batch && { batch: form.batch }),

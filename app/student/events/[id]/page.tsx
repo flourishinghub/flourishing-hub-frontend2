@@ -117,8 +117,8 @@ export default function EventDetailPage() {
         }
 
         const startDate = new Date(eventData.startAt);
-        const rawQuizLink = eventData.courseModule?.quizLink || eventData.modules?.[0]?.quizLink || null;
-        const rawFeedbackLink = eventData.courseModule?.feedbackLink || eventData.modules?.[0]?.feedbackLink || null;
+        const rawQuizLink = eventData.quizLink || eventData.courseModule?.quizLink || eventData.modules?.[0]?.quizLink || null;
+        const rawFeedbackLink = eventData.feedbackLink || eventData.courseModule?.feedbackLink || eventData.modules?.[0]?.feedbackLink || null;
         const ensureHttps = (url: string | null) => {
           if (!url) return null;
           return url.startsWith('http') ? url : `https://${url}`;
