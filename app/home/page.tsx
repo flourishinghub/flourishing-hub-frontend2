@@ -6,10 +6,12 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import {
   Sparkles, Calendar, ArrowRight, Star, MapPin, Clock, Users, Zap,
+  BookOpen, GraduationCap, CheckCircle2, XCircle, Radio,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getRolePath, formatDate, formatTime } from '@/lib/utils';
 import { getCurrentUser, apiCall } from '@/lib/api';
+import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
 import { mockEvents } from '@/lib/mockData';
 import DashboardLayout from '@/components/DashboardLayout';
 import EventCard from '@/components/EventCard';
@@ -21,6 +23,7 @@ export default function HomePage() {
   const [user, setUser] = useState<AuthPayload | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [volunteerStates, setVolunteerStates] = useState<Record<string, boolean>>({});
   const router = useRouter();
@@ -82,6 +85,9 @@ export default function HomePage() {
               description: event.description || '',
               date: startDate.toISOString().split('T')[0],
               time: startDate.toTimeString().slice(0, 5),
+              startAt: event.startAt,
+              endAt: event.endAt || null,
+              courseId: event.courseId || null,
               venue: event.venue || 'TBD',
               mode: event.meetLink ? 'Online' : 'In Classroom',
               capacity: event.capacity || 0,
@@ -119,7 +125,15 @@ export default function HomePage() {
         const userRegistrations = registrationsResponse.data || [];
         setRegistrations(userRegistrations);
         console.log("✅ User registrations loaded:", userRegistrations.length);
-        
+
+        // Fetch courses to group registered workshops by course (student home view)
+        try {
+          const coursesResponse = await apiCall('/courses');
+          setCourses(coursesResponse.data || coursesResponse.data?.items || []);
+        } catch (e) {
+          console.log("⚠️ Courses fetch failed (non-blocking)");
+        }
+
       } catch (error) {
         console.error('Error fetching data:', error);
         // Fallback to mock data if API fails
@@ -195,6 +209,33 @@ export default function HomePage() {
   }[user.role];
 
   const dashboardPath = getRolePath(user.role);
+
+  // ─── Student: registered courses grouped with per-workshop status ───
+  const registeredEventIds = new Set(registrations.map((r: any) => r.eventId));
+  const attendedEventIds = new Set(
+    registrations.filter((r: any) => r.status === 'ATTENDED').map((r: any) => r.eventId)
+  );
+  const workshopStatus = (e: any): 'live' | 'upcoming' | 'completed' => {
+    const start = e.startAt || `${e.date}T${e.time}`;
+    if (isEventLive(start, e.endAt)) return 'live';
+    if (isEventUpcoming(start)) return 'upcoming';
+    return 'completed';
+  };
+  const courseCode = (c: any) => `FH-${String(c.id).slice(-5).toUpperCase()}`;
+  const registeredCourses = courses
+    .map((c: any) => {
+      const workshops = events
+        .filter((e: any) => e.courseId === c.id)
+        .map((e: any) => ({
+          ...e,
+          wStatus: workshopStatus(e),
+          registered: registeredEventIds.has(e.id),
+          attended: attendedEventIds.has(e.id),
+        }));
+      const registeredCount = workshops.filter((w: any) => w.registered).length;
+      return { ...c, workshops, registeredCount };
+    })
+    .filter((c: any) => c.registeredCount > 0);
 
   const handleRegister = async (eventId: string, eventTitle: string) => {
     try {
@@ -313,6 +354,99 @@ export default function HomePage() {
             </motion.button>
           </div>
         </motion.div>
+
+        {/* ─── Student: Portfolio & Registered Courses ─── */}
+        {user.role === 'student' && (
+          <>
+            {/* Portfolio */}
+            <div>
+              <h2 className="text-sm font-semibold text-white/70 uppercase tracking-wider mb-4">Portfolio</h2>
+              <div className="glass-card rounded-2xl p-6 flex flex-wrap items-center gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold shrink-0">
+                  {user.name?.charAt(0)?.toUpperCase() || 'S'}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-10 gap-y-3 flex-1 min-w-[200px]">
+                  <div>
+                    <p className="text-white/40 text-xs mb-0.5">Name</p>
+                    <p className="text-white font-semibold">{user.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/40 text-xs mb-0.5">Roll No</p>
+                    <p className="text-white font-semibold">{user.rollNo || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/40 text-xs mb-0.5 flex items-center gap-1">
+                      <GraduationCap className="w-3 h-3" /> Degree
+                    </p>
+                    <p className="text-white font-semibold">
+                      {user.programme || '—'}{user.year ? ` · Year ${user.year}` : ''}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Registered Courses */}
+            <div>
+              <h2 className="text-sm font-semibold text-white/70 uppercase tracking-wider mb-4">Registered Courses</h2>
+              {registeredCourses.length === 0 ? (
+                <div className="glass-card rounded-2xl p-6 text-center text-white/40 text-sm">
+                  No registered courses yet.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {registeredCourses.map((c: any) => (
+                    <div key={c.id} className="glass-card rounded-2xl p-6">
+                      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                            <BookOpen className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-white font-semibold">{c.name}</p>
+                            <p className="text-white/40 text-xs font-mono">{courseCode(c)}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-white/50">
+                          {c.workshops.length} workshop{c.workshops.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {c.workshops.map((w: any, i: number) => (
+                          <div key={w.id} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/8">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-white/30 text-xs w-5 shrink-0">{i + 1}.</span>
+                              <span className="text-white/80 text-sm truncate">{w.title}</span>
+                            </div>
+                            <div className="shrink-0">
+                              {w.wStatus === 'live' ? (
+                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                  <Radio className="w-3 h-3" /> Live
+                                </span>
+                              ) : w.wStatus === 'upcoming' ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                                  Upcoming
+                                </span>
+                              ) : w.attended ? (
+                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                  <CheckCircle2 className="w-3 h-3" /> Attended
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/15 text-red-400 border border-red-500/30">
+                                  <XCircle className="w-3 h-3" /> Not Attended
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Active Event */}
         {activeEvent && (
