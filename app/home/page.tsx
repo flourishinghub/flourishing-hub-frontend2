@@ -361,11 +361,11 @@ export default function HomePage() {
             {/* Portfolio */}
             <div>
               <h2 className="text-sm font-semibold text-white/70 uppercase tracking-wider mb-4">Portfolio</h2>
-              <div className="glass-card rounded-2xl p-6 flex flex-wrap items-center gap-6">
+              <div className="glass-card rounded-2xl p-6 flex flex-col items-center text-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold shrink-0">
                   {user.name?.charAt(0)?.toUpperCase() || 'S'}
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-10 gap-y-3 flex-1 min-w-[200px]">
+                <div className="flex flex-col gap-3 w-full max-w-xs">
                   <div>
                     <p className="text-white/40 text-xs mb-0.5">Name</p>
                     <p className="text-white font-semibold">{user.name}</p>
@@ -375,7 +375,7 @@ export default function HomePage() {
                     <p className="text-white font-semibold">{user.rollNo || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-white/40 text-xs mb-0.5 flex items-center gap-1">
+                    <p className="text-white/40 text-xs mb-0.5 flex items-center justify-center gap-1">
                       <GraduationCap className="w-3 h-3" /> Degree
                     </p>
                     <p className="text-white font-semibold">
