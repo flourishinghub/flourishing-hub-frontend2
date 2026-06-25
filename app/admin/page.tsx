@@ -46,6 +46,7 @@ type CourseStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 
 interface CourseFormData {
   name: string;
+  code: string;
   description: string;
   posterUrl: string;
   duration: string;
@@ -58,7 +59,7 @@ interface CourseFormData {
 }
 
 const emptyCourseForm: CourseFormData = {
-  name: '', description: '', posterUrl: '', duration: '', instructorName: '',
+  name: '', code: '', description: '', posterUrl: '', duration: '', instructorName: '',
   status: 'ACTIVE', isCompulsory: false, startDate: '', endDate: '', capacity: '',
 };
 
@@ -791,6 +792,7 @@ export default function AdminDashboard() {
     setEditingCourse(course);
     setCourseForm({
       name: course.name,
+      code: course.code || '',
       description: course.description || '',
       posterUrl: course.posterUrl || '',
       duration: course.duration || '',
@@ -815,6 +817,7 @@ export default function AdminDashboard() {
       setSavingCourse(true);
       const payload: any = {
         name: courseForm.name,
+        code: courseForm.code || null,
         description: courseForm.description,
         posterUrl: courseForm.posterUrl || null,
         duration: courseForm.duration,

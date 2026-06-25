@@ -152,9 +152,17 @@ export default function EventModal({
                     >
                       <option value="">— No course —</option>
                       {courses.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                        <option key={c.id} value={c.id}>{c.code ? `${c.code} · ${c.name}` : c.name}</option>
                       ))}
                     </select>
+                    {(() => {
+                      const sel = courses.find(c => c.id === form.courseId);
+                      return sel?.code ? (
+                        <p className="text-[11px] text-primary/80 mt-1.5 font-mono">
+                          Course Code: <span className="font-semibold">{sel.code}</span> (event ke saath attach)
+                        </p>
+                      ) : null;
+                    })()}
                   </div>
                   {form.courseId && modulesForEvent.length > 0 && (
                     <div>

@@ -7,6 +7,7 @@ type CourseStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 
 interface CourseFormData {
   name: string;
+  code: string;
   description: string;
   posterUrl: string;
   duration: string;
@@ -63,14 +64,25 @@ export default function CourseModal({
             </div>
 
             <div className="p-6 space-y-4">
-              <div>
-                <label className="text-xs font-medium text-white/60 mb-1.5 block">Course Name *</label>
-                <input
-                  value={courseForm.name}
-                  onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })}
-                  placeholder="e.g. Mentorship Program"
-                  className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Course Name *</label>
+                  <input
+                    value={courseForm.name}
+                    onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })}
+                    placeholder="e.g. Wellness Program"
+                    className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Course Code</label>
+                  <input
+                    value={courseForm.code}
+                    onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value.toUpperCase() })}
+                    placeholder="e.g. WELL101"
+                    className="input-dark w-full px-4 py-2.5 rounded-xl text-sm font-mono"
+                  />
+                </div>
               </div>
 
               <div>

@@ -221,7 +221,7 @@ export default function HomePage() {
     if (isEventUpcoming(start)) return 'upcoming';
     return 'completed';
   };
-  const courseCode = (c: any) => `FH-${String(c.id).slice(-5).toUpperCase()}`;
+  const courseCode = (c: any) => c.code || `FH-${String(c.id).slice(-5).toUpperCase()}`;
   const registeredCourses = courses
     .map((c: any) => {
       const workshops = events
