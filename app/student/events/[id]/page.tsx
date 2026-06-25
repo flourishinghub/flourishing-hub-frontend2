@@ -926,6 +926,7 @@ export default function EventDetailPage() {
                 {registering ? <><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" /> Registering…</>
                 : isRegistered ? <><CheckCircle className="w-4 h-4" /> Registered</>
                 : isFull ? <><AlertCircle className="w-4 h-4" /> Event Full</>
+                : isLive ? <><AlertCircle className="w-4 h-4" /> Registration Closed (Live)</>
                 : !isUpcoming ? <><AlertCircle className="w-4 h-4" /> Event Ended</>
                 : 'Register Now'}
               </motion.button>
