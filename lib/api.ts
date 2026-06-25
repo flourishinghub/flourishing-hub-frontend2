@@ -30,6 +30,7 @@ export const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 
   const config: RequestInit = {
     ...options,
+    cache: 'no-store', // never serve stale API data from browser/proxy cache
     headers: {
       ...defaultHeaders,
       ...options.headers,
