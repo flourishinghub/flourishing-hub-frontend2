@@ -11,12 +11,10 @@ interface CourseFormData {
   description: string;
   posterUrl: string;
   duration: string;
-  instructorName: string;
   status: CourseStatus;
   isCompulsory: boolean;
-  startDate: string;
-  endDate: string;
-  capacity: string;
+  workshopCount: string;
+  workshopTopics: string[];
 }
 
 interface CourseModalProps {
@@ -38,6 +36,20 @@ export default function CourseModal({
   handleSaveCourse,
   savingCourse,
 }: CourseModalProps) {
+  const count = parseInt(courseForm.workshopCount) || 0;
+
+  const handleCountChange = (val: string) => {
+    const n = Math.max(0, parseInt(val) || 0);
+    const newTopics = Array.from({ length: n }, (_, i) => courseForm.workshopTopics[i] ?? '');
+    setCourseForm({ ...courseForm, workshopCount: val, workshopTopics: newTopics });
+  };
+
+  const handleTopicChange = (idx: number, val: string) => {
+    const newTopics = [...courseForm.workshopTopics];
+    newTopics[idx] = val;
+    setCourseForm({ ...courseForm, workshopTopics: newTopics });
+  };
+
   return (
     <AnimatePresence>
       {showCourseModal && (
@@ -56,7 +68,7 @@ export default function CourseModal({
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
               <h3 className="text-base font-semibold text-white">
-                {editingCourse ? 'Edit Course' : 'Create Course'}
+                {editingCourse ? 'Edit Course' : 'Create Course Template'}
               </h3>
               <button onClick={() => setShowCourseModal(false)} className="text-white/40 hover:text-white transition-colors">
                 <X className="w-5 h-5" />
@@ -108,55 +120,11 @@ export default function CourseModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Instructor</label>
-                  <input
-                    value={courseForm.instructorName}
-                    onChange={(e) => setCourseForm({ ...courseForm, instructorName: e.target.value })}
-                    placeholder="Instructor name"
-                    className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Duration</label>
+                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Duration <span className="text-white/30">(optional)</span></label>
                   <input
                     value={courseForm.duration}
                     onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })}
                     placeholder="e.g. 8 weeks"
-                    className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Start Date</label>
-                  <input
-                    type="date"
-                    value={courseForm.startDate}
-                    onChange={(e) => setCourseForm({ ...courseForm, startDate: e.target.value })}
-                    className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-white/60 mb-1.5 block">End Date</label>
-                  <input
-                    type="date"
-                    value={courseForm.endDate}
-                    onChange={(e) => setCourseForm({ ...courseForm, endDate: e.target.value })}
-                    className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Capacity</label>
-                  <input
-                    type="number"
-                    value={courseForm.capacity}
-                    onChange={(e) => setCourseForm({ ...courseForm, capacity: e.target.value })}
-                    placeholder="e.g. 30"
-                    min="1"
                     className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
                   />
                 </div>
@@ -172,21 +140,56 @@ export default function CourseModal({
                     <option value="ARCHIVED">Archived</option>
                   </select>
                 </div>
-                <div className="col-span-2">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <div
-                      onClick={() => setCourseForm({ ...courseForm, isCompulsory: !courseForm.isCompulsory })}
-                      className={`w-10 h-5 rounded-full transition-colors relative ${courseForm.isCompulsory ? 'bg-amber-500' : 'bg-white/10'}`}
-                    >
-                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${courseForm.isCompulsory ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-white/80">Compulsory Bundle</p>
-                      <p className="text-[10px] text-white/40">Students are auto-enrolled to all workshops</p>
-                    </div>
-                  </label>
-                </div>
               </div>
+
+              <div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div
+                    onClick={() => setCourseForm({ ...courseForm, isCompulsory: !courseForm.isCompulsory })}
+                    className={`w-10 h-5 rounded-full transition-colors relative ${courseForm.isCompulsory ? 'bg-amber-500' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${courseForm.isCompulsory ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-white/80">Compulsory Bundle</p>
+                    <p className="text-[10px] text-white/40">Students are auto-enrolled to all workshops</p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Workshop section — only for create */}
+              {!editingCourse && (
+                <div className="border-t border-white/5 pt-4 space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Number of Workshops</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={courseForm.workshopCount}
+                      onChange={(e) => handleCountChange(e.target.value)}
+                      placeholder="e.g. 4"
+                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                    />
+                  </div>
+
+                  {count > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-white/60 block">Workshop Topics</label>
+                      {Array.from({ length: count }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-white/30 text-xs w-5 text-right shrink-0">{i + 1}.</span>
+                          <input
+                            value={courseForm.workshopTopics[i] ?? ''}
+                            onChange={(e) => handleTopicChange(i, e.target.value)}
+                            placeholder={`Workshop ${i + 1} topic`}
+                            className="input-dark flex-1 px-4 py-2 rounded-xl text-sm"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="px-6 pb-6 flex gap-3">
@@ -210,7 +213,7 @@ export default function CourseModal({
                     Saving...
                   </>
                 ) : (
-                  editingCourse ? 'Update Course' : 'Create Course'
+                  editingCourse ? 'Update Course' : 'Create Course Template'
                 )}
               </motion.button>
             </div>

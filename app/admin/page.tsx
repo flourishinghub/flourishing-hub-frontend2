@@ -50,17 +50,15 @@ interface CourseFormData {
   description: string;
   posterUrl: string;
   duration: string;
-  instructorName: string;
   status: CourseStatus;
   isCompulsory: boolean;
-  startDate: string;
-  endDate: string;
-  capacity: string;
+  workshopCount: string;
+  workshopTopics: string[];
 }
 
 const emptyCourseForm: CourseFormData = {
-  name: '', code: '', description: '', posterUrl: '', duration: '', instructorName: '',
-  status: 'ACTIVE', isCompulsory: false, startDate: '', endDate: '', capacity: '',
+  name: '', code: '', description: '', posterUrl: '', duration: '',
+  status: 'ACTIVE', isCompulsory: false, workshopCount: '', workshopTopics: [],
 };
 
 const courseStatusColors: Record<CourseStatus, string> = {
@@ -796,12 +794,10 @@ export default function AdminDashboard() {
       description: course.description || '',
       posterUrl: course.posterUrl || '',
       duration: course.duration || '',
-      instructorName: course.instructorName || '',
       status: course.status as CourseStatus,
       isCompulsory: course.isCompulsory === true,
-      startDate: course.startDate ? new Date(course.startDate).toISOString().split('T')[0] : '',
-      endDate: course.endDate ? new Date(course.endDate).toISOString().split('T')[0] : '',
-      capacity: course.capacity ? String(course.capacity) : '',
+      workshopCount: '',
+      workshopTopics: [],
     });
     setShowCourseModal(true);
   };
@@ -820,21 +816,32 @@ export default function AdminDashboard() {
         code: courseForm.code || null,
         description: courseForm.description,
         posterUrl: courseForm.posterUrl || null,
-        duration: courseForm.duration,
-        instructorName: courseForm.instructorName,
+        duration: courseForm.duration || null,
         status: courseForm.status,
         isCompulsory: courseForm.isCompulsory,
-        startDate: courseForm.startDate || null,
-        endDate: courseForm.endDate || null,
-        capacity: courseForm.capacity ? parseInt(courseForm.capacity) : null,
       };
 
       if (editingCourse) {
         await apiCall(`/courses/${editingCourse.id}`, { method: 'PUT', body: JSON.stringify(payload) });
         toast.success('Course updated!');
       } else {
-        await apiCall('/courses', { method: 'POST', body: JSON.stringify(payload) });
-        toast.success('Course created!');
+        const created = await apiCall('/courses', { method: 'POST', body: JSON.stringify(payload) });
+        const courseId = created?.data?.id;
+
+        const topics = courseForm.workshopTopics.filter(t => t.trim());
+        if (courseId && topics.length > 0) {
+          for (let i = 0; i < topics.length; i++) {
+            try {
+              await apiCall(`/courses/${courseId}/modules`, {
+                method: 'POST',
+                body: JSON.stringify({ title: topics[i].trim(), order: i + 1, description: '' }),
+              });
+            } catch (e) {
+              console.warn(`Failed to create workshop topic ${i + 1}:`, e);
+            }
+          }
+        }
+        toast.success('Course template created!');
       }
 
       setShowCourseModal(false);

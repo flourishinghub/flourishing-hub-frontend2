@@ -63,7 +63,7 @@ export default function CoursesTab({
               onClick={openCreateCourse}
               className="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
             >
-              <Plus className="w-4 h-4" /> Create Course
+              <Plus className="w-4 h-4" /> Create Course Template
             </motion.button>
           </div>
 
