@@ -1190,7 +1190,7 @@ export default function AdminDashboard() {
       <DeleteModal showDeleteModal={showDeleteModal} setShowDeleteModal={setShowDeleteModal} eventToDelete={eventToDelete} setEventToDelete={setEventToDelete} confirmDelete={confirmDelete} deleting={deleting} />
 
       {/* Bulk Import Modal */}
-      <BulkImportModal showBulkImport={showBulkImport} setShowBulkImport={setShowBulkImport} bulkImportFile={bulkImportFile} setBulkImportFile={setBulkImportFile} bulkImporting={bulkImporting} setBulkImporting={setBulkImporting} />
+      <BulkImportModal showBulkImport={showBulkImport} setShowBulkImport={setShowBulkImport} bulkImportFile={bulkImportFile} setBulkImportFile={setBulkImportFile} bulkImporting={bulkImporting} setBulkImporting={setBulkImporting} courses={courses} />
     </DashboardLayout>
   );
 }
