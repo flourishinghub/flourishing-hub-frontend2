@@ -12,7 +12,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import { isEventLive, isEventLiveOrGrace, isGracePeriodActive, getGraceSecondsRemaining, isEventUpcoming } from '@/lib/dateUtils';
+import { isEventLive, isEventLiveOrGrace, isGracePeriodActive, getGraceSecondsRemaining, isEventUpcoming, isRegistrationOpen } from '@/lib/dateUtils';
 import { getRegisteredEventIds } from '@/lib/registrationUtils';
 import type { AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
@@ -259,6 +259,8 @@ export default function EventDetailPage() {
   const graceActive = isGracePeriodActive(event.endAt);
   const quizWindowOpen = isLive || graceActive;
   const isUpcoming = isEventUpcoming(event.startAt || (event.date + 'T' + event.time));
+  // Registration allowed until 15 minutes after the event starts
+  const regOpen = isRegistrationOpen(event.startAt || (event.date + 'T' + event.time));
   const isFull = event.registeredCount >= event.capacity && event.capacity > 0;
 
   // ─── LIVE EVENT PAGE (includes 30-min grace after endAt) ──────────
@@ -915,20 +917,20 @@ export default function EventDetailPage() {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={handleRegister}
-                disabled={isRegistered || isFull || registering || !isUpcoming}
+                disabled={isRegistered || isFull || registering || !regOpen}
                 className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
                   isRegistered ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-default'
                   : isFull ? 'bg-red-500/20 text-red-400 border border-red-500/30 cursor-not-allowed'
-                  : !isUpcoming ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30 cursor-not-allowed'
+                  : !regOpen ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30 cursor-not-allowed'
                   : 'bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20'
                 }`}
               >
                 {registering ? <><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" /> Registering…</>
                 : isRegistered ? <><CheckCircle className="w-4 h-4" /> Registered</>
                 : isFull ? <><AlertCircle className="w-4 h-4" /> Event Full</>
-                : isLive ? <><AlertCircle className="w-4 h-4" /> Registration Closed (Live)</>
-                : !isUpcoming ? <><AlertCircle className="w-4 h-4" /> Event Ended</>
-                : 'Register Now'}
+                : regOpen ? 'Register Now'
+                : isLive ? <><AlertCircle className="w-4 h-4" /> Registration Closed</>
+                : <><AlertCircle className="w-4 h-4" /> Event Ended</>}
               </motion.button>
 
               {event.meetLink && isRegistered && (

@@ -16,6 +16,12 @@ export function isEventUpcoming(eventStartAt: string): boolean {
   return new Date() < new Date(eventStartAt);
 }
 
+// Registration is open before start and up to `graceMins` after the event starts.
+export function isRegistrationOpen(eventStartAt: string, graceMins = 15): boolean {
+  const deadline = new Date(new Date(eventStartAt).getTime() + graceMins * 60 * 1000);
+  return new Date() <= deadline;
+}
+
 export function isEventPast(eventStartAt: string, eventEndAt?: string | null): boolean {
   const endTime = eventEndAt
     ? new Date(eventEndAt)
