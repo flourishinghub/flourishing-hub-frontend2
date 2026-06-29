@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Download, Eye, Search, Star, Users, Activity, TrendingUp, BarChart2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Download, Eye, Search, Star, Users, Activity, TrendingUp, BarChart2, ChevronDown, FileSpreadsheet } from 'lucide-react';
+import { apiCall } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 interface AnalyticsTabProps {
   analyticsLoading: boolean;
@@ -144,6 +146,33 @@ export default function AnalyticsTab({
       setRollProfile({ name: records[0].name, rollNo: records[0].rollNo, records });
     } else {
       setRollProfile(null);
+    }
+  };
+
+  const [exportingExcel, setExportingExcel] = useState(false);
+
+  /* ── Master Excel export (4 sheets from backend) ── */
+  const exportMasterExcel = async () => {
+    setExportingExcel(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const res = await fetch(`${baseUrl}/admin/analytics/export-excel`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `flourishing-hub-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Excel report downloaded!');
+    } catch {
+      toast.error('Failed to export Excel report');
+    } finally {
+      setExportingExcel(false);
     }
   };
 
@@ -309,14 +338,24 @@ export default function AnalyticsTab({
           <h3 className="text-lg font-semibold text-white">Analytics Console</h3>
           <p className="text-xs text-white/40 mt-0.5">Course performance, facilitator telemetry & student lookup</p>
         </div>
-        {filtered.length > 0 && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={exportRegistryCSV}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all text-sm font-semibold"
+            onClick={exportMasterExcel}
+            disabled={exportingExcel}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-all text-sm font-semibold disabled:opacity-50"
           >
-            <Download className="w-4 h-4" /> Export CSV
+            <FileSpreadsheet className="w-4 h-4" />
+            {exportingExcel ? 'Exporting…' : 'Export Master Excel'}
           </button>
-        )}
+          {filtered.length > 0 && (
+            <button
+              onClick={exportRegistryCSV}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all text-sm font-semibold"
+            >
+              <Download className="w-4 h-4" /> Export CSV
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Cascading Filter Bar ── */}

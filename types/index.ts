@@ -1,6 +1,6 @@
 export type UserRole = 'student' | 'instructor' | 'admin' | 'volunteer' | 'associate-instructor';
 
-export type Programme = 'BTech' | 'MTech' | 'PhD' | 'MSc' | 'Staff';
+export type Programme = 'BTech' | 'MTech' | 'PhD' | 'MSc' | 'Staff' | 'Dual Degree';
 
 export interface User {
   id: string;

@@ -8,7 +8,7 @@ import Link from 'next/link';
 import type { Programme } from '@/types';
 import toast from 'react-hot-toast';
 
-const PROGRAMMES: Programme[] = ['BTech', 'MTech', 'PhD', 'MSc', 'Staff'];
+const PROGRAMMES: Programme[] = ['BTech', 'MTech', 'PhD', 'MSc', 'Staff', 'Dual Degree'];
 const DEPARTMENTS = [
   'Computer Science & Engineering', 'Electrical Engineering', 'Mechanical Engineering',
   'Civil Engineering', 'Chemical Engineering', 'Aerospace Engineering',

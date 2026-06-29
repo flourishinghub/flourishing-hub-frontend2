@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Calendar, CheckCircle, Clock, MapPin, Star, Users, BookOpen, PlayCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, MapPin, Star, Users, BookOpen, PlayCircle, ChevronLeft, ChevronRight, Bell } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
@@ -172,7 +172,8 @@ export default function StudentDashboard() {
               capacity: event.capacity || 0,
               registeredCount: event._count?.registrations || 0,
               status: event.status?.toLowerCase() || 'draft',
-              organizer: event.createdBy?.name || 'Admin'
+              organizer: event.createdBy?.name || 'Admin',
+              course: event.course || null,
             };
           } catch (error) {
             console.error("❌ Error transforming event:", event, error);
@@ -342,13 +343,21 @@ export default function StudentDashboard() {
 
       if (response.success) {
         setRegisteredEvents(prev => [...prev, eventId]);
-        toast.success('Successfully registered for event!');
-        
+
+        // Course-specific toast
+        const registeredEvent = events.find(e => e.id === eventId);
+        if (registeredEvent?.course) {
+          const code = registeredEvent.course.code ? ` (${registeredEvent.course.code})` : '';
+          toast.success(`Successfully registered for Course Bundle${code}!`, { duration: 4000 });
+        } else {
+          toast.success('Successfully registered for event!');
+        }
+
         // Refresh registrations
         const registrationsResponse = await apiCall('/registrations/me');
         const updatedRegistrations = registrationsResponse.data || [];
         setRegistrations(updatedRegistrations);
-        
+
         // Update registered event IDs
         const updatedRegisteredEventIds = getRegisteredEventIds(updatedRegistrations);
         setRegisteredEvents(updatedRegisteredEventIds);
@@ -405,6 +414,35 @@ export default function StudentDashboard() {
         <StatCard title="Active Registrations" value={activeRegistrations.length} icon={Calendar} color="purple" />
         <StatCard title="Completed Events" value={completedRegistrations.length} icon={CheckCircle} color="teal" />
       </div>
+
+      {/* 1-Hour Reminder Banner */}
+      {(() => {
+        const soonEvents = upcomingRegistered.filter(ev => {
+          const diff = new Date(ev.startAt || (ev.date + 'T' + ev.time)).getTime() - now.getTime();
+          return diff > 0 && diff <= 60 * 60 * 1000;
+        });
+        if (!soonEvents.length) return null;
+        return (
+          <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 flex items-start gap-3">
+            <Bell className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-300">Upcoming in less than 1 hour</p>
+              <ul className="mt-1 space-y-0.5">
+                {soonEvents.map(ev => {
+                  const minsLeft = Math.max(1, Math.ceil((new Date(ev.startAt || (ev.date + 'T' + ev.time)).getTime() - now.getTime()) / 60000));
+                  return (
+                    <li key={ev.id} className="text-xs text-amber-200/80">
+                      <span className="font-medium">{ev.title}</span>
+                      {ev.venue && ev.venue !== 'TBD' && <span className="text-amber-200/50"> — {ev.venue}</span>}
+                      <span className="text-amber-400 ml-1">({minsLeft} min)</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Bundle Progress */}
       {bundleProgress.length > 0 && (
