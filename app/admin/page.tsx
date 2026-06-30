@@ -814,7 +814,7 @@ export default function AdminDashboard() {
       const payload: any = {
         name: courseForm.name,
         code: courseForm.code || null,
-        description: courseForm.description,
+        description: courseForm.description || '',
         posterUrl: courseForm.posterUrl || null,
         duration: courseForm.duration || null,
         status: courseForm.status,
@@ -848,11 +848,17 @@ export default function AdminDashboard() {
       setEditingCourse(null);
       setCourseForm(emptyCourseForm);
 
-      const coursesResponse = await apiCall('/courses');
-      setCourses(coursesResponse.data || []);
-    } catch (error) {
+      // Refresh courses list (non-blocking — don't let failure hide the save success)
+      try {
+        const coursesResponse = await apiCall('/courses');
+        setCourses(coursesResponse?.data || []);
+      } catch {
+        // ignore refresh error
+      }
+    } catch (error: any) {
       console.error('Error saving course:', error);
-      toast.error('Failed to save course');
+      const msg = error?.message || 'Failed to save course. Check console for details.';
+      toast.error(msg);
     } finally {
       setSavingCourse(false);
     }
