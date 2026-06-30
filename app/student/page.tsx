@@ -302,7 +302,6 @@ export default function StudentDashboard() {
       date: formatDate(rec.date),
       venue: rec.venue || '—',
       marks: rec.marks != null && rec.maxMarks != null ? `${rec.marks}/${rec.maxMarks}` : '—',
-      rating: rec.starRating != null ? renderStars(rec.starRating) : '—',
       status: statusLabel,
     };
   });
@@ -706,7 +705,6 @@ export default function StudentDashboard() {
                 { key: 'title', label: 'Event Name', sortable: true },
                 { key: 'date', label: 'Date', sortable: true },
                 { key: 'marks', label: 'Marks' },
-                { key: 'rating', label: 'Rating' },
                 {
                   key: 'status', label: 'Status',
                   render: (row: any) => (
