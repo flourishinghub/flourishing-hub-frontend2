@@ -697,35 +697,8 @@ export default function StudentDashboard() {
           })()}
 
           {/* Past Records */}
-          <div className="glass-card rounded-2xl p-6" id="history">
+          <div className="glass-card rounded-2xl p-6" id="past-records">
             <h2 className="text-base font-semibold text-white mb-4">Past Records</h2>
-            <DataTable
-              data={pastRecords as unknown as Record<string, unknown>[]}
-              columns={[
-                { key: 'title', label: 'Event Name', sortable: true },
-                { key: 'date', label: 'Date', sortable: true },
-                { key: 'marks', label: 'Marks' },
-                {
-                  key: 'status', label: 'Status',
-                  render: (row: any) => (
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      row.status === 'Completed' ? 'bg-emerald-500/15 text-emerald-400' :
-                      row.status === 'Excused' ? 'bg-yellow-500/15 text-yellow-400' :
-                      row.status === 'Failed' ? 'bg-red-500/15 text-red-400' :
-                      'bg-gray-500/15 text-gray-400'
-                    }`}>{row.status}</span>
-                  ),
-                },
-              ]}
-              searchKeys={['title'] as never[]}
-              searchPlaceholder="Search records..."
-              emptyMessage="No past records"
-            />
-          </div>
-
-          {/* Attendance */}
-          <div className="glass-card rounded-2xl p-6" id="attendance">
-            <h2 className="text-base font-semibold text-white mb-4">Attendance</h2>
             {attendanceRecords.length === 0 ? (
               <div className="text-center py-8">
                 <CheckCircle className="w-10 h-10 text-white/20 mx-auto mb-3" />

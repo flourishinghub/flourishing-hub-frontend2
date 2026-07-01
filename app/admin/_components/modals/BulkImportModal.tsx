@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Download, FileSpreadsheet, Upload, X } from 'lucide-react';
-import { apiCall } from '@/lib/api';
+import { ChevronDown, Download, FileSpreadsheet, Upload, X, CheckCircle, Eye, AlertCircle, ArrowLeft, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface BulkImportModalProps {
@@ -18,6 +17,18 @@ interface BulkImportModalProps {
 
 const TEMPLATE_HEADERS = ['date', 'day', 'time', 'venue', 'tutorial/batch', 'instructor', 'workshop name'];
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+
+function fmtDate(iso: string) {
+  try { return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
+  catch { return iso; }
+}
+
+function fmtTime(iso: string) {
+  try { return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }); }
+  catch { return ''; }
+}
+
 export default function BulkImportModal({
   showBulkImport,
   setShowBulkImport,
@@ -31,80 +42,117 @@ export default function BulkImportModal({
   const [modules, setModules] = useState<any[]>([]);
   const [loadingModules, setLoadingModules] = useState(false);
   const [selectedModuleId, setSelectedModuleId] = useState('');
-  const [description, setDescription] = useState('');
+  const [eventCount, setEventCount] = useState(10);
+  const [batchCode, setBatchCode] = useState('');
+  const [step, setStep] = useState<'form' | 'preview'>('form');
+  const [previewEvents, setPreviewEvents] = useState<any[]>([]);
+  const [previewing, setPreviewing] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  // Reset when modal closes
+  const resetState = () => {
+    setSelectedCourseId('');
+    setModules([]);
+    setSelectedModuleId('');
+    setEventCount(10);
+    setBatchCode('');
+    setStep('form');
+    setPreviewEvents([]);
+    setPreviewing(false);
+    setConfirmed(false);
+    setShowConfirmDialog(false);
+    setBulkImportFile(null);
+  };
+
   useEffect(() => {
-    if (!showBulkImport) {
-      setSelectedCourseId('');
-      setModules([]);
-      setSelectedModuleId('');
-      setDescription('');
-    }
+    if (!showBulkImport) resetState();
   }, [showBulkImport]);
 
-  // Fetch modules when course changes
   useEffect(() => {
-    if (!selectedCourseId) {
-      setModules([]);
-      setSelectedModuleId('');
-      setDescription('');
-      return;
-    }
+    if (!selectedCourseId) { setModules([]); setSelectedModuleId(''); return; }
     setLoadingModules(true);
     setSelectedModuleId('');
-    setDescription('');
-    apiCall(`/courses/${selectedCourseId}/modules`)
+    fetch(`${API_BASE}/courses/${selectedCourseId}/modules`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+      .then(r => r.json())
       .then(res => setModules(res?.data || []))
       .catch(() => toast.error('Failed to load workshops'))
       .finally(() => setLoadingModules(false));
   }, [selectedCourseId]);
 
-  // Auto-fill description from selected module
-  useEffect(() => {
-    const mod = modules.find(m => m.id === selectedModuleId);
-    setDescription(mod?.description || '');
-  }, [selectedModuleId, modules]);
-
   const downloadTemplate = () => {
-    const csv = TEMPLATE_HEADERS.join(',') + '\n';
+    const count = Math.max(1, eventCount);
+    const header = TEMPLATE_HEADERS.join(',');
+    const emptyRow = TEMPLATE_HEADERS.map(() => '').join(',');
+    const rows = Array(count).fill(emptyRow).join('\n');
+    const csv = header + '\n' + rows;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'event_schedule_template.csv';
+    a.download = `schedule_template_${count}events.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = async () => {
+  const handleFileChange = (file: File | null) => {
+    setBulkImportFile(file);
+    setPreviewEvents([]);
+    setStep('form');
+    setConfirmed(false);
+  };
+
+  const handlePreview = async () => {
     if (!bulkImportFile) return;
-    setBulkImporting(true);
+    setPreviewing(true);
     try {
       const formData = new FormData();
       formData.append('file', bulkImportFile);
       if (selectedCourseId) formData.append('courseId', selectedCourseId);
       if (selectedModuleId) formData.append('courseModuleId', selectedModuleId);
-      const token = localStorage.getItem('token');
-      const uploadRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/imports/upload`,
-        { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData }
-      );
-      const uploadData = await uploadRes.json();
-      if (!uploadData.success) throw new Error(uploadData.message);
-      await apiCall('/imports', {
+      if (batchCode.trim()) formData.append('batchCode', batchCode.trim());
+
+      const res = await fetch(`${API_BASE}/imports/preview`, {
         method: 'POST',
-        body: JSON.stringify({
-          type: 'EVENTS',
-          fileUrl: uploadData.data.fileUrl,
-          fileName: bulkImportFile.name,
-          courseId: selectedCourseId || null,
-          courseModuleId: selectedModuleId || null,
-        }),
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: formData,
       });
-      toast.success('Import job created! Events will be imported shortly.');
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Failed to parse file');
+      if (!data.data?.length) throw new Error('No valid events found in file. Check date/time columns.');
+      setPreviewEvents(data.data);
+      setStep('preview');
+      setConfirmed(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to parse file');
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!bulkImportFile) return;
+    setBulkImporting(true);
+    setShowConfirmDialog(false);
+    try {
+      const formData = new FormData();
+      formData.append('file', bulkImportFile);
+      formData.append('type', 'EVENTS');
+      if (selectedCourseId) formData.append('courseId', selectedCourseId);
+      if (selectedModuleId) formData.append('courseModuleId', selectedModuleId);
+      if (batchCode.trim()) formData.append('batchCode', batchCode.trim());
+
+      const res = await fetch(`${API_BASE}/imports/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Import failed');
+      const batchMsg = batchCode.trim() ? ` · Batch ${batchCode.trim()} auto-registered` : '';
+      toast.success(`${previewEvents.length} events imported successfully${batchMsg}!`, { duration: 5000 });
       setShowBulkImport(false);
-      setBulkImportFile(null);
     } catch (err: any) {
       toast.error(err.message || 'Import failed');
     } finally {
@@ -113,177 +161,357 @@ export default function BulkImportModal({
   };
 
   return (
-    <AnimatePresence>
-      {showBulkImport && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setShowBulkImport(false)}
-        >
+    <>
+      <AnimatePresence>
+        {showBulkImport && (
           <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
-            style={{ background: '#1A1A2E' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => e.target === e.currentTarget && setShowBulkImport(false)}
           >
-            {/* Header */}
-            <div className="p-6 border-b border-white/5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Upload className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-semibold text-white">Bulk Import Events</h2>
-              </div>
-              <button onClick={() => setShowBulkImport(false)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-5">
-              {/* Course + Workshop Selection */}
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Link to Course (Optional)</p>
-
-                {/* Course Dropdown */}
-                <div>
-                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Course Name</label>
-                  <div className="relative">
-                    <select
-                      value={selectedCourseId}
-                      onChange={(e) => setSelectedCourseId(e.target.value)}
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm appearance-none pr-10"
-                    >
-                      <option value="">— Select a course —</option>
-                      {courses.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Workshop Dropdown — shown after course selected */}
-                {selectedCourseId && (
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+              style={{ background: '#1A1A2E' }}
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <Upload className="w-5 h-5 text-primary" />
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Workshop Title</label>
-                    <div className="relative">
-                      {loadingModules ? (
-                        <div className="input-dark w-full px-4 py-2.5 rounded-xl text-sm text-white/30 flex items-center gap-2">
-                          <div className="w-3.5 h-3.5 border border-white/30 border-t-transparent rounded-full animate-spin" />
-                          Loading workshops...
-                        </div>
-                      ) : (
-                        <>
-                          <select
-                            value={selectedModuleId}
-                            onChange={(e) => setSelectedModuleId(e.target.value)}
-                            className="input-dark w-full px-4 py-2.5 rounded-xl text-sm appearance-none pr-10"
-                          >
-                            <option value="">— Select a workshop —</option>
-                            {modules.map((m, idx) => (
-                              <option key={m.id} value={m.id}>{idx + 1}. {m.title}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                        </>
-                      )}
+                    <h2 className="text-lg font-semibold text-white">Bulk Import Events</h2>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${step === 'form' ? 'bg-primary/20 text-primary' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                        {step !== 'form' ? '✓ ' : ''}1. Configure
+                      </span>
+                      <span className="text-white/20 text-xs">→</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${step === 'preview' ? 'bg-primary/20 text-primary' : 'bg-white/5 text-white/30'}`}>
+                        2. Preview & Confirm
+                      </span>
                     </div>
-                    {modules.length === 0 && !loadingModules && (
-                      <p className="text-xs text-white/30 mt-1">No workshops found for this course</p>
-                    )}
                   </div>
-                )}
-
-                {/* Description — auto-filled from module */}
-                {selectedModuleId && (
-                  <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">
-                      Description <span className="text-white/30">(from workshop template)</span>
-                    </label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      rows={2}
-                      placeholder="No description in workshop template"
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm resize-none"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Divider */}
-              <div className="border-t border-white/5" />
-
-              {/* Download Template */}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Schedule Template</p>
-                <p className="text-white/50 text-xs">
-                  Download the blank template, fill in the schedule, then upload below.
-                </p>
-                <div className="rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3">
-                  <p className="text-[10px] text-white/30 mb-1 uppercase tracking-wider">Columns</p>
-                  <p className="text-xs text-white/50 font-mono">{TEMPLATE_HEADERS.join(', ')}</p>
                 </div>
-                <button
-                  onClick={downloadTemplate}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all text-sm font-medium"
-                >
-                  <Download className="w-4 h-4" /> Download Template
+                <button onClick={() => setShowBulkImport(false)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Divider */}
-              <div className="border-t border-white/5" />
+              <div className="overflow-y-auto flex-1">
+                {/* ─── STEP: FORM ─── */}
+                {step === 'form' && (
+                  <div className="p-6 space-y-5">
+                    {/* Course selection */}
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Course</p>
+                      <div>
+                        <label className="text-xs font-medium text-white/60 mb-1.5 block">Course Name</label>
+                        <div className="relative">
+                          <select
+                            value={selectedCourseId}
+                            onChange={(e) => setSelectedCourseId(e.target.value)}
+                            className="input-dark w-full px-4 py-2.5 rounded-xl text-sm appearance-none pr-10"
+                          >
+                            <option value="">— Select a course —</option>
+                            {courses.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                        </div>
+                      </div>
 
-              {/* Upload */}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Upload Schedule</p>
-                <div
-                  className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-primary/40 transition-all cursor-pointer"
-                  onClick={() => document.getElementById('bulk-import-input')?.click()}
-                >
-                  <FileSpreadsheet className="w-10 h-10 text-white/20 mx-auto mb-3" />
-                  <p className="text-white/50 text-sm">
-                    {bulkImportFile ? bulkImportFile.name : 'Click to select file (.csv or .xlsx)'}
+                      {selectedCourseId && (
+                        <div>
+                          <label className="text-xs font-medium text-white/60 mb-1.5 block">Workshop Title</label>
+                          <div className="relative">
+                            {loadingModules ? (
+                              <div className="input-dark w-full px-4 py-2.5 rounded-xl text-sm text-white/30 flex items-center gap-2">
+                                <div className="w-3.5 h-3.5 border border-white/30 border-t-transparent rounded-full animate-spin" />
+                                Loading workshops...
+                              </div>
+                            ) : (
+                              <>
+                                <select
+                                  value={selectedModuleId}
+                                  onChange={(e) => setSelectedModuleId(e.target.value)}
+                                  className="input-dark w-full px-4 py-2.5 rounded-xl text-sm appearance-none pr-10"
+                                >
+                                  <option value="">— Select a workshop —</option>
+                                  {modules.map((m, idx) => (
+                                    <option key={m.id} value={m.id}>{idx + 1}. {m.title}</option>
+                                  ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                              </>
+                            )}
+                          </div>
+                          {modules.length === 0 && !loadingModules && (
+                            <p className="text-xs text-white/30 mt-1">No workshops found for this course</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-white/5" />
+
+                    {/* Batch + Count */}
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Batch & Schedule</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-medium text-white/60 mb-1.5 block">
+                            Batch Code <span className="text-amber-400">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={batchCode}
+                            onChange={(e) => setBatchCode(e.target.value)}
+                            placeholder="e.g. d1t1, d1t2"
+                            className="input-dark w-full px-4 py-2.5 rounded-xl text-sm font-mono"
+                          />
+                          <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
+                            <Users className="w-2.5 h-2.5" /> Students of this batch auto-registered
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-white/60 mb-1.5 block">Number of Events</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={200}
+                            value={eventCount}
+                            onChange={(e) => setEventCount(Math.max(1, parseInt(e.target.value) || 1))}
+                            className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                          />
+                          <p className="text-[10px] text-white/30 mt-1">Template rows = this count</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-white/5" />
+
+                    {/* Download template */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Schedule Template</p>
+                      <p className="text-white/50 text-xs">
+                        Download template with <span className="text-white font-semibold">{eventCount}</span> empty rows. Fill in event details, then upload below.
+                      </p>
+                      <div className="rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3">
+                        <p className="text-[10px] text-white/30 mb-1 uppercase tracking-wider">Columns</p>
+                        <p className="text-xs text-white/50 font-mono">{TEMPLATE_HEADERS.join(', ')}</p>
+                      </div>
+                      <button
+                        onClick={downloadTemplate}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all text-sm font-medium"
+                      >
+                        <Download className="w-4 h-4" /> Download Template ({eventCount} rows)
+                      </button>
+                    </div>
+
+                    <div className="border-t border-white/5" />
+
+                    {/* Upload */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Upload Filled Schedule</p>
+                      <div
+                        className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-primary/40 transition-all cursor-pointer"
+                        onClick={() => document.getElementById('bulk-import-input')?.click()}
+                      >
+                        <FileSpreadsheet className="w-10 h-10 text-white/20 mx-auto mb-3" />
+                        <p className="text-white/50 text-sm">
+                          {bulkImportFile ? bulkImportFile.name : 'Click to select file (.csv or .xlsx)'}
+                        </p>
+                        {bulkImportFile && (
+                          <p className="text-xs text-white/30 mt-1">{(bulkImportFile.size / 1024).toFixed(1)} KB</p>
+                        )}
+                        <input
+                          id="bulk-import-input"
+                          type="file"
+                          accept=".csv,.xlsx"
+                          className="hidden"
+                          onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ─── STEP: PREVIEW ─── */}
+                {step === 'preview' && (
+                  <div className="p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {previewEvents.length} Events Ready to Import
+                        </p>
+                        {batchCode.trim() && (
+                          <p className="text-xs text-amber-400 mt-0.5 flex items-center gap-1.5">
+                            <Users className="w-3 h-3" />
+                            Batch <span className="font-mono font-bold">{batchCode.trim()}</span> students will be auto-registered
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setStep('form')}
+                        className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" /> Edit
+                      </button>
+                    </div>
+
+                    {/* Preview table */}
+                    <div className="rounded-xl border border-white/8 overflow-hidden">
+                      <div className="overflow-x-auto max-h-60 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="sticky top-0" style={{ background: '#1A1A2E' }}>
+                            <tr className="border-b border-white/5">
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold w-8">#</th>
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold">Workshop</th>
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold">Date</th>
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold">Time</th>
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold">Venue</th>
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold">Batch</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/[0.04]">
+                            {previewEvents.map((ev, i) => (
+                              <tr key={i} className="hover:bg-white/[0.02]">
+                                <td className="px-3 py-2 text-white/30">{i + 1}</td>
+                                <td className="px-3 py-2 text-white font-medium max-w-[160px]">
+                                  <p className="truncate">{ev.title}</p>
+                                </td>
+                                <td className="px-3 py-2 text-white/60 whitespace-nowrap">{fmtDate(ev.startAt)}</td>
+                                <td className="px-3 py-2 text-white/60 whitespace-nowrap">{fmtTime(ev.startAt)}</td>
+                                <td className="px-3 py-2 text-white/60 max-w-[120px]">
+                                  <p className="truncate">{ev.venue || '—'}</p>
+                                </td>
+                                <td className="px-3 py-2">
+                                  {ev.batch
+                                    ? <span className="px-1.5 py-0.5 rounded bg-primary/15 text-primary font-mono text-[10px]">{ev.batch}</span>
+                                    : <span className="text-white/20">—</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Confirm This */}
+                    {!confirmed ? (
+                      <button
+                        onClick={() => setConfirmed(true)}
+                        className="w-full py-2.5 rounded-xl text-sm font-semibold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" /> Confirm This Schedule
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                        <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <p className="text-sm text-emerald-400 font-medium">Schedule confirmed — ready to import</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 pb-6 pt-2 flex gap-3 shrink-0 border-t border-white/5">
+                {step === 'form' ? (
+                  <>
+                    <button
+                      onClick={() => { setShowBulkImport(false); }}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      disabled={!bulkImportFile || previewing}
+                      onClick={handlePreview}
+                      className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {previewing
+                        ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Parsing...</>
+                        : <><Eye className="w-4 h-4" /> Preview Events</>}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setStep('form')}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <ArrowLeft className="w-4 h-4" /> Back
+                    </button>
+                    <button
+                      disabled={!confirmed || bulkImporting}
+                      onClick={() => setShowConfirmDialog(true)}
+                      className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {bulkImporting
+                        ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Importing...</>
+                        : <><Upload className="w-4 h-4" /> Import Events</>}
+                    </button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirmation dialog */}
+      <AnimatePresence>
+        {showConfirmDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-6"
+          >
+            <div className="absolute inset-0 bg-black/60" onClick={() => setShowConfirmDialog(false)} />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative rounded-2xl p-6 max-w-sm w-full border border-white/15 shadow-2xl"
+              style={{ background: '#1A1A2E' }}
+            >
+              <div className="flex items-start gap-3 mb-5">
+                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-white">Import {previewEvents.length} Events?</p>
+                  <p className="text-xs text-white/50 mt-1.5 leading-relaxed">
+                    This will create <span className="text-white font-semibold">{previewEvents.length} events</span>
+                    {batchCode.trim() && (
+                      <> and auto-register all students with batch code <span className="font-mono font-bold text-primary">{batchCode.trim()}</span></>
+                    )}.
+                    Events will be published immediately.
                   </p>
-                  {bulkImportFile && (
-                    <p className="text-xs text-white/30 mt-1">
-                      {(bulkImportFile.size / 1024).toFixed(1)} KB
-                    </p>
-                  )}
-                  <input
-                    id="bulk-import-input"
-                    type="file"
-                    accept=".csv,.xlsx"
-                    className="hidden"
-                    onChange={(e) => setBulkImportFile(e.target.files?.[0] || null)}
-                  />
                 </div>
               </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 pb-6 flex gap-3">
-              <button
-                onClick={() => { setShowBulkImport(false); setBulkImportFile(null); }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={!bulkImportFile || bulkImporting}
-                onClick={handleImport}
-                className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {bulkImporting
-                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Importing...</>
-                  : <><Upload className="w-4 h-4" /> Import Events</>}
-              </button>
-            </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmDialog(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImport}
+                  className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
+                >
+                  <Upload className="w-4 h-4" /> Yes, Import
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
