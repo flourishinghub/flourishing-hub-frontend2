@@ -143,9 +143,13 @@ export default function StudentDashboard() {
         localStorage.setItem("user", JSON.stringify(transformedUser));
         console.log("✅ Fresh user data loaded and cached:", transformedUser.name);
 
+        // Fetch events filtered by student's batch (cohort) — batch events only visible to their batch
+        const studentBatch = freshUserData.studentProfile?.cohort;
+        const batchParam = studentBatch !== undefined ? `&batch=${studentBatch || ''}` : '';
+
         // Fetch events, registrations, attendance, and bundle progress in parallel
         const [eventsResponse, registrationsResponse, attendanceResponse, bundleResponse] = await Promise.all([
-          apiCall('/events?limit=200'),
+          apiCall(`/events?limit=200${batchParam}`),
           apiCall('/registrations/me'),
           apiCall('/event-operations/attendance/me').catch(() => ({ data: [] })),
           apiCall('/student/bundle-progress').catch(() => ({ data: [] })),
