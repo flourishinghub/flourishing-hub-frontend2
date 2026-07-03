@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Download, FileSpreadsheet, Filter, Search } from 'lucide-react';
+import { ChevronDown, Download, FileSpreadsheet, Filter, Search, Users } from 'lucide-react';
 import DataTable from '@/components/DataTable';
 import type { MemberDirectory } from '@/types';
 
@@ -28,6 +28,7 @@ interface MembersTabProps {
   uniqueDepartments: string[];
   uniqueProgrammes: string[];
   uniqueYears: (number | undefined)[];
+  onBatchUpload: () => void;
 }
 
 export default function MembersTab({
@@ -44,6 +45,7 @@ export default function MembersTab({
   uniqueDepartments,
   uniqueProgrammes,
   uniqueYears,
+  onBatchUpload,
 }: MembersTabProps) {
   return (
     <div id="members">
@@ -59,6 +61,14 @@ export default function MembersTab({
             <Filter className="w-4 h-4" />
             Filters
             <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onBatchUpload}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all text-sm font-medium"
+          >
+            <Users className="w-4 h-4" /> Upload Batch Data
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.02 }}
