@@ -413,9 +413,11 @@ export default function StudentDashboard() {
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard title="Active Registrations" value={activeRegistrations.length} icon={Calendar} color="purple" />
-        <StatCard title="Completed Events" value={completedRegistrations.length} icon={CheckCircle} color="teal" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard title="Courses Completed" value={bundleProgress.filter((b: any) => b.percentage >= 100).length} icon={BookOpen} color="purple" />
+        <StatCard title="Workshops Completed" value={completedRegistrations.length} icon={CheckCircle} color="teal" />
+        <StatCard title="Pending Workshops" value={activeRegistrations.length} icon={Clock} color="yellow" />
+        <StatCard title="Ongoing Courses" value={bundleProgress.filter((b: any) => b.attended > 0 && b.percentage < 100).length} icon={Calendar} color="blue" />
       </div>
 
       {/* 1-Hour Reminder Banner */}
