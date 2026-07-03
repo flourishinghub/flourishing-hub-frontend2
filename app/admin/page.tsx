@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Users, Calendar, Activity, Settings,
   TrendingUp, UserCheck, UserCog, BarChart2, Play, Zap,
-  BookOpen, Shield, Edit2, ClipboardList,
+  BookOpen, Shield, Edit2, ClipboardList, CheckCircle, Clock,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
@@ -1093,18 +1093,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* 4 Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label: 'Courses Completed', value: coursesCompletedCount, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-          { label: 'Workshops Completed', value: workshopsCompletedCount, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-          { label: 'Pending Workshops', value: pendingWorkshopsCount, color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
-          { label: 'Ongoing Courses', value: ongoingCoursesCount, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
-        ].map(({ label, value, color, bg, border }) => (
-          <div key={label} className={`${bg} border ${border} rounded-2xl p-4 flex items-center gap-3`}>
-            <div className={`text-2xl font-bold ${color}`}>{value}</div>
-            <div className="text-xs font-medium text-white/60 leading-tight">{label}</div>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard title="Courses Completed" value={coursesCompletedCount} icon={BookOpen} color="teal" />
+        <StatCard title="Workshops Completed" value={workshopsCompletedCount} icon={CheckCircle} color="blue" />
+        <StatCard title="Pending Workshops" value={pendingWorkshopsCount} icon={Clock} color="yellow" />
+        <StatCard title="Ongoing Courses" value={ongoingCoursesCount} icon={Activity} color="purple" />
       </div>
 
       {/* Tabs */}
