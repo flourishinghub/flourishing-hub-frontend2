@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Download, FileSpreadsheet, Users, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { X, Upload, FileSpreadsheet, Users, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface BatchUploadModalProps {
@@ -42,23 +42,6 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
       const data = await res.json();
       if (data.success) setStats(data.data);
     } catch {}
-  };
-
-  const handleDownloadTemplate = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/batch-assignments/template`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'batch_assignment_template.xlsx';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Failed to download template');
-    }
   };
 
   const handleFilesChange = (selected: FileList | null) => {
@@ -195,15 +178,11 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
                 </div>
               )}
 
-              {/* Template download */}
-              <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5">
-                <div>
-                  <p className="text-xs font-semibold text-white">Column format</p>
-                  <p className="text-[10px] text-white/40 mt-0.5 font-mono">email · roll_no · batch_code · name · dept · programme · year · section</p>
-                </div>
-                <button onClick={handleDownloadTemplate} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all text-xs font-medium shrink-0">
-                  <Download className="w-3.5 h-3.5" /> Template
-                </button>
+              {/* Column hint */}
+              <div className="px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5">
+                <p className="text-xs font-semibold text-white mb-1">Supported columns</p>
+                <p className="text-[10px] text-white/40 font-mono">email · roll_no · batch_code · name · department · programme · year · section</p>
+                <p className="text-[10px] text-white/30 mt-1.5">Required: <span className="text-white/50">batch_code</span> + at least one of <span className="text-white/50">email</span> or <span className="text-white/50">roll_no</span></p>
               </div>
 
               {/* File drop zone */}
