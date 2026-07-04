@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Download, FileSpreadsheet, Upload, X, CheckCircle, Eye, AlertCircle, ArrowLeft, Users } from 'lucide-react';
+import { BookOpen, ChevronDown, Download, FileSpreadsheet, Upload, X, CheckCircle, Eye, AlertCircle, ArrowLeft, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface BulkImportModalProps {
