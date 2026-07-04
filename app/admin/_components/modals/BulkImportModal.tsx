@@ -44,7 +44,7 @@ export default function BulkImportModal({
   const [selectedModuleId, setSelectedModuleId] = useState('');
   const [eventCount, setEventCount] = useState(10);
   const [batchCode, setBatchCode] = useState('');
-  const [step, setStep] = useState<'form' | 'preview'>('form');
+  const [step, setStep] = useState<'select' | 'form' | 'preview'>('select');
   const [previewEvents, setPreviewEvents] = useState<any[]>([]);
   const [previewing, setPreviewing] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -52,11 +52,11 @@ export default function BulkImportModal({
 
   const resetState = () => {
     setSelectedCourseId('');
+    setStep('select');
     setModules([]);
     setSelectedModuleId('');
     setEventCount(10);
     setBatchCode('');
-    setStep('form');
     setPreviewEvents([]);
     setPreviewing(false);
     setConfirmed(false);
@@ -185,12 +185,16 @@ export default function BulkImportModal({
                   <div>
                     <h2 className="text-lg font-semibold text-white">Bulk Import Events</h2>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${step === 'form' ? 'bg-primary/20 text-primary' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                        {step !== 'form' ? '✓ ' : ''}1. Configure
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${step === 'select' ? 'bg-primary/20 text-primary' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                        {step !== 'select' ? '✓ ' : ''}1. Select Type
+                      </span>
+                      <span className="text-white/20 text-xs">→</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${step === 'form' ? 'bg-primary/20 text-primary' : step === 'preview' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-white/30'}`}>
+                        {step === 'preview' ? '✓ ' : ''}2. Configure
                       </span>
                       <span className="text-white/20 text-xs">→</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${step === 'preview' ? 'bg-primary/20 text-primary' : 'bg-white/5 text-white/30'}`}>
-                        2. Preview & Confirm
+                        3. Preview & Confirm
                       </span>
                     </div>
                   </div>
@@ -201,6 +205,31 @@ export default function BulkImportModal({
               </div>
 
               <div className="overflow-y-auto flex-1">
+                {/* ─── STEP: SELECT TYPE ─── */}
+                {step === 'select' && (
+                  <div className="p-6 space-y-4">
+                    <p className="text-xs text-white/40">Select the type of workshop to import</p>
+                    <button
+                      onClick={() => setStep('form')}
+                      className="w-full flex items-start gap-4 p-5 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left group"
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:bg-primary/30 transition-all">
+                        <BookOpen className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-white">Compulsory Workshop</p>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">Required</span>
+                        </div>
+                        <p className="text-xs text-white/50 mt-1 leading-relaxed">
+                          Bulk import scheduled workshops for a compulsory course. All students of the selected batch will be auto-registered.
+                        </p>
+                      </div>
+                      <div className="text-white/20 group-hover:text-primary transition-colors shrink-0 mt-1">→</div>
+                    </button>
+                  </div>
+                )}
+
                 {/* ─── STEP: FORM ─── */}
                 {step === 'form' && (
                   <div className="p-6 space-y-5">
@@ -421,13 +450,20 @@ export default function BulkImportModal({
 
               {/* Footer */}
               <div className="px-6 pb-6 pt-2 flex gap-3 shrink-0 border-t border-white/5">
-                {step === 'form' ? (
+                {step === 'select' ? (
+                  <button
+                    onClick={() => setShowBulkImport(false)}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                ) : step === 'form' ? (
                   <>
                     <button
-                      onClick={() => { setShowBulkImport(false); }}
-                      className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                      onClick={() => setStep('select')}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center gap-1.5"
                     >
-                      Cancel
+                      <ArrowLeft className="w-4 h-4" /> Back
                     </button>
                     <button
                       disabled={!bulkImportFile || previewing}
