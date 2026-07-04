@@ -38,6 +38,7 @@ export default function BulkImportModal({
   setBulkImporting,
   courses,
 }: BulkImportModalProps) {
+  const [workshopType, setWorkshopType] = useState<'compulsory' | 'optional' | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [modules, setModules] = useState<any[]>([]);
   const [loadingModules, setLoadingModules] = useState(false);
@@ -51,6 +52,7 @@ export default function BulkImportModal({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const resetState = () => {
+    setWorkshopType(null);
     setSelectedCourseId('');
     setStep('select');
     setModules([]);
@@ -111,7 +113,9 @@ export default function BulkImportModal({
       formData.append('file', bulkImportFile);
       if (selectedCourseId) formData.append('courseId', selectedCourseId);
       if (selectedModuleId) formData.append('courseModuleId', selectedModuleId);
-      if (batchCode.trim()) formData.append('batchCode', batchCode.trim());
+      if (workshopType === 'compulsory' && batchCode.trim()) formData.append('batchCode', batchCode.trim());
+      if (workshopType) formData.append('workshopType', workshopType);
+      if (workshopType === 'optional') formData.append('capacity', '60');
 
       const res = await fetch(`${API_BASE}/imports/preview`, {
         method: 'POST',
@@ -141,7 +145,9 @@ export default function BulkImportModal({
       formData.append('type', 'EVENTS');
       if (selectedCourseId) formData.append('courseId', selectedCourseId);
       if (selectedModuleId) formData.append('courseModuleId', selectedModuleId);
-      if (batchCode.trim()) formData.append('batchCode', batchCode.trim());
+      if (workshopType === 'compulsory' && batchCode.trim()) formData.append('batchCode', batchCode.trim());
+      if (workshopType) formData.append('workshopType', workshopType);
+      if (workshopType === 'optional') formData.append('capacity', '60');
 
       const res = await fetch(`${API_BASE}/imports/upload`, {
         method: 'POST',
@@ -150,7 +156,7 @@ export default function BulkImportModal({
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Import failed');
-      const batchMsg = batchCode.trim() ? ` · Batch ${batchCode.trim()} auto-registered` : '';
+      const batchMsg = workshopType === 'compulsory' && batchCode.trim() ? ` · Batch ${batchCode.trim()} auto-registered` : workshopType === 'optional' ? ' · Open for student registration (60 seats)' : '';
       toast.success(`${previewEvents.length} events imported successfully${batchMsg}!`, { duration: 5000 });
       setShowBulkImport(false);
     } catch (err: any) {
@@ -209,8 +215,10 @@ export default function BulkImportModal({
                 {step === 'select' && (
                   <div className="p-6 space-y-4">
                     <p className="text-xs text-white/40">Select the type of workshop to import</p>
+
+                    {/* Compulsory Workshop */}
                     <button
-                      onClick={() => setStep('form')}
+                      onClick={() => { setWorkshopType('compulsory'); setStep('form'); }}
                       className="w-full flex items-start gap-4 p-5 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left group"
                     >
                       <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:bg-primary/30 transition-all">
@@ -226,6 +234,26 @@ export default function BulkImportModal({
                         </p>
                       </div>
                       <div className="text-white/20 group-hover:text-primary transition-colors shrink-0 mt-1">→</div>
+                    </button>
+
+                    {/* Optional Workshop */}
+                    <button
+                      onClick={() => { setWorkshopType('optional'); setStep('form'); }}
+                      className="w-full flex items-start gap-4 p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all text-left group"
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 group-hover:bg-amber-500/30 transition-all">
+                        <Users className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-white">Optional Workshop</p>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-medium">Open · 60 seats</span>
+                        </div>
+                        <p className="text-xs text-white/50 mt-1 leading-relaxed">
+                          Published openly for students to self-register. Capacity is limited to 60 seats. Students who miss out get a notification.
+                        </p>
+                      </div>
+                      <div className="text-white/20 group-hover:text-amber-400 transition-colors shrink-0 mt-1">→</div>
                     </button>
                   </div>
                 )}
@@ -289,23 +317,38 @@ export default function BulkImportModal({
 
                     {/* Batch + Count */}
                     <div className="space-y-3">
-                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Batch & Schedule</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs font-medium text-white/60 mb-1.5 block">
-                            Batch Code <span className="text-amber-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={batchCode}
-                            onChange={(e) => setBatchCode(e.target.value)}
-                            placeholder="e.g. d1t1, d1t2"
-                            className="input-dark w-full px-4 py-2.5 rounded-xl text-sm font-mono"
-                          />
-                          <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
-                            <Users className="w-2.5 h-2.5" /> Students of this batch auto-registered
-                          </p>
+                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">
+                        {workshopType === 'optional' ? 'Schedule' : 'Batch & Schedule'}
+                      </p>
+
+                      {workshopType === 'optional' && (
+                        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                          <Users className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-semibold text-amber-300">Open Registration · 60 Seats</p>
+                            <p className="text-[10px] text-amber-400/70 mt-0.5">Students will self-register. When seats are full, they receive a notification to try upcoming courses.</p>
+                          </div>
                         </div>
+                      )}
+
+                      <div className={workshopType === 'compulsory' ? 'grid grid-cols-2 gap-3' : ''}>
+                        {workshopType === 'compulsory' && (
+                          <div>
+                            <label className="text-xs font-medium text-white/60 mb-1.5 block">
+                              Batch Code <span className="text-amber-400">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={batchCode}
+                              onChange={(e) => setBatchCode(e.target.value)}
+                              placeholder="e.g. d1t1, d1t2"
+                              className="input-dark w-full px-4 py-2.5 rounded-xl text-sm font-mono"
+                            />
+                            <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
+                              <Users className="w-2.5 h-2.5" /> Students of this batch auto-registered
+                            </p>
+                          </div>
+                        )}
                         <div>
                           <label className="text-xs font-medium text-white/60 mb-1.5 block">Number of Events</label>
                           <input
@@ -377,10 +420,16 @@ export default function BulkImportModal({
                         <p className="text-sm font-semibold text-white">
                           {previewEvents.length} Events Ready to Import
                         </p>
-                        {batchCode.trim() && (
+                        {workshopType === 'compulsory' && batchCode.trim() && (
                           <p className="text-xs text-amber-400 mt-0.5 flex items-center gap-1.5">
                             <Users className="w-3 h-3" />
                             Batch <span className="font-mono font-bold">{batchCode.trim()}</span> students will be auto-registered
+                          </p>
+                        )}
+                        {workshopType === 'optional' && (
+                          <p className="text-xs text-amber-400 mt-0.5 flex items-center gap-1.5">
+                            <Users className="w-3 h-3" />
+                            Open registration · 60 seats per event
                           </p>
                         )}
                       </div>
@@ -523,8 +572,11 @@ export default function BulkImportModal({
                   <p className="text-sm font-semibold text-white">Import {previewEvents.length} Events?</p>
                   <p className="text-xs text-white/50 mt-1.5 leading-relaxed">
                     This will create <span className="text-white font-semibold">{previewEvents.length} events</span>
-                    {batchCode.trim() && (
+                    {workshopType === 'compulsory' && batchCode.trim() && (
                       <> and auto-register all students with batch code <span className="font-mono font-bold text-primary">{batchCode.trim()}</span></>
+                    )}
+                    {workshopType === 'optional' && (
+                      <> as open workshops with <span className="text-white font-semibold">60 seats</span> each for student self-registration</>
                     )}.
                     Events will be published immediately.
                   </p>
