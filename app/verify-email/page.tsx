@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { api } from "@/lib/api";
+import { apiCall } from "@/lib/api";
 
 function VerifyEmailContent() {
   const router = useRouter();
@@ -86,9 +86,9 @@ function VerifyEmailContent() {
     setError("");
 
     try {
-      await api.post("/auth/verify-otp", {
-        userId,
-        otp: otpString
+      await apiCall("/auth/verify-otp", {
+        method: 'POST',
+        body: JSON.stringify({ userId, otp: otpString }),
       });
 
       setSuccess(true);
@@ -96,7 +96,7 @@ function VerifyEmailContent() {
         router.push("/login?verified=true");
       }, 2000);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid OTP. Please try again.");
+      setError(err.message || "Invalid OTP. Please try again.");
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } finally {
@@ -111,12 +111,15 @@ function VerifyEmailContent() {
     setError("");
 
     try {
-      await api.post("/auth/resend-otp", { userId });
+      await apiCall("/auth/resend-otp", {
+        method: 'POST',
+        body: JSON.stringify({ userId }),
+      });
       setResendTimer(60);
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to resend OTP");
+      setError(err.message || "Failed to resend OTP");
     } finally {
       setResendLoading(false);
     }
