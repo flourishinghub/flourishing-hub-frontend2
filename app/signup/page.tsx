@@ -9,6 +9,11 @@ import type { Programme } from '@/types';
 import toast from 'react-hot-toast';
 
 const PROGRAMMES: Programme[] = ['BTech', 'MTech', 'PhD', 'MSc', 'Staff', 'Dual Degree'];
+// Explicit mapping — backend Programme enum values don't always match
+// `toUpperCase()` of the label (e.g. "Dual Degree" -> "DUAL_DEGREE", not "DUAL DEGREE").
+const PROGRAMME_API_VALUE: Record<string, string> = {
+  BTech: 'BTECH', MTech: 'MTECH', PhD: 'PHD', MSc: 'MSC', 'Dual Degree': 'DUAL_DEGREE',
+};
 const DEPARTMENTS = [
   'Computer Science & Engineering', 'Electrical Engineering', 'Mechanical Engineering',
   'Civil Engineering', 'Chemical Engineering', 'Aerospace Engineering',
@@ -87,7 +92,7 @@ export default function SignupPage() {
           // batch-assignment upload fills these in automatically by roll
           // number/email (see autoAssignCohortOnSignup on the backend).
           yearOfStudy: 1,
-          programme: form.programme.toUpperCase(),
+          programme: PROGRAMME_API_VALUE[form.programme] || form.programme.toUpperCase(),
         } : undefined,
         instructorProfile: form.programme === 'Staff' ? {
           department: form.department
