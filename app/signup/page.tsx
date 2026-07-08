@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Hash, BookOpen, Building, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Hash, Building, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { Programme } from '@/types';
 import toast from 'react-hot-toast';
@@ -35,7 +35,7 @@ export default function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [form, setForm] = useState({
-    name: '', rollNo: '', year: '', batch: '',
+    name: '', rollNo: '',
     programme: '' as Programme | '',
     department: '', email: '', password: '', confirmPassword: '',
   });
@@ -50,8 +50,6 @@ export default function SignupPage() {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = 'Name is required';
     if (!form.rollNo.trim()) e.rollNo = 'Roll No / Emp ID is required';
-    if (!form.year && form.programme !== 'Staff') e.year = 'Year is required';
-    if (!form.batch.trim()) e.batch = 'Batch is required';
     if (!form.programme) e.programme = 'Programme is required';
     if (!form.department) e.department = 'Department is required';
     if (!form.email.trim()) e.email = 'Email is required';
@@ -85,9 +83,11 @@ export default function SignupPage() {
         studentProfile: form.programme !== 'Staff' ? {
           rollNumber: form.rollNo,
           department: form.department,
-          yearOfStudy: parseInt(form.year) || 1,
+          // Year/batch are no longer collected at signup — the admin's
+          // batch-assignment upload fills these in automatically by roll
+          // number/email (see autoAssignCohortOnSignup on the backend).
+          yearOfStudy: 1,
           programme: form.programme.toUpperCase(),
-          cohort: form.batch
         } : undefined,
         instructorProfile: form.programme === 'Staff' ? {
           department: form.department
@@ -203,25 +203,14 @@ export default function SignupPage() {
               </Field>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Year" icon={BookOpen} error={errors.year}>
-                <input value={form.year} onChange={(e) => set('year', e.target.value)}
-                  placeholder="1–5" type="number" min="1" max="6"
-                  className="input-dark w-full pl-10 pr-4 py-3 rounded-xl text-sm" />
-              </Field>
-              <Field label="Batch" icon={Hash} error={errors.batch}>
-                <input value={form.batch} onChange={(e) => set('batch', e.target.value)}
-                  placeholder="e.g. 2023" className="input-dark w-full pl-10 pr-4 py-3 rounded-xl text-sm" />
-              </Field>
-              <div>
-                <label className="text-xs font-medium text-white/60 mb-1.5 block">Programme</label>
-                <select value={form.programme} onChange={(e) => set('programme', e.target.value)}
-                  className="input-dark w-full px-3 py-3 rounded-xl text-sm appearance-none">
-                  <option value="">Select</option>
-                  {PROGRAMMES.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
-                {errors.programme && <p className="text-xs text-red-400 mt-1">{errors.programme}</p>}
-              </div>
+            <div>
+              <label className="text-xs font-medium text-white/60 mb-1.5 block">Programme</label>
+              <select value={form.programme} onChange={(e) => set('programme', e.target.value)}
+                className="input-dark w-full px-3 py-3 rounded-xl text-sm appearance-none">
+                <option value="">Select</option>
+                {PROGRAMMES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+              {errors.programme && <p className="text-xs text-red-400 mt-1">{errors.programme}</p>}
             </div>
 
             <div>
