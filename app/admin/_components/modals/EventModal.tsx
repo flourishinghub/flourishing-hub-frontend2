@@ -419,6 +419,7 @@ export default function EventModal({
                   {([
                     { val: 'draft' as EventStatus, label: 'Draft', cls: 'border-yellow-500/40 text-yellow-400 bg-yellow-500/10' },
                     { val: 'published' as EventStatus, label: 'Publish (Active)', cls: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' },
+                    ...(editingEvent ? [{ val: 'completed' as EventStatus, label: 'Completed', cls: 'border-gray-400/40 text-gray-300 bg-gray-500/10' }] : []),
                   ]).map(({ val, label, cls }) => (
                     <button
                       key={val}

@@ -8,6 +8,7 @@ import { getInitials } from '@/lib/utils';
 import type { AuthPayload, Notification } from '@/types';
 import NotificationDropdown from '@/components/NotificationDropdown';
 import ProfileDropdown from '@/components/ProfileDropdown';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
 
 interface NavbarProps {
   user: AuthPayload;
@@ -58,6 +59,8 @@ export default function Navbar({ user, notifications = [], onLogout, onMarkAllRe
       </Link>
 
       <div className="flex items-center gap-3">
+        <ThemeSwitcher />
+
         <div className="relative">
           <motion.button
             whileHover={{ scale: 1.05 }}

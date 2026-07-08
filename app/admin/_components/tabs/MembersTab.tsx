@@ -214,6 +214,7 @@ export default function MembersTab({
           { key: 'department', label: 'Department', sortable: true },
           { key: 'programme', label: 'Programme', sortable: true },
           { key: 'yearDisplay', label: 'Year' },
+          { key: 'batchDisplay', label: 'Batch' },
           {
             key: 'role', label: 'Role',
             render: (row) => {

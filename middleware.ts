@@ -29,7 +29,7 @@ export function middleware(request: NextRequest) {
   const isLoggedIn = !!payload;
 
   if (pathname === '/') {
-    return NextResponse.redirect(new URL('/signup', request.url));
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {

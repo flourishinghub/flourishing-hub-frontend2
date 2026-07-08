@@ -1,5 +1,7 @@
 'use client';
 
+import { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import DataTable from '@/components/DataTable';
 import type { Event } from '@/types';
 
@@ -17,6 +19,17 @@ interface PastRecordsTabProps {
 }
 
 export default function PastRecordsTab({ eventsLoading, events, pastRecordsData }: PastRecordsTabProps) {
+  const [courseFilter, setCourseFilter] = useState('');
+
+  const courseOptions = useMemo(
+    () => Array.from(new Set(pastRecordsData.map((r) => r.courseName).filter((c) => c && c !== '—'))),
+    [pastRecordsData]
+  );
+
+  const filteredData = courseFilter
+    ? pastRecordsData.filter((r) => r.courseName === courseFilter)
+    : pastRecordsData;
+
   return (
     <div className="space-y-4">
       {eventsLoading && events.length === 0 && (
@@ -25,12 +38,27 @@ export default function PastRecordsTab({ eventsLoading, events, pastRecordsData 
           Loading events...
         </div>
       )}
-      <div>
-        <h3 className="text-lg font-semibold text-white">Past Records</h3>
-        <p className="text-xs text-white/40 mt-0.5">Completed events with attendance data from database</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-white">Past Records</h3>
+          <p className="text-xs text-white/40 mt-0.5">Completed events with attendance data from database</p>
+        </div>
+        <div className="relative">
+          <select
+            value={courseFilter}
+            onChange={(e) => setCourseFilter(e.target.value)}
+            className="input-dark appearance-none pl-4 pr-9 py-2 rounded-xl text-sm"
+          >
+            <option value="">All Courses</option>
+            {courseOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+        </div>
       </div>
       <DataTable
-        data={pastRecordsData as unknown as Record<string, unknown>[]}
+        data={filteredData as unknown as Record<string, unknown>[]}
         columns={[
           { key: 'eventName', label: 'Event Name', sortable: true },
           { key: 'courseName', label: 'Course Name', sortable: true },

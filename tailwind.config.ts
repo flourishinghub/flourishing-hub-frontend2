@@ -12,7 +12,7 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#6C63FF',
+          DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)',
           50: '#F0EFFF',
           100: '#E1DEFF',
           200: '#C3BCFF',
@@ -25,7 +25,7 @@ const config: Config = {
           900: '#0900D6',
         },
         accent: {
-          DEFAULT: '#00C9A7',
+          DEFAULT: 'rgb(var(--color-accent) / <alpha-value>)',
           50: '#E0FFF9',
           100: '#B3FFF0',
           200: '#66FFE1',
@@ -38,7 +38,7 @@ const config: Config = {
           900: '#00312B',
         },
         dark: {
-          DEFAULT: '#0F0F1A',
+          DEFAULT: 'rgb(var(--color-bg) / <alpha-value>)',
           50: '#2A2A3D',
           100: '#252536',
           200: '#1E1E30',
@@ -50,8 +50,9 @@ const config: Config = {
           800: '#000008',
           900: '#000000',
         },
-        card: '#1A1A2E',
-        border: 'rgba(108, 99, 255, 0.2)',
+        white: 'rgb(var(--color-fg) / <alpha-value>)',
+        card: 'rgb(var(--color-card) / <alpha-value>)',
+        border: 'rgb(var(--color-border) / 0.2)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

@@ -69,41 +69,57 @@ export default function EventStatusTab({
           <p className="text-white/40">No {overviewFilter} events{eventStatusFilter !== 'all' ? ` (${eventStatusFilter})` : ''}</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {overviewEvents.map((event) => {
-            const live = isEventLive((event as any).startAt || (event.date + 'T' + event.time), (event as any).endAt);
-            return (
-              <div key={event.id}
-                className={`flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${live ? 'bg-red-500/5 border-red-500/20 hover:bg-red-500/10' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'}`}
-                onClick={() => router.push(`/admin/events/${event.id}`)}>
-                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${live ? 'bg-red-400 animate-pulse' : event.status === 'completed' ? 'bg-gray-500' : 'bg-primary'}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <p className="text-sm font-semibold text-white">{event.title}</p>
-                    {(event as any).course && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{(event as any).course.name}</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(event.date)} · {formatTime(event.time)}</span>
-                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.venue}</span>
-                    {event.registeredCount > 0 ? (
-                      <span className="flex items-center gap-1 font-semibold text-emerald-400">
-                        <Users className="w-3 h-3" />{event.registeredCount}/{event.capacity} Registered
-                      </span>
-                    ) : (
-                      <span className="font-bold text-white/30 italic">Click to Register</span>
-                    )}
-                  </div>
+        <div className="space-y-6">
+          {(() => {
+            const groups = new Map<string, Event[]>();
+            overviewEvents.forEach((event) => {
+              const key = (event as any).course?.name || 'Open Workshops';
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key)!.push(event);
+            });
+            return Array.from(groups.entries()).map(([courseName, groupEvents]) => (
+              <div key={courseName}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1.5 h-5 rounded-full bg-primary" />
+                  <h4 className="text-sm font-semibold text-white">{courseName}</h4>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 text-white/40">{groupEvents.length}</span>
                 </div>
-                {live && (
-                  <span className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30">
-                    <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" /> LIVE
-                  </span>
-                )}
+                <div className="space-y-3">
+                  {groupEvents.map((event) => {
+                    const live = isEventLive((event as any).startAt || (event.date + 'T' + event.time), (event as any).endAt);
+                    return (
+                      <div key={event.id}
+                        className={`flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${live ? 'bg-red-500/5 border-red-500/20 hover:bg-red-500/10' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'}`}
+                        onClick={() => router.push(`/admin/events/${event.id}`)}>
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${live ? 'bg-red-400 animate-pulse' : event.status === 'completed' ? 'bg-gray-500' : 'bg-primary'}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <p className="text-sm font-semibold text-white">{event.title}</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(event.date)} · {formatTime(event.time)}</span>
+                            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.venue}</span>
+                            {event.registeredCount > 0 ? (
+                              <span className="flex items-center gap-1 font-semibold text-emerald-400">
+                                <Users className="w-3 h-3" />{event.registeredCount}/{event.capacity} Registered
+                              </span>
+                            ) : (
+                              <span className="font-bold text-white/30 italic">Click to Register</span>
+                            )}
+                          </div>
+                        </div>
+                        {live && (
+                          <span className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30">
+                            <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" /> LIVE
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            );
-          })}
+            ));
+          })()}
         </div>
       )}
     </div>

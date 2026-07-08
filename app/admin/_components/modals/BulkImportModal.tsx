@@ -15,7 +15,7 @@ interface BulkImportModalProps {
   courses: any[];
 }
 
-const TEMPLATE_HEADERS = ['date', 'day', 'time', 'venue', 'tutorial/batch', 'instructor', 'workshop name'];
+const TEMPLATE_HEADERS = ['date', 'day', 'time', 'end time', 'venue', 'tutorial/batch', 'instructor', 'workshop name'];
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -40,10 +40,6 @@ export default function BulkImportModal({
 }: BulkImportModalProps) {
   const [workshopType, setWorkshopType] = useState<'compulsory' | 'optional' | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState('');
-  const [modules, setModules] = useState<any[]>([]);
-  const [loadingModules, setLoadingModules] = useState(false);
-  const [selectedModuleId, setSelectedModuleId] = useState('');
-  const [eventCount, setEventCount] = useState(10);
   const [batchCode, setBatchCode] = useState('');
   const [step, setStep] = useState<'select' | 'form' | 'preview'>('select');
   const [previewEvents, setPreviewEvents] = useState<any[]>([]);
@@ -55,9 +51,6 @@ export default function BulkImportModal({
     setWorkshopType(null);
     setSelectedCourseId('');
     setStep('select');
-    setModules([]);
-    setSelectedModuleId('');
-    setEventCount(10);
     setBatchCode('');
     setPreviewEvents([]);
     setPreviewing(false);
@@ -70,30 +63,20 @@ export default function BulkImportModal({
     if (!showBulkImport) resetState();
   }, [showBulkImport]);
 
-  useEffect(() => {
-    if (!selectedCourseId) { setModules([]); setSelectedModuleId(''); return; }
-    setLoadingModules(true);
-    setSelectedModuleId('');
-    fetch(`${API_BASE}/courses/${selectedCourseId}/modules`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(r => r.json())
-      .then(res => setModules(res?.data || []))
-      .catch(() => toast.error('Failed to load workshops'))
-      .finally(() => setLoadingModules(false));
-  }, [selectedCourseId]);
+  // Template row count is just a starting point for admins to fill in — the actual
+  // import reads however many rows are present in the uploaded file, no cap applied.
+  const TEMPLATE_ROW_COUNT = 20;
 
   const downloadTemplate = () => {
-    const count = Math.max(1, eventCount);
     const header = TEMPLATE_HEADERS.join(',');
     const emptyRow = TEMPLATE_HEADERS.map(() => '').join(',');
-    const rows = Array(count).fill(emptyRow).join('\n');
+    const rows = Array(TEMPLATE_ROW_COUNT).fill(emptyRow).join('\n');
     const csv = header + '\n' + rows;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `schedule_template_${count}events.csv`;
+    a.download = `schedule_template.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -112,7 +95,6 @@ export default function BulkImportModal({
       const formData = new FormData();
       formData.append('file', bulkImportFile);
       if (selectedCourseId) formData.append('courseId', selectedCourseId);
-      if (selectedModuleId) formData.append('courseModuleId', selectedModuleId);
       if (workshopType === 'compulsory' && batchCode.trim()) formData.append('batchCode', batchCode.trim());
       if (workshopType) formData.append('workshopType', workshopType);
       if (workshopType === 'optional') formData.append('capacity', '60');
@@ -144,7 +126,6 @@ export default function BulkImportModal({
       formData.append('file', bulkImportFile);
       formData.append('type', 'EVENTS');
       if (selectedCourseId) formData.append('courseId', selectedCourseId);
-      if (selectedModuleId) formData.append('courseModuleId', selectedModuleId);
       if (workshopType === 'compulsory' && batchCode.trim()) formData.append('batchCode', batchCode.trim());
       if (workshopType) formData.append('workshopType', workshopType);
       if (workshopType === 'optional') formData.append('capacity', '60');
@@ -279,38 +260,8 @@ export default function BulkImportModal({
                           </select>
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
                         </div>
+                        <p className="text-[10px] text-white/30 mt-1">Workshop/session names are read directly from the &quot;workshop name&quot; column in your file — one row per session</p>
                       </div>
-
-                      {selectedCourseId && (
-                        <div>
-                          <label className="text-xs font-medium text-white/60 mb-1.5 block">Workshop Title</label>
-                          <div className="relative">
-                            {loadingModules ? (
-                              <div className="input-dark w-full px-4 py-2.5 rounded-xl text-sm text-white/30 flex items-center gap-2">
-                                <div className="w-3.5 h-3.5 border border-white/30 border-t-transparent rounded-full animate-spin" />
-                                Loading workshops...
-                              </div>
-                            ) : (
-                              <>
-                                <select
-                                  value={selectedModuleId}
-                                  onChange={(e) => setSelectedModuleId(e.target.value)}
-                                  className="input-dark w-full px-4 py-2.5 rounded-xl text-sm appearance-none pr-10"
-                                >
-                                  <option value="">— Select a workshop —</option>
-                                  {modules.map((m, idx) => (
-                                    <option key={m.id} value={m.id}>{idx + 1}. {m.title}</option>
-                                  ))}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                              </>
-                            )}
-                          </div>
-                          {modules.length === 0 && !loadingModules && (
-                            <p className="text-xs text-white/30 mt-1">No workshops found for this course</p>
-                          )}
-                        </div>
-                      )}
                     </div>
 
                     <div className="border-t border-white/5" />
@@ -331,37 +282,23 @@ export default function BulkImportModal({
                         </div>
                       )}
 
-                      <div className={workshopType === 'compulsory' ? 'grid grid-cols-2 gap-3' : ''}>
-                        {workshopType === 'compulsory' && (
-                          <div>
-                            <label className="text-xs font-medium text-white/60 mb-1.5 block">
-                              Batch Code <span className="text-amber-400">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              value={batchCode}
-                              onChange={(e) => setBatchCode(e.target.value)}
-                              placeholder="e.g. d1t1, d1t2"
-                              className="input-dark w-full px-4 py-2.5 rounded-xl text-sm font-mono"
-                            />
-                            <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
-                              <Users className="w-2.5 h-2.5" /> Students of this batch auto-registered
-                            </p>
-                          </div>
-                        )}
+                      {workshopType === 'compulsory' && (
                         <div>
-                          <label className="text-xs font-medium text-white/60 mb-1.5 block">Number of Events</label>
+                          <label className="text-xs font-medium text-white/60 mb-1.5 block">
+                            Batch Code <span className="text-amber-400">*</span>
+                          </label>
                           <input
-                            type="number"
-                            min={1}
-                            max={200}
-                            value={eventCount}
-                            onChange={(e) => setEventCount(Math.max(1, parseInt(e.target.value) || 1))}
-                            className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                            type="text"
+                            value={batchCode}
+                            onChange={(e) => setBatchCode(e.target.value)}
+                            placeholder="e.g. d1t1, d1t2"
+                            className="input-dark w-full px-4 py-2.5 rounded-xl text-sm font-mono"
                           />
-                          <p className="text-[10px] text-white/30 mt-1">Template rows = this count</p>
+                          <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
+                            <Users className="w-2.5 h-2.5" /> Students of this batch auto-registered
+                          </p>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     <div className="border-t border-white/5" />
@@ -370,17 +307,19 @@ export default function BulkImportModal({
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Schedule Template</p>
                       <p className="text-white/50 text-xs">
-                        Download template with <span className="text-white font-semibold">{eventCount}</span> empty rows. Fill in event details, then upload below.
+                        Download the template, fill in as many rows as you need (no limit), then upload below — the number of events created always matches your file.
                       </p>
                       <div className="rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3">
                         <p className="text-[10px] text-white/30 mb-1 uppercase tracking-wider">Columns</p>
                         <p className="text-xs text-white/50 font-mono">{TEMPLATE_HEADERS.join(', ')}</p>
+                        <p className="text-[10px] text-white/30 mt-2 uppercase tracking-wider">Format</p>
+                        <p className="text-[10px] text-white/40 mt-0.5">date: YYYY-MM-DD &nbsp;·&nbsp; time / end time: HH:MM AM/PM (e.g. 02:30 PM)</p>
                       </div>
                       <button
                         onClick={downloadTemplate}
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all text-sm font-medium"
                       >
-                        <Download className="w-4 h-4" /> Download Template ({eventCount} rows)
+                        <Download className="w-4 h-4" /> Download Template
                       </button>
                     </div>
 
