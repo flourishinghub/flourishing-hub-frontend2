@@ -173,20 +173,21 @@ export default function HomePage() {
     );
   }
 
-  // Calculate active and upcoming events based on strict time logic
+  // Calculate active and upcoming events using each event's real startAt/endAt
+  // (falls back to date+time only if startAt is missing), matching the logic
+  // used everywhere else in the app (lib/dateUtils.ts) instead of a fixed 2-hour guess.
   const now = new Date();
-  
-  // Active event: currently happening (strict time window)
+
+  // Active event: currently happening (uses real endAt when available)
   const activeEvent = events.find(event => {
-    const startTime = new Date(`${event.date}T${event.time}`);
-    const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // 2-hour duration
-    return now >= startTime && now <= endTime;
+    const start = event.startAt || `${event.date}T${event.time}`;
+    return isEventLive(start, event.endAt);
   });
-  
+
   // Upcoming events: future events (starting after now)
   const upcomingEvents = events.filter(event => {
-    const startTime = new Date(`${event.date}T${event.time}`);
-    return startTime > now;
+    const start = event.startAt || `${event.date}T${event.time}`;
+    return isEventUpcoming(start);
   });
 
   // Check if user is registered for events

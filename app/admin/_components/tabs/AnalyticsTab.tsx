@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { ArrowLeft, Download, Eye, Search, Star, Users, Activity, TrendingUp, BarChart2, ChevronDown, FileSpreadsheet } from 'lucide-react';
 import { apiCall } from '@/lib/api';
+import { downloadCsv } from '@/lib/csv';
 import toast from 'react-hot-toast';
 
 interface AnalyticsTabProps {
@@ -55,6 +56,32 @@ export default function AnalyticsTab({
   const [filterTopic, setFilterTopic] = useState('');
   const [filterInstructor, setFilterInstructor] = useState('');
   const [filterBatch, setFilterBatch] = useState('');
+  const [markingUserId, setMarkingUserId] = useState<string | null>(null);
+
+  const handleMarkAttendance = async (userId: string, status: 'PRESENT' | 'ABSENT' | 'EXCUSED') => {
+    if (!selectedAnalyticsEvent?.id || !userId) return;
+    setMarkingUserId(userId);
+    try {
+      await apiCall(`/event-operations/${selectedAnalyticsEvent.id}/attendance`, {
+        method: 'POST',
+        body: { userId, status, source: 'admin-analytics' },
+      });
+      setSelectedAnalyticsEvent({
+        ...selectedAnalyticsEvent,
+        students: (selectedAnalyticsEvent.students || []).map((s: any) =>
+          s.userId === userId ? { ...s, attendanceStatus: status } : s
+        ),
+        totalAttended: (selectedAnalyticsEvent.students || []).filter((s: any) =>
+          s.userId === userId ? status === 'PRESENT' : s.attendanceStatus === 'PRESENT'
+        ).length,
+      });
+      toast.success('Attendance updated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update attendance');
+    } finally {
+      setMarkingUserId(null);
+    }
+  };
   const [rollSearch, setRollSearch] = useState('');
   const [rollProfile, setRollProfile] = useState<{ name: string; rollNo: string; records: any[] } | null>(null);
 
@@ -178,20 +205,22 @@ export default function AnalyticsTab({
 
   /* ── CSV export ── */
   const exportRegistryCSV = () => {
-    const headers = ['Workshop', 'Course', 'Assigned Conductor', 'Check-In', 'Passed', 'Failed', 'Avg Rating'];
     const rows = filtered.map((r) => {
       const passed = r.totalAttended || 0;
       const failed = (r.students || []).filter(
         (s: any) => s.quizCompleted && s.attendanceStatus !== 'PRESENT',
       ).length;
-      return [r.workshopName, r.courseName || '—', r.associateInstructorName || r.instructorName || '—', passed + failed, passed, failed, r.avgRating || '—'];
+      return {
+        Workshop: r.workshopName,
+        Course: r.courseName || '—',
+        'Assigned Conductor': r.associateInstructorName || r.instructorName || '—',
+        'Check-In': passed + failed,
+        Passed: passed,
+        Failed: failed,
+        'Avg Rating': r.avgRating || '—',
+      };
     });
-    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'workshop-performance.csv';
-    a.click();
+    downloadCsv(rows, 'workshop-performance');
   };
 
   /* ══════════════════════════════════════════════════════════
@@ -253,18 +282,18 @@ export default function AnalyticsTab({
               </h5>
               <button
                 onClick={() => {
-                  const headers = ['Name', 'Email', 'Roll No', 'Batch', 'Attendance', 'Quiz Completed', 'Score', 'Rating', 'Registration Status'];
-                  const rows = (selectedAnalyticsEvent.students || []).map((s: any) => [
-                    s.name, s.email, s.rollNo, s.batch,
-                    s.attendanceStatus, s.quizCompleted ? 'Yes' : 'No',
-                    s.score ?? '—', s.rating ?? '—', s.registrationStatus,
-                  ]);
-                  const csv = [headers, ...rows].map((r) => r.map((v: any) => `"${v}"`).join(',')).join('\n');
-                  const blob = new Blob([csv], { type: 'text/csv' });
-                  const a = document.createElement('a');
-                  a.href = URL.createObjectURL(blob);
-                  a.download = `${selectedAnalyticsEvent.workshopName}-students.csv`;
-                  a.click();
+                  const rows = (selectedAnalyticsEvent.students || []).map((s: any) => ({
+                    Name: s.name,
+                    Email: s.email,
+                    'Roll No': s.rollNo,
+                    Batch: s.batch,
+                    Attendance: s.attendanceStatus,
+                    'Quiz Completed': s.quizCompleted ? 'Yes' : 'No',
+                    Score: s.score ?? '—',
+                    Rating: s.rating ?? '—',
+                    'Registration Status': s.registrationStatus,
+                  }));
+                  downloadCsv(rows, `${selectedAnalyticsEvent.workshopName}-students`);
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition-all text-xs font-semibold"
               >
@@ -276,14 +305,14 @@ export default function AnalyticsTab({
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 bg-[#1A1A2E]">
                     <tr className="border-b border-white/5">
-                      {['Name', 'Roll No', 'Batch', 'Attendance', 'Quiz', 'Score', 'Rating'].map((h) => (
+                      {['Name', 'Roll No', 'Batch', 'Attendance', 'Mark Attendance', 'Quiz', 'Score', 'Rating'].map((h) => (
                         <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold text-white/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {(selectedAnalyticsEvent.students || []).length === 0 ? (
-                      <tr><td colSpan={7} className="text-center py-8 text-white/30">No students registered</td></tr>
+                      <tr><td colSpan={8} className="text-center py-8 text-white/30">No students registered</td></tr>
                     ) : (selectedAnalyticsEvent.students || []).map((s: any, i: number) => (
                       <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
                         <td className="px-3 py-2.5 text-white font-medium whitespace-nowrap">{s.name}</td>
@@ -298,6 +327,29 @@ export default function AnalyticsTab({
                           }`}>
                             {s.attendanceStatus === 'NOT_MARKED' ? 'N/A' : s.attendanceStatus}
                           </span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {s.userId ? (
+                            <div className="flex items-center gap-1">
+                              {(['PRESENT', 'ABSENT', 'EXCUSED'] as const).map((st) => (
+                                <button
+                                  key={st}
+                                  disabled={markingUserId === s.userId}
+                                  onClick={() => handleMarkAttendance(s.userId, st)}
+                                  title={st === 'PRESENT' ? 'Mark Present' : st === 'ABSENT' ? 'Mark Absent' : 'Mark Excused'}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-semibold border transition-all disabled:opacity-40 ${
+                                    s.attendanceStatus === st
+                                      ? st === 'PRESENT' ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/50'
+                                        : st === 'ABSENT' ? 'bg-red-500/25 text-red-300 border-red-500/50'
+                                        : 'bg-yellow-500/25 text-yellow-300 border-yellow-500/50'
+                                      : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'
+                                  }`}
+                                >
+                                  {st === 'PRESENT' ? 'P' : st === 'ABSENT' ? 'A' : 'E'}
+                                </button>
+                              ))}
+                            </div>
+                          ) : <span className="text-white/20">—</span>}
                         </td>
                         <td className="px-3 py-2.5">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${

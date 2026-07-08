@@ -6,6 +6,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Writes the `token` cookie that middleware.ts reads for route protection.
+// `Secure` is a valueless cookie flag — browsers key off its mere presence, not
+// an assigned value, so `Secure=${bool}` never actually disables it and silently
+// drops the cookie on non-https origins. Only append the flag when it's true.
+export function setAuthTokenCookie(token: string, maxAgeSeconds: number): void {
+  const secure = typeof location !== 'undefined' && location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `token=${token}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax${secure}`;
+}
+
 export function getRoleLabel(role: UserRole): string {
   const labels: Record<UserRole, string> = {
     student: 'Student',

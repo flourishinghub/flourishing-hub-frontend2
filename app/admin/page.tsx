@@ -12,7 +12,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import { apiCall, getCurrentUser } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import { isEventLive, isEventUpcoming, isEventPast } from '@/lib/dateUtils';
+import { isEventLive, isEventUpcoming, isEventPast, toLocalDateKey } from '@/lib/dateUtils';
+import { downloadCsv } from '@/lib/csv';
 import type { Event, MemberDirectory, UserRole } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -192,8 +193,6 @@ export default function AdminDashboard() {
   const [eventStatusFilter, setEventStatusFilter] = useState<'all' | 'workshop' | 'course'>('all');
   const [overviewFilter, setOverviewFilter] = useState<'live' | 'upcoming' | 'completed'>('upcoming');
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | null>(null);
-  const [instructors, setInstructors] = useState<any[]>([]);
-  const [associateInstructors, setAssociateInstructors] = useState<any[]>([]);
   const [analyticsData, setAnalyticsData] = useState<any[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [selectedAnalyticsEvent, setSelectedAnalyticsEvent] = useState<any | null>(null);
@@ -219,7 +218,7 @@ export default function AdminDashboard() {
     description: event.description,
     startAt: event.startAt,
     endAt: event.endAt || null,
-    date: new Date(event.startAt).toISOString().split('T')[0],
+    date: toLocalDateKey(new Date(event.startAt)),
     time: new Date(event.startAt).toTimeString().slice(0, 5),
     endTime: event.endAt ? new Date(event.endAt).toTimeString().slice(0, 5) : '',
     venue: event.venue || 'TBD',
@@ -239,10 +238,16 @@ export default function AdminDashboard() {
     course: event.course || null,
     courseModule: event.courseModule || null,
     batch: event.batch || null,
+    type: event.type || null,
+    registrationMode: event.registrationMode || null,
     bannerImageUrl: event.bannerImageUrl || null,
     instructorId: event.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.id || null,
+    instructorName: event.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.name || null,
     associateInstructorId: event.assignments?.find((a: any) => a.role === 'ASSOCIATE_INSTRUCTOR')?.user?.id || null,
     volunteersNeeded: event.volunteersNeeded || null,
+    avgInstructorRating: event.avgInstructorRating ?? null,
+    avgEventRating: event.avgEventRating ?? null,
+    feedbackCount: event.feedbackCount ?? 0,
   }));
 
   // Handle URL hash navigation for tab switching
@@ -303,8 +308,6 @@ export default function AdminDashboard() {
             rollNo: member.rollNumber,
             empId: member.employeeId || member.adminEmployeeId
           })));
-          setInstructors(membersData.filter((m: any) => m.role?.toLowerCase().replace('_', '-') === 'instructor'));
-          setAssociateInstructors(membersData.filter((m: any) => m.role?.toLowerCase().replace('_', '-') === 'associate-instructor'));
         }
         if (volunteersResult.status === 'fulfilled') setVolunteers(volunteersResult.value?.data || []);
         if (pendingResult.status === 'fulfilled') setPendingUsers(pendingResult.value?.data || []);
@@ -414,7 +417,7 @@ export default function AdminDashboard() {
   }
 
   // Get today's events (published events happening today)
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey(new Date());
   const todaysEvents = events.filter((e) => e.status === 'published' && e.date === today);
   const activeEvent = events.find((e) => e.status === 'published') ?? null;
   
@@ -456,7 +459,7 @@ export default function AdminDashboard() {
   // Calendar dates
   const allEventDates = events.filter(e => e.status === 'published').map(e => e.date);
   const calendarDateEvents = calendarSelectedDate
-    ? events.filter(e => e.date === calendarSelectedDate.toISOString().split('T')[0])
+    ? events.filter(e => e.date === toLocalDateKey(calendarSelectedDate))
     : [];
 
   // 4 Summary stats
@@ -470,9 +473,13 @@ export default function AdminDashboard() {
     eventName: e.title,
     courseName: (e as any).course?.name || '—',
     date: formatDate(e.date),
+    rawDate: e.date,
     venue: e.venue,
     registered: e.registeredCount,
     attended: (e as any).attendedCount ?? 0,
+    instructorName: (e as any).instructorName || '—',
+    avgRating: (e as any).avgInstructorRating != null ? Number((e as any).avgInstructorRating.toFixed(1)) : null,
+    feedbackCount: (e as any).feedbackCount ?? 0,
   }));
 
   const openCreate = () => {
@@ -657,6 +664,11 @@ export default function AdminDashboard() {
     }
   };
 
+  // Derived (not snapshotted) from `members` so promoting/demoting someone via
+  // the Roles tab is reflected here immediately, instead of only after reload.
+  const instructors = members.filter((m) => m.role === 'instructor');
+  const associateInstructors = members.filter((m) => m.role === 'associate-instructor');
+
   // Filter members based on current filters
   const filteredMembers = members.filter((member) => {
     if (filters.role && member.role !== filters.role) return false;
@@ -689,7 +701,7 @@ export default function AdminDashboard() {
   // Get unique values for filter dropdowns
   const uniqueDepartments = Array.from(new Set(members.map(m => m.department).filter(Boolean)));
   const uniqueProgrammes = Array.from(new Set(members.map(m => m.programme).filter(Boolean)));
-  const uniqueYears = Array.from(new Set(members.map(m => m.year).filter(Boolean))).sort();
+  const uniqueYears = Array.from(new Set(members.map(m => m.year).filter(Boolean))).sort((a, b) => Number(a) - Number(b));
 
   // Export to CSV function
   const exportToCSV = (data: any[], filename: string) => {
@@ -700,31 +712,8 @@ export default function AdminDashboard() {
 
     setExporting(true);
     try {
-      const headers = Object.keys(data[0]);
-      const csvContent = [
-        headers.join(','),
-        ...data.map(row => 
-          headers.map(header => {
-            const value = row[header];
-            // Escape commas and quotes in CSV
-            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-              return `"${value.replace(/"/g, '""')}"`;
-            }
-            return value || '';
-          }).join(',')
-        )
-      ].join('\n');
+      downloadCsv(data, `${filename}_${toLocalDateKey(new Date())}`);
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
       toast.success(`Exported ${data.length} records to CSV`);
     } catch (error) {
       console.error('Export failed:', error);

@@ -129,12 +129,15 @@ export default function InstructorProfilePage() {
         return;
       }
 
-      try {
-        // Convert to base64 for now (in production, upload to cloud storage)
-        const reader = new FileReader();
-        reader.onloadend = async () => {
+      // Convert to base64 for now (in production, upload to cloud storage)
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        // This callback fires asynchronously outside any surrounding try/catch,
+        // so errors thrown here must be caught locally or they become an
+        // unhandled rejection with no user-facing feedback.
+        try {
           const base64String = reader.result as string;
-          
+
           const token = localStorage.getItem('token');
           if (!token) {
             toast.error('Please login first');
@@ -161,13 +164,18 @@ export default function InstructorProfilePage() {
           setProfile({ ...profile!, profilePicture: base64String });
           setEditedProfile({ ...editedProfile!, profilePicture: base64String });
           toast.success('Profile picture updated!');
-        };
-        
-        reader.readAsDataURL(file);
-      } catch (error) {
-        console.error('Image upload error:', error);
-        toast.error('Failed to upload image');
-      }
+        } catch (error) {
+          console.error('Image upload error:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+        }
+      };
+
+      reader.onerror = () => {
+        console.error('Image read error:', reader.error);
+        toast.error('Failed to read image file');
+      };
+
+      reader.readAsDataURL(file);
     };
     
     input.click();

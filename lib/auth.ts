@@ -1,10 +1,11 @@
 import type { AuthPayload, UserRole, Programme } from '@/types';
+import { setAuthTokenCookie } from './utils';
 
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
 
 function setAuthCookie(token: string) {
-  document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax; Secure=${location.protocol === 'https:'}`;
+  setAuthTokenCookie(token, 60 * 60 * 24 * 7);
 }
 
 function clearAuthCookie() {

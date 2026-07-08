@@ -47,7 +47,8 @@ export default function PendingApprovalsTab({ pendingUsers, onUpdate }: Props) {
 
   const handleDecline = async (userId: string, userName: string) => {
     const reason = prompt("Enter reason for declining (optional):");
-    
+    if (reason === null) return; // user clicked Cancel — abort the decline
+
     try {
       setProcessing(userId);
       await apiCall(`/admin/users/${userId}/decline`, {

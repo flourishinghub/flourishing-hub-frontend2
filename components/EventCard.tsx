@@ -36,7 +36,8 @@ export default function EventCard({
   onClick,
   hideActions = false,
 }: EventCardProps) {
-  const fillPercent = Math.round((event.registeredCount / event.capacity) * 100);
+  const hasCapacityLimit = event.capacity > 0;
+  const fillPercent = hasCapacityLimit ? Math.round((event.registeredCount / event.capacity) * 100) : 0;
 
   return (
     <motion.div
@@ -81,12 +82,12 @@ export default function EventCard({
         {!compact && (
           <div className="flex items-center gap-2 text-xs text-white/50">
             <Users className="w-3.5 h-3.5 text-primary/70" />
-            <span>{event.registeredCount} / {event.capacity} registered</span>
+            <span>{event.registeredCount}{hasCapacityLimit ? ` / ${event.capacity}` : ''} registered</span>
           </div>
         )}
       </div>
 
-      {!compact && (
+      {!compact && hasCapacityLimit && (
         <div className="mb-4">
           <div className="flex justify-between text-[10px] text-white/30 mb-1">
             <span>Capacity</span>

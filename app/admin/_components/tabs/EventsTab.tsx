@@ -1,9 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   BookOpen, Calendar, ChevronDown, Download, Edit2, FileText,
-  Plus, Upload, Users, Wifi, WifiOff, X,
+  Plus, Search, Upload, Users, Wifi, WifiOff, X,
 } from 'lucide-react';
 import VolunteerAssignment from '@/components/VolunteerAssignment';
 import { formatDate, formatTime } from '@/lib/utils';
@@ -59,6 +60,8 @@ export default function EventsTab({
   exporting,
   router,
 }: EventsTabProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+
   return (
     <div className="space-y-6" id="events">
       {eventsLoading && events.length === 0 && (
@@ -70,6 +73,17 @@ export default function EventsTab({
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-lg font-semibold text-white">Event Management</h3>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search workshops, courses, venue..."
+              className="input-dark w-64 pl-9 pr-4 py-2 rounded-xl text-sm"
+            />
+          </div>
+
           {/* Draft filter toggle */}
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -116,9 +130,20 @@ export default function EventsTab({
       <div className="space-y-6">
         {sortedEvents
           .filter(event => {
-            if (draftFilter) return event.status === 'draft';
-            if (!courseFilter) return true;
-            return (event as any).courseId === courseFilter;
+            if (draftFilter && event.status !== 'draft') return false;
+            if (courseFilter && (event as any).courseId !== courseFilter) return false;
+            if (searchQuery.trim()) {
+              const q = searchQuery.trim().toLowerCase();
+              const haystack = [
+                event.title,
+                event.venue,
+                (event as any).course?.name,
+                (event as any).courseModule?.title,
+                (event as any).batch,
+              ].filter(Boolean).join(' ').toLowerCase();
+              if (!haystack.includes(q)) return false;
+            }
+            return true;
           })
           .map((event) => (
           <motion.div
@@ -137,6 +162,21 @@ export default function EventsTab({
                     event.status === 'draft' ? 'bg-yellow-400' : 'bg-gray-500'
                   }`} />
                   <div className="min-w-0 flex-1">
+                    {/* Course / workshop-type label — always shown first so every
+                        card identifies what kind of workshop it is at a glance,
+                        regardless of which flow (bulk import or Create Event)
+                        published it. */}
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <BookOpen className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                      <span className="text-xs font-semibold text-primary/90 uppercase tracking-wide truncate">
+                        {(event as any).course?.name || (
+                          (event as any).registrationMode === 'COMPULSORY' ? 'Compulsory Workshop' :
+                          (event as any).type === 'OPEN_WORKSHOP' || (event as any).registrationMode === 'OPTIONAL_BUNDLE' ? 'Optional / Open Workshop' :
+                          'Workshop'
+                        )}
+                        {(event as any).courseModule && <span className="text-primary/60 normal-case"> › {(event as any).courseModule.title}</span>}
+                      </span>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <h4 className="text-lg font-bold text-white">{event.title}</h4>
                       <span className={statusColors[event.status]}>{event.status}</span>
@@ -148,15 +188,6 @@ export default function EventsTab({
                         {event.mode === 'Online' ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
                         {event.mode}
                       </span>
-                      {(event as any).course && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/10 text-primary text-xs font-medium border border-primary/20">
-                          <BookOpen className="w-3 h-3" />
-                          {(event as any).course.name}
-                          {(event as any).courseModule && (
-                            <span className="text-primary/70"> › {(event as any).courseModule.title}</span>
-                          )}
-                        </span>
-                      )}
                       {(event as any).batch && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-white/5 text-white/50 text-xs border border-white/10">
                           {(event as any).batch}

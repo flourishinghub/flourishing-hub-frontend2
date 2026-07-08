@@ -11,6 +11,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import VolunteerAssignment from '@/components/VolunteerAssignment';
 import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
+import { toLocalDateKey } from '@/lib/dateUtils';
+import { downloadCsv } from '@/lib/csv';
 import toast from 'react-hot-toast';
 
 type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
@@ -54,7 +56,7 @@ const transformEventsData = (rawEvents: any[]) => rawEvents.map((event: any) => 
   id: event.id,
   title: event.title,
   description: event.description,
-  date: new Date(event.startAt).toISOString().split('T')[0],
+  date: toLocalDateKey(new Date(event.startAt)),
   time: new Date(event.startAt).toTimeString().slice(0, 5),
   endTime: event.endAt ? new Date(event.endAt).toTimeString().slice(0, 5) : '',
   venue: event.venue || 'TBD',
@@ -197,8 +199,6 @@ export default function AdminEventsPage() {
         ...(form.courseModuleId && { courseModuleId: form.courseModuleId }),
         ...(form.batch && { batch: form.batch }),
         ...(form.posterUrl && { bannerImageUrl: form.posterUrl }),
-        ...(form.instructorId ? { instructorId: form.instructorId } : {}),
-        ...(form.associateInstructorId ? { associateInstructorId: form.associateInstructorId } : {}),
         ...(form.maxVolunteers && { maxVolunteers: parseInt(form.maxVolunteers) }),
         ...(form.quizLink && {
           modules: [{
@@ -213,10 +213,34 @@ export default function AdminEventsPage() {
       };
 
       if (editingEvent) {
-        await apiCall(`/admin/events/${editingEvent.id}`, { method: 'PUT', body: JSON.stringify(eventData) });
+        const editData: any = {
+          ...eventData,
+          // Always send staff IDs on edit so backend can sync assignments
+          instructorId: form.instructorId || null,
+          associateInstructorId: form.associateInstructorId || null,
+        };
+        await apiCall(`/admin/events/${editingEvent.id}`, { method: 'PUT', body: JSON.stringify(editData) });
         toast.success('Event updated!');
       } else {
-        await apiCall('/admin/events', { method: 'POST', body: JSON.stringify(eventData) });
+        // The create endpoint doesn't process instructorId/associateInstructorId
+        // in the body, so staff must be attached via a follow-up assign-staff call.
+        const createdEvent = await apiCall('/admin/events', { method: 'POST', body: JSON.stringify(eventData) });
+        if (createdEvent?.data?.id) {
+          const staffCalls = [
+            form.instructorId && { userId: form.instructorId, role: 'INSTRUCTOR' },
+            form.associateInstructorId && { userId: form.associateInstructorId, role: 'ASSOCIATE_INSTRUCTOR' },
+          ].filter(Boolean) as { userId: string; role: string }[];
+          for (const s of staffCalls) {
+            try {
+              await apiCall('/admin/assign-staff', {
+                method: 'POST',
+                body: JSON.stringify({ eventId: createdEvent.data.id, userId: s.userId, role: s.role }),
+              });
+            } catch (e: any) {
+              toast.error(`Could not assign ${s.role === 'INSTRUCTOR' ? 'instructor' : 'associate instructor'}: ${e?.message || 'unknown error'}`);
+            }
+          }
+        }
         toast.success(form.status === 'published' ? 'Event published!' : 'Event saved as draft');
       }
 
@@ -258,28 +282,7 @@ export default function AdminEventsPage() {
     if (data.length === 0) { toast.error('No data to export'); return; }
     setExporting(true);
     try {
-      const headers = Object.keys(data[0]);
-      const csvContent = [
-        headers.join(','),
-        ...data.map(row =>
-          headers.map(header => {
-            const value = row[header];
-            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-              return `"${value.replace(/"/g, '""')}"`;
-            }
-            return value || '';
-          }).join(',')
-        )
-      ].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadCsv(data, `${filename}_${toLocalDateKey(new Date())}`);
       toast.success(`Exported ${data.length} records to CSV`);
     } catch (error) {
       toast.error('Export failed. Please try again.');
@@ -288,7 +291,7 @@ export default function AdminEventsPage() {
     }
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey(new Date());
   const sortedEvents = [...events].sort((a, b) => {
     const aIsToday = a.date === today && a.status === 'published';
     const bIsToday = b.date === today && b.status === 'published';

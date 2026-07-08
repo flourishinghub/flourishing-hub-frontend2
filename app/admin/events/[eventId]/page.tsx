@@ -11,6 +11,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import DataTable from '@/components/DataTable';
 import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
+import { downloadCsv } from '@/lib/csv';
 import toast from 'react-hot-toast';
 
 interface EventDetail {
@@ -86,18 +87,9 @@ export default function AdminEventDetailPage() {
       'Registered At': formatDate(r.registeredAt),
       Status: r.status
     }));
-    if (data.length === 0) { toast.error('No registrants to export'); return; }
-    const csv = [
-      Object.keys(data[0]).join(','),
-      ...data.map(row => Object.values(row).join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${event.title}_registrants.csv`;
-    a.click();
+    if (!downloadCsv(data, `${event.title}_registrants`)) {
+      toast.error('No registrants to export');
+    }
   };
 
   const exportAttendees = () => {
@@ -110,18 +102,9 @@ export default function AdminEventDetailPage() {
       Status: a.status,
       'Marked At': formatDate(a.markedAt)
     }));
-    if (data.length === 0) { toast.error('No attendees to export'); return; }
-    const csv = [
-      Object.keys(data[0]).join(','),
-      ...data.map(row => Object.values(row).join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${event.title}_attendees.csv`;
-    a.click();
+    if (!downloadCsv(data, `${event.title}_attendees`)) {
+      toast.error('No attendees to export');
+    }
   };
 
   if (loading) {
@@ -147,6 +130,7 @@ export default function AdminEventDetailPage() {
     rollNo: r.user.studentProfile?.rollNumber || 'N/A',
     department: r.user.studentProfile?.department || 'N/A',
     registeredAt: formatDate(r.registeredAt),
+    rawRegisteredAt: r.registeredAt,
     status: r.status
   }));
 
@@ -162,7 +146,8 @@ export default function AdminEventDetailPage() {
     email: a.user.email,
     rollNo: a.user.studentProfile?.rollNumber || 'N/A',
     status: a.status,
-    markedAt: formatDate(a.markedAt)
+    markedAt: formatDate(a.markedAt),
+    rawMarkedAt: a.markedAt
   }));
 
   return (
@@ -300,7 +285,7 @@ export default function AdminEventDetailPage() {
             { key: 'email', label: 'Email', sortable: true },
             { key: 'rollNo', label: 'Roll No' },
             { key: 'department', label: 'Department' },
-            { key: 'registeredAt', label: 'Registered At', sortable: true },
+            { key: 'registeredAt', label: 'Registered At', sortable: true, sortValue: (row: any) => new Date(row.rawRegisteredAt).getTime() },
             { 
               key: 'status', 
               label: 'Status',
@@ -385,7 +370,7 @@ export default function AdminEventDetailPage() {
                   </span>
                 )
               },
-              { key: 'markedAt', label: 'Marked At', sortable: true },
+              { key: 'markedAt', label: 'Marked At', sortable: true, sortValue: (row: any) => new Date(row.rawMarkedAt).getTime() },
             ]}
             searchKeys={['name', 'email', 'rollNo'] as never[]}
             searchPlaceholder="Search attendees..."

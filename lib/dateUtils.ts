@@ -3,6 +3,17 @@
  * Prevents LIVE event logic from breaking due to timezone mismatches
  */
 
+// Formats a Date using its LOCAL calendar day (not UTC), so it matches how
+// date-fns calendar widgets (which build local-midnight Date objects) key their days.
+// Using `.toISOString()` here would shift the date backwards by one day for any
+// timezone ahead of UTC (e.g. IST) whenever the time component isn't UTC midnight.
+export function toLocalDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function isEventLive(eventStartAt: string, eventEndAt?: string | null, durationHours: number = 2): boolean {
   const eventStart = new Date(eventStartAt);
   const eventEnd = eventEndAt

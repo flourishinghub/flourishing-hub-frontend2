@@ -18,6 +18,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, user: propUser, loading }: DashboardLayoutProps) {
   const [user, setUser] = useState<AuthPayload | null>(propUser || null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const router = useRouter();
 
   const fetchNotifications = useCallback(async () => {
@@ -79,14 +80,24 @@ export default function DashboardLayout({ children, user: propUser, loading }: D
 
   return (
     <div className="flex h-screen overflow-hidden bg-dark">
-      <Sidebar role={user.role} userName={user.name} />
+      <Sidebar
+        role={user.role}
+        userName={user.name}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar user={user} notifications={notifications} onMarkAllRead={markAllNotificationsRead} />
+        <Navbar
+          user={user}
+          notifications={notifications}
+          onMarkAllRead={markAllNotificationsRead}
+          onMenuClick={() => setMobileSidebarOpen(true)}
+        />
         <motion.main
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="flex-1 overflow-y-auto p-6 space-y-6"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6"
         >
           {children}
         </motion.main>

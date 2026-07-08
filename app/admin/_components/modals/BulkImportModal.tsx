@@ -90,6 +90,10 @@ export default function BulkImportModal({
 
   const handlePreview = async () => {
     if (!bulkImportFile) return;
+    if (workshopType === 'compulsory' && !batchCode.trim()) {
+      toast.error('Batch Code is required for a Compulsory Workshop import');
+      return;
+    }
     setPreviewing(true);
     try {
       const formData = new FormData();
@@ -119,6 +123,10 @@ export default function BulkImportModal({
 
   const handleImport = async () => {
     if (!bulkImportFile) return;
+    if (workshopType === 'compulsory' && !batchCode.trim()) {
+      toast.error('Batch Code is required for a Compulsory Workshop import');
+      return;
+    }
     setBulkImporting(true);
     setShowConfirmDialog(false);
     try {
@@ -390,7 +398,9 @@ export default function BulkImportModal({
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Workshop</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Date</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Time</th>
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold">End Time</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Venue</th>
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold">Instructor</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Batch</th>
                             </tr>
                           </thead>
@@ -403,8 +413,12 @@ export default function BulkImportModal({
                                 </td>
                                 <td className="px-3 py-2 text-white/60 whitespace-nowrap">{fmtDate(ev.startAt)}</td>
                                 <td className="px-3 py-2 text-white/60 whitespace-nowrap">{fmtTime(ev.startAt)}</td>
+                                <td className="px-3 py-2 text-white/60 whitespace-nowrap">{ev.endAt ? fmtTime(ev.endAt) : '—'}</td>
                                 <td className="px-3 py-2 text-white/60 max-w-[120px]">
                                   <p className="truncate">{ev.venue || '—'}</p>
+                                </td>
+                                <td className="px-3 py-2 text-white/60 max-w-[120px]">
+                                  <p className="truncate">{ev.instructor || '—'}</p>
                                 </td>
                                 <td className="px-3 py-2">
                                   {ev.batch
@@ -454,7 +468,7 @@ export default function BulkImportModal({
                       <ArrowLeft className="w-4 h-4" /> Back
                     </button>
                     <button
-                      disabled={!bulkImportFile || previewing}
+                      disabled={!bulkImportFile || previewing || (workshopType === 'compulsory' && !batchCode.trim())}
                       onClick={handlePreview}
                       className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >

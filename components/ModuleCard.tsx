@@ -53,7 +53,7 @@ export default function ModuleCard({ module, index = 0 }: ModuleCardProps) {
           </Badge>
         </div>
 
-        {isCompleted && module.marks !== undefined && (
+        {isCompleted && module.marks !== undefined && module.marks !== null && (
           <motion.div
             initial={{ opacity: 0, scaleX: 0 }}
             whileHover={{ opacity: 1, scaleX: 1 }}

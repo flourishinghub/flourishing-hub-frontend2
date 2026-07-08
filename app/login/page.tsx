@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, Sparkles, ArrowRight, Brain, Heart, Shield } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { setAuthTokenCookie } from '@/lib/utils';
 
 const WORDS = ['Mindfulness', 'Resilience', 'Growth', 'Clarity', 'Balance', 'Joy', 'Flourish'];
 const FEATURES = [
@@ -97,7 +98,7 @@ export default function LoginPage() {
         }
         
         // Store in cookie for middleware (hardened version with proper SameSite)
-        document.cookie = `token=${data.data.accessToken}; path=/; max-age=86400; SameSite=Lax; Secure=${location.protocol === 'https:'}`;
+        setAuthTokenCookie(data.data.accessToken, 86400);
         
         toast.success('Welcome back!');
         
@@ -253,17 +254,6 @@ export default function LoginPage() {
                 Create Account
               </Link>
             </p>
-          </div>
-
-          <div className="mt-6 p-4 rounded-xl bg-white/[0.03] border border-white/5">
-            <p className="text-[10px] text-white/30 font-semibold uppercase tracking-wider mb-2">Demo accounts</p>
-            <div className="space-y-1 text-xs text-white/40">
-              <p>student@iitb.ac.in → Student dashboard</p>
-              <p>instructor@iitb.ac.in → Instructor dashboard</p>
-              <p>admin@iitb.ac.in → Admin dashboard</p>
-              <p>volunteer@iitb.ac.in → Volunteer dashboard</p>
-              <p>associate@iitb.ac.in → Associate Instructor</p>
-            </div>
           </div>
         </motion.div>
       </div>

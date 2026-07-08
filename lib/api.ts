@@ -1,5 +1,7 @@
 // API utility functions for better error handling and consistency
 
+import { setAuthTokenCookie } from './utils';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export class ApiError extends Error {
@@ -46,7 +48,7 @@ const refreshAccessToken = async (): Promise<string> => {
       }
 
       localStorage.setItem("token", newAccessToken);
-      document.cookie = `token=${newAccessToken}; path=/; max-age=86400; SameSite=Lax; Secure=${location.protocol === 'https:'}`;
+      setAuthTokenCookie(newAccessToken, 86400);
       return newAccessToken;
     })().finally(() => {
       refreshPromise = null;
@@ -55,7 +57,13 @@ const refreshAccessToken = async (): Promise<string> => {
   return refreshPromise;
 };
 
-export const apiCall = async (endpoint: string, options: RequestInit = {}, _isRetry = false): Promise<any> => {
+// `body` accepts a plain object in addition to RequestInit's usual BodyInit types —
+// apiCall JSON.stringifies it automatically below. Typing it as `RequestInit`
+// alone made every call site passing a plain object body a type error, even
+// though it's the documented/supported way to call this function.
+type ApiCallOptions = Omit<RequestInit, 'body'> & { body?: RequestInit['body'] | Record<string, any> };
+
+export const apiCall = async (endpoint: string, options: ApiCallOptions = {}, _isRetry = false): Promise<any> => {
   if (!API_URL) {
     throw new ApiError(500, 'API URL not configured');
   }
@@ -74,7 +82,7 @@ export const apiCall = async (endpoint: string, options: RequestInit = {}, _isRe
     console.log("⚠️ No token found in localStorage");
   }
 
-  const config: RequestInit = {
+  const config: ApiCallOptions = {
     ...options,
     cache: 'no-store', // never serve stale API data from browser/proxy cache
     headers: {
@@ -83,7 +91,7 @@ export const apiCall = async (endpoint: string, options: RequestInit = {}, _isRe
     },
   };
 
-  // Stringify body if it's an object
+  // Stringify body if it's a plain object (not already a string or a BodyInit like FormData)
   if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
     config.body = JSON.stringify(config.body);
   }
@@ -95,7 +103,7 @@ export const apiCall = async (endpoint: string, options: RequestInit = {}, _isRe
   try {
     console.log(`📡 Fetching: ${API_URL}${endpoint}`);
     const response = await fetch(`${API_URL}${endpoint}`, {
-      ...config,
+      ...(config as RequestInit),
       signal: controller.signal,
     });
 

@@ -10,6 +10,7 @@ import MiniCalendar from '@/components/MiniCalendar';
 import DataTable from '@/components/DataTable';
 import { getCurrentUser, apiCall } from '@/lib/api';
 import { formatDate, renderStars } from '@/lib/utils';
+import { toLocalDateKey } from '@/lib/dateUtils';
 import type { CompletedEvent, AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -424,6 +425,31 @@ export default function VolunteerDashboard() {
         </div>
 
         <div className="space-y-6">
+          <MiniCalendar
+            registeredEventDates={(volunteerData.myCommitments || []).map(c => c.date)}
+            unregisteredEventDates={(volunteerData.availableEvents || [])
+              .filter(e => e.status === 'AVAILABLE')
+              .map(e => e.startAt)}
+            registeredLabel="commitment"
+            unregisteredLabel="available event"
+            events={[
+              ...(volunteerData.myCommitments || []).map(c => ({
+                id: c.eventId,
+                title: c.title,
+                date: toLocalDateKey(new Date(c.date)),
+                time: '',
+                venue: c.venue,
+              })),
+              ...(volunteerData.availableEvents || []).map(e => ({
+                id: e.id,
+                title: e.title,
+                date: toLocalDateKey(new Date(e.startAt)),
+                time: new Date(e.startAt).toTimeString().slice(0, 5),
+                venue: e.venue,
+              })),
+            ]}
+          />
+
           <div className="glass-card rounded-2xl p-5">
             <h3 className="text-sm font-semibold text-white mb-3">Profile</h3>
             <div className="space-y-2.5">

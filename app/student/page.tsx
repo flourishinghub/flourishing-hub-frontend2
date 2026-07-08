@@ -81,6 +81,7 @@ export default function StudentDashboard() {
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [registeredEvents, setRegisteredEvents] = useState<string[]>([]);
+  const [registeringEventIds, setRegisteringEventIds] = useState<string[]>([]);
   const [bundleProgress, setBundleProgress] = useState<any[]>([]);
   const [eventsFilter, setEventsFilter] = useState<'all' | 'registered' | 'unregistered'>('all');
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -316,13 +317,23 @@ export default function StudentDashboard() {
   });
 
   const handleRegister = async (eventId: string) => {
+    if (registeredEvents.includes(eventId)) {
+      toast.error('Already registered for this event');
+      return;
+    }
+    if (registeringEventIds.includes(eventId)) {
+      return; // already in flight — ignore rapid double-clicks
+    }
+
+    const target = events.find(e => e.id === eventId);
+    if (target && target.capacity > 0 && target.registeredCount >= target.capacity) {
+      toast.error('Event is full - registration closed');
+      return;
+    }
+
+    setRegisteringEventIds(prev => [...prev, eventId]);
     try {
       console.log("🔄 Registering for event:", eventId);
-      
-      if (registeredEvents.includes(eventId)) {
-        toast.error('Already registered for this event');
-        return;
-      }
 
       const response = await apiCall('/registrations', {
         method: 'POST',
@@ -334,6 +345,8 @@ export default function StudentDashboard() {
 
       if (response.success) {
         setRegisteredEvents(prev => [...prev, eventId]);
+        // Keep the visible seat count in sync immediately instead of waiting for a reload
+        setEvents(prev => prev.map(e => e.id === eventId ? { ...e, registeredCount: (e.registeredCount || 0) + 1 } : e));
 
         // Course-specific toast
         const registeredEvent = events.find(e => e.id === eventId);
@@ -353,9 +366,17 @@ export default function StudentDashboard() {
         const updatedRegisteredEventIds = getRegisteredEventIds(updatedRegistrations);
         setRegisteredEvents(updatedRegisteredEventIds);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Registration failed:", error);
-      toast.error('Registration failed. Please try again.');
+      if (error?.message?.includes('already registered')) {
+        toast.error('You are already registered for this event');
+      } else if (error?.message?.includes('capacity is full')) {
+        toast.error('Event is full - registration closed');
+      } else {
+        toast.error('Registration failed. Please try again.');
+      }
+    } finally {
+      setRegisteringEventIds(prev => prev.filter(id => id !== eventId));
     }
   };
 
@@ -616,6 +637,8 @@ export default function StudentDashboard() {
                   {filteredSliderEvents.map((event) => {
                     const isReg = registeredEvents.includes(event.id);
                     const isLive = isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt);
+                    const isFull = !isReg && event.capacity > 0 && event.registeredCount >= event.capacity;
+                    const isRegistering = registeringEventIds.includes(event.id);
                     return (
                       <motion.div
                         key={event.id}
@@ -659,14 +682,16 @@ export default function StudentDashboard() {
                           <motion.button
                             whileTap={{ scale: 0.95 }}
                             onClick={(e) => { e.stopPropagation(); handleRegister(event.id); }}
-                            disabled={isReg}
+                            disabled={isReg || isFull || isRegistering}
                             className={`w-full py-1.5 rounded-lg text-[10px] font-semibold border transition-all ${
                               isReg
                                 ? 'bg-primary/15 text-primary border-primary/30 cursor-default'
-                                : 'bg-white/5 text-white/50 border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30'
+                                : isFull
+                                ? 'bg-white/5 text-white/30 border-white/10 cursor-not-allowed'
+                                : 'bg-white/5 text-white/50 border-white/10 hover:bg-primary/10 hover:text-primary hover:border-primary/30 disabled:opacity-60'
                             }`}
                           >
-                            {isReg ? '✓ Registered' : 'Register'}
+                            {isReg ? '✓ Registered' : isFull ? 'Event Full' : isRegistering ? 'Registering…' : 'Register'}
                           </motion.button>
                         </div>
                       </motion.div>

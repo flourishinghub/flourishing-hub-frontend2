@@ -12,9 +12,13 @@ interface PastRecordsTabProps {
     eventName: string;
     courseName: string;
     date: string;
+    rawDate: string;
     venue: string;
     registered: number;
     attended: number;
+    instructorName: string;
+    avgRating: number | null;
+    feedbackCount: number;
   }[];
 }
 
@@ -62,13 +66,22 @@ export default function PastRecordsTab({ eventsLoading, events, pastRecordsData 
         columns={[
           { key: 'eventName', label: 'Event Name', sortable: true },
           { key: 'courseName', label: 'Course Name', sortable: true },
-          { key: 'date', label: 'Date', sortable: true },
+          { key: 'date', label: 'Date', sortable: true, sortValue: (row: any) => new Date(row.rawDate).getTime() },
           { key: 'venue', label: 'Venue' },
+          { key: 'instructorName', label: 'Instructor', sortable: true },
           { key: 'registered', label: 'Registered' },
           { key: 'attended', label: 'Attended' },
+          {
+            key: 'avgRating',
+            label: 'Avg Rating',
+            sortable: true,
+            render: (value: number | null, row: any) => value != null
+              ? <span className="inline-flex items-center gap-1 text-yellow-400 font-semibold">★ {value.toFixed(1)} <span className="text-white/30 font-normal">({row.feedbackCount})</span></span>
+              : <span className="text-white/30">No ratings</span>,
+          },
           { key: 'status', label: 'Status', render: () => <span className="badge-green">Completed</span> },
         ]}
-        searchKeys={['eventName', 'courseName'] as never[]}
+        searchKeys={['eventName', 'courseName', 'instructorName'] as never[]}
         searchPlaceholder="Search records..."
         emptyMessage="No completed events yet"
       />

@@ -41,7 +41,7 @@ export function middleware(request: NextRequest) {
 
   if (PROTECTED_PATHS.some((p) => pathname.startsWith(p))) {
     if (!isLoggedIn) {
-      return NextResponse.redirect(new URL('/signup', request.url));
+      return NextResponse.redirect(new URL('/login', request.url));
     }
     return NextResponse.next();
   }

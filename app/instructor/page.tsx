@@ -11,6 +11,7 @@ import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
 import { apiCall } from '@/lib/api';
 import { formatTime } from '@/lib/utils';
+import { toLocalDateKey } from '@/lib/dateUtils';
 import toast from 'react-hot-toast';
 
 // Custom date format for instructor: "May 6, Wed, 2026"
@@ -35,6 +36,7 @@ interface Session {
   id: string;
   title: string;
   eventTitle: string;
+  courseId?: string | null;
   venue: string;
   startAt: string;
   endAt: string;
@@ -254,20 +256,31 @@ export default function InstructorDashboard() {
   const studentsImpacted = data.studentsImpacted;
   const studentsImpactedDisplay = studentsImpacted != null ? studentsImpacted : '—';
 
+  // "Sessions conducted" = past sessions only (upcoming ones haven't happened yet),
+  // averaged over the months actually elapsed since the earliest one — not a fixed /3.
+  const avgSessionsPerMonth = (() => {
+    const conducted = data.pastSessions;
+    if (conducted.length === 0) return 0;
+    const earliest = Math.min(...conducted.map(s => new Date(s.startAt).getTime()));
+    const monthsElapsed = Math.max(1, (Date.now() - earliest) / (1000 * 60 * 60 * 24 * 30));
+    return Math.round(conducted.length / monthsElapsed);
+  })();
+
   // Filter workshops based on type
   const getFilteredWorkshops = () => {
     let filtered = data.upcomingSessions;
     
-    // Apply workshop type filter
+    // Apply workshop type filter — courseId is the authoritative signal for
+    // "belongs to a course" (same convention as app/admin/page.tsx's
+    // eventStatusFilter), not a substring match on the title.
     if (workshopFilter === 'open') {
-      filtered = filtered.filter(s => s.eventTitle.toLowerCase().includes('open') || 
-                                      !s.eventTitle.toLowerCase().includes('course'));
+      filtered = filtered.filter(s => !s.courseId);
     } else if (workshopFilter === 'course') {
-      filtered = filtered.filter(s => s.eventTitle.toLowerCase().includes('course'));
-      
+      filtered = filtered.filter(s => !!s.courseId);
+
       // Apply course sub-filter
       if (courseFilter !== 'all') {
-        filtered = filtered.filter(s => 
+        filtered = filtered.filter(s =>
           s.eventTitle.toLowerCase().includes(courseFilter)
         );
       }
@@ -284,10 +297,9 @@ export default function InstructorDashboard() {
     
     // Apply workshop type filter
     if (pastWorkshopFilter === 'open') {
-      filtered = filtered.filter(s => s.eventTitle.toLowerCase().includes('open') || 
-                                      !s.eventTitle.toLowerCase().includes('course'));
+      filtered = filtered.filter(s => !s.courseId);
     } else if (pastWorkshopFilter === 'course') {
-      filtered = filtered.filter(s => s.eventTitle.toLowerCase().includes('course'));
+      filtered = filtered.filter(s => !!s.courseId);
     }
     
     // Apply date range filter
@@ -447,7 +459,7 @@ export default function InstructorDashboard() {
           <div className="space-y-2">
             <p className="text-xs text-white/40 uppercase tracking-wider">Avg per Month</p>
             <p className="text-2xl font-bold text-white">
-              {Math.round((data.pastSessions.length + data.upcomingSessions.length) / 3)}
+              {avgSessionsPerMonth}
             </p>
             <p className="text-xs text-white/30">Sessions conducted</p>
           </div>
@@ -724,6 +736,13 @@ export default function InstructorDashboard() {
             unregisteredEventDates={data.pastSessions.map(s => s.startAt)}
             registeredLabel="upcoming session"
             unregisteredLabel="completed session"
+            events={[...data.upcomingSessions, ...data.pastSessions].map(s => ({
+              id: s.id,
+              title: s.title || s.eventTitle,
+              date: toLocalDateKey(new Date(s.startAt)),
+              time: new Date(s.startAt).toTimeString().slice(0, 5),
+              venue: s.venue,
+            }))}
           />
 
           {/* Profile Card */}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Sparkles } from 'lucide-react';
+import { Bell, Menu, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { getInitials } from '@/lib/utils';
 import type { AuthPayload, Notification } from '@/types';
@@ -15,9 +15,10 @@ interface NavbarProps {
   notifications?: Notification[];
   onLogout?: () => void;
   onMarkAllRead?: () => void;
+  onMenuClick?: () => void;
 }
 
-export default function Navbar({ user, notifications = [], onLogout, onMarkAllRead }: NavbarProps) {
+export default function Navbar({ user, notifications = [], onLogout, onMarkAllRead, onMenuClick }: NavbarProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const unread = notifications.filter((n) => !n.read).length;
@@ -46,17 +47,25 @@ export default function Navbar({ user, notifications = [], onLogout, onMarkAllRe
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-[#0F0F1A]/80 backdrop-blur-xl sticky top-0 z-30"
+      className="h-16 flex items-center justify-between px-3 sm:px-6 border-b border-white/5 bg-[#0F0F1A]/80 backdrop-blur-xl sticky top-0 z-30"
     >
-      <Link href={dashboardUrl} className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-sm">
-          <Sparkles className="w-4 h-4 text-white" />
-        </div>
-        <div className="hidden sm:block">
-          <p className="text-sm font-bold text-white leading-none">Flourishing Hub</p>
-          <p className="text-[10px] text-white/40 leading-none mt-0.5">IIT Bombay</p>
-        </div>
-      </Link>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onMenuClick}
+          className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0"
+        >
+          <Menu className="w-4 h-4" />
+        </button>
+        <Link href={dashboardUrl} className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-sm">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <div className="hidden sm:block">
+            <p className="text-sm font-bold text-white leading-none">Flourishing Hub</p>
+            <p className="text-[10px] text-white/40 leading-none mt-0.5">IIT Bombay</p>
+          </div>
+        </Link>
+      </div>
 
       <div className="flex items-center gap-3">
         <ThemeSwitcher />

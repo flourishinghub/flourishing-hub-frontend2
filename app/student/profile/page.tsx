@@ -41,6 +41,11 @@ export default function ProfilePage() {
     designation: '',
     employeeId: '',
   });
+  // Last-known-saved snapshot, used to revert on Cancel. Needed because `user`
+  // (AuthPayload) doesn't carry section/designation at all, so reconstructing
+  // from it — as the old handleCancel did — could never restore those two
+  // fields; a full snapshot fixes that for every field, not just those two.
+  const [savedProfileData, setSavedProfileData] = useState<ProfileData | null>(null);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -75,7 +80,7 @@ export default function ProfilePage() {
         });
         
         // Initialize profile data from backend response
-        setProfileData({
+        const loadedProfileData: ProfileData = {
           name: userData.name || '',
           email: userData.email || '',
           rollNumber: userData.studentProfile?.rollNumber || '',
@@ -87,7 +92,9 @@ export default function ProfilePage() {
           designation: userData.instructorProfile?.designation || '',
           employeeId: userData.employeeId || userData.adminProfile?.employeeId || '',
           profileImageUrl: userData.profileImageUrl || '',
-        });
+        };
+        setProfileData(loadedProfileData);
+        setSavedProfileData(loadedProfileData);
 
         console.log("✅ Profile data loaded successfully");
       } catch (error) {
@@ -113,11 +120,13 @@ export default function ProfilePage() {
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) { toast.error('Photo must be under 2 MB'); return; }
     setUploadingPhoto(true);
-    try {
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      // onload fires asynchronously outside the surrounding try/catch, so
+      // failures must be handled here or they become unhandled rejections
+      // that leave uploadingPhoto stuck true with no error shown.
+      try {
         const dataUrl = ev.target?.result as string;
-        // Save photo URL immediately
         const res = await apiCall('/profile', {
           method: 'PUT',
           body: { name: profileData.name, email: profileData.email, profileImageUrl: dataUrl },
@@ -126,13 +135,17 @@ export default function ProfilePage() {
           setProfileData((prev) => ({ ...prev, profileImageUrl: dataUrl }));
           toast.success('Photo updated!');
         }
+      } catch {
+        toast.error('Failed to update photo');
+      } finally {
         setUploadingPhoto(false);
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      toast.error('Failed to update photo');
+      }
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read image file');
       setUploadingPhoto(false);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
@@ -187,10 +200,25 @@ export default function ProfilePage() {
         };
         
         setUser(updatedUser);
-        
+
         // Update localStorage
         localStorage.setItem("user", JSON.stringify(updatedUser));
-        
+
+        // The values just saved are the new "last known saved" snapshot to revert to on a future Cancel
+        setSavedProfileData({
+          name: updatedUserData.name || '',
+          email: updatedUserData.email || '',
+          rollNumber: updatedUserData.studentProfile?.rollNumber || '',
+          programme: updatedUserData.studentProfile?.programme || '',
+          department: updatedUserData.studentProfile?.department || updatedUserData.instructorProfile?.department || '',
+          yearOfStudy: updatedUserData.studentProfile?.yearOfStudy || undefined,
+          cohort: updatedUserData.studentProfile?.cohort || '',
+          section: updatedUserData.studentProfile?.section || '',
+          designation: updatedUserData.instructorProfile?.designation || '',
+          employeeId: updatedUserData.employeeId || updatedUserData.adminProfile?.employeeId || '',
+          profileImageUrl: updatedUserData.profileImageUrl || '',
+        });
+
         setEditing(false);
         toast.success('Profile updated successfully!');
         console.log("✅ Profile updated successfully");
@@ -204,20 +232,10 @@ export default function ProfilePage() {
   };
 
   const handleCancel = () => {
-    // Reset to original data
-    if (user) {
-      setProfileData({
-        name: user.name || '',
-        email: user.email || '',
-        rollNumber: user.rollNo || '',
-        programme: user.programme || '',
-        department: user.department || '',
-        yearOfStudy: user.year || undefined,
-        cohort: user.batch || '',
-        section: profileData.section, // Keep current section as it's not in user state
-        designation: profileData.designation, // Keep current designation
-        employeeId: user.empId || '',
-      });
+    // Reset to the last-saved snapshot (covers every field, including
+    // section/designation which don't exist on `user` at all)
+    if (savedProfileData) {
+      setProfileData(savedProfileData);
     }
     setEditing(false);
   };

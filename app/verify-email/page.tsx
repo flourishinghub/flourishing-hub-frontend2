@@ -31,12 +31,30 @@ function VerifyEmailContent() {
     }
   }, [resendTimer]);
 
+  const distributeDigits = (startIndex: number, digits: string) => {
+    const newOtp = [...otp];
+    let lastFilledIndex = startIndex;
+    for (let i = 0; i < digits.length && startIndex + i < 6; i += 1) {
+      newOtp[startIndex + i] = digits[i];
+      lastFilledIndex = startIndex + i;
+    }
+    setOtp(newOtp);
+    setError("");
+    inputRefs.current[Math.min(lastFilledIndex + 1, 5)]?.focus();
+  };
+
   const handleChange = (index: number, value: string) => {
-    if (value.length > 1) {
-      value = value[0];
+    if (!/^\d*$/.test(value)) {
+      return;
     }
 
-    if (!/^\d*$/.test(value)) {
+    // Mobile "insert code from Messages" autofill delivers the *entire* OTP
+    // as this single box's value via a normal input/change event (not a
+    // paste event, so handlePaste never sees it). Truncating to value[0]
+    // here silently dropped every digit but the first — distribute them
+    // across the remaining boxes the same way a manual paste would.
+    if (value.length > 1) {
+      distributeDigits(index, value);
       return;
     }
 
@@ -64,15 +82,7 @@ function VerifyEmailContent() {
       return;
     }
 
-    const newOtp = [...otp];
-    for (let i = 0; i < pastedData.length && i < 6; i++) {
-      newOtp[i] = pastedData[i];
-    }
-    setOtp(newOtp);
-
-    // Focus last filled input
-    const lastIndex = Math.min(pastedData.length, 5);
-    inputRefs.current[lastIndex]?.focus();
+    distributeDigits(0, pastedData);
   };
 
   const handleVerify = async () => {
@@ -160,14 +170,17 @@ function VerifyEmailContent() {
             {otp.map((digit, index) => (
               <input
                 key={index}
-                ref={(el) => (inputRefs.current[index] = el)}
+                ref={(el) => { inputRefs.current[index] = el; }}
                 type="text"
                 inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
                 maxLength={1}
                 value={digit}
                 onChange={(e) => handleChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 onPaste={handlePaste}
+                onFocus={(e) => e.target.select()}
                 className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                 disabled={loading}
               />

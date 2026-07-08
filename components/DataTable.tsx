@@ -7,8 +7,18 @@ import { Search, ChevronUp, ChevronDown } from 'lucide-react';
 export interface Column<T> {
   key: keyof T | string;
   label: string;
-  render?: (row: T) => React.ReactNode;
+  // Receives the cell's raw value (row[key]), not the full row — matches how
+  // it's actually invoked below. `row` is passed as a second argument for
+  // callers that need sibling fields. Typed `any` (not `unknown`) so existing
+  // renderers that narrow their param to a specific type (e.g. `(value: string) => ...`)
+  // keep type-checking, since `unknown` would reject those narrower signatures.
+  render?: (value: any, row: T) => React.ReactNode;
   sortable?: boolean;
+  // Optional override for the value used to sort (as opposed to display).
+  // Needed when the column's raw value has already been formatted to a
+  // display string (e.g. a date like "8 Jul 2026"), which would otherwise
+  // sort lexicographically instead of chronologically/numerically.
+  sortValue?: (row: T) => string | number;
 }
 
 interface DataTableProps<T extends Record<string, unknown>> {
@@ -38,8 +48,20 @@ export default function DataTable<T extends Record<string, unknown>>({
     return searchKeys.some((k) => String(row[k] ?? '').toLowerCase().includes(q));
   });
 
+  const sortColumn = sortKey ? columns.find((c) => String(c.key) === sortKey) : undefined;
+
   const sorted = sortKey
     ? [...filtered].sort((a, b) => {
+        if (sortColumn?.sortValue) {
+          const av = sortColumn.sortValue(a);
+          const bv = sortColumn.sortValue(b);
+          if (typeof av === 'number' && typeof bv === 'number') {
+            return sortDir === 'asc' ? av - bv : bv - av;
+          }
+          const as = String(av);
+          const bs = String(bv);
+          return sortDir === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
+        }
         const av = String(a[sortKey] ?? '');
         const bv = String(b[sortKey] ?? '');
         return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
@@ -107,7 +129,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                 >
                   {columns.map((col) => (
                     <td key={String(col.key)} className="px-4 py-3 text-sm text-white/80">
-                      {col.render ? col.render(row[col.key as keyof T] as any) : String(row[col.key as keyof T] ?? '—')}
+                      {col.render ? col.render(row[col.key as keyof T], row) : String(row[col.key as keyof T] ?? '—')}
                     </td>
                   ))}
                 </motion.tr>
