@@ -60,7 +60,7 @@ export default function AnalyticsTab({
 
   /* ── Cascading filter option derivation ── */
   const courseOptions = useMemo(
-    () => Array.from(new Set(analyticsData.map((r) => r.courseName).filter(Boolean))),
+    () => Array.from(new Set(analyticsData.map((r) => r.courseName).filter((c) => c && c !== '—'))),
     [analyticsData],
   );
 
