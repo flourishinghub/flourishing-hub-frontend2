@@ -83,7 +83,10 @@ export default function LoginPage() {
       // Store token and user data (single source of truth)
       if (data.data?.accessToken) {
         localStorage.setItem("token", data.data.accessToken);
-        
+        if (data.data.refreshToken) {
+          localStorage.setItem("refreshToken", data.data.refreshToken);
+        }
+
         // Store user data in localStorage (normalize role to hyphen format)
         if (data.data.user) {
           const userToStore = {

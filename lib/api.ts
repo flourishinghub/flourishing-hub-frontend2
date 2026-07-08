@@ -9,14 +9,60 @@ export class ApiError extends Error {
   }
 }
 
-export const apiCall = async (endpoint: string, options: RequestInit = {}) => {
+const forceLogout = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("user");
+  document.cookie = "token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+  window.location.href = "/login";
+};
+
+// Dedupe concurrent refresh attempts so a burst of 401s only refreshes once
+let refreshPromise: Promise<string> | null = null;
+
+const refreshAccessToken = async (): Promise<string> => {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (!refreshToken) {
+        throw new ApiError(401, "No refresh token");
+      }
+
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        throw new ApiError(401, "Refresh token invalid or expired");
+      }
+
+      const data = await response.json();
+      const newAccessToken = data.data?.accessToken;
+      if (!newAccessToken) {
+        throw new ApiError(401, "Refresh response missing accessToken");
+      }
+
+      localStorage.setItem("token", newAccessToken);
+      document.cookie = `token=${newAccessToken}; path=/; max-age=86400; SameSite=Lax; Secure=${location.protocol === 'https:'}`;
+      return newAccessToken;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+};
+
+export const apiCall = async (endpoint: string, options: RequestInit = {}, _isRetry = false): Promise<any> => {
   if (!API_URL) {
     throw new ApiError(500, 'API URL not configured');
   }
 
   console.log(`🔄 API Call: ${endpoint}`);
   const token = localStorage.getItem("token");
-  
+
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
   };
@@ -57,14 +103,21 @@ export const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     console.log(`✅ Response: ${response.status} ${response.statusText}`);
 
     if (!response.ok) {
-      // Auto logout on 401 (token invalid/expired)
+      // Access token expired: try a silent refresh once, then retry the original request
+      if (response.status === 401 && !_isRetry) {
+        try {
+          console.log("🔄 401 Unauthorized - attempting silent token refresh...");
+          await refreshAccessToken();
+          return apiCall(endpoint, options, true);
+        } catch {
+          console.log("🔄 Refresh failed - clearing auth and redirecting to login...");
+          forceLogout();
+          throw new ApiError(401, "Unauthorized");
+        }
+      }
       if (response.status === 401) {
-        console.log("🔄 401 Unauthorized - Token invalid, clearing auth and redirecting...");
-        console.log("🔄 Current page:", window.location.pathname);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        document.cookie = "token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
-        window.location.href = "/login";
+        console.log("🔄 401 Unauthorized after retry - clearing auth and redirecting...");
+        forceLogout();
         throw new ApiError(401, "Unauthorized");
       }
       let errMsg = `${response.status} ${response.statusText}`;

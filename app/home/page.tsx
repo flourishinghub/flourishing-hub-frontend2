@@ -144,6 +144,7 @@ export default function HomePage() {
         // Only redirect to login if it's an auth error
         if ((error as any)?.status === 401) {
           localStorage.removeItem("token");
+          localStorage.removeItem("refreshToken");
           router.push("/login");
         }
       } finally {
