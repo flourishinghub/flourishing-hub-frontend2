@@ -10,7 +10,7 @@ import {
   Settings, Heart, ChevronLeft, ChevronRight, ClipboardList,
   Sparkles, LogOut, UserCheck, ShieldCheck, FileText, User, Compass, CheckCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { logout } from '@/lib/auth';
 
 interface NavItem { label: string; href: string; icon: React.ElementType }
@@ -63,10 +63,20 @@ interface SidebarProps { role: UserRole; userName: string }
 
 export default function Sidebar({ role, userName }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [currentHash, setCurrentHash] = useState('');
   const pathname = usePathname();
   const router = useRouter();
   const normalizedRole = (role?.toLowerCase().replace(/_/g, '-') as UserRole) ?? 'student';
   const navItems = NAV_ITEMS[normalizedRole] ?? NAV_ITEMS.student;
+
+  // usePathname() never includes the #fragment, so hash-based nav items (e.g. "/student#history")
+  // need the current hash tracked separately to know which one is actually active.
+  useEffect(() => {
+    const updateHash = () => setCurrentHash(window.location.hash);
+    updateHash();
+    window.addEventListener('hashchange', updateHash);
+    return () => window.removeEventListener('hashchange', updateHash);
+  }, []);
 
   const handleLogout = () => { logout(); router.push('/login'); };
 
@@ -117,7 +127,10 @@ export default function Sidebar({ role, userName }: SidebarProps) {
         )}
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const [itemPath, itemHash] = item.href.split('#');
+          const isActive = itemHash
+            ? pathname === itemPath && currentHash === `#${itemHash}`
+            : pathname === item.href;
           return (
             <Link
               key={item.href}

@@ -389,29 +389,30 @@ export default function EventModal({
                 </div>
               </div>
 
-              {/* Extra links (quiz/feedback) if from module or manually entered */}
-              {(form.quizLink !== undefined || form.feedbackLink !== undefined) && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Quiz Link</label>
-                    <input
-                      value={form.quizLink}
-                      onChange={(e) => setForm({ ...form, quizLink: e.target.value })}
-                      placeholder="https://forms.gle/..."
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Feedback Link</label>
-                    <input
-                      value={form.feedbackLink}
-                      onChange={(e) => setForm({ ...form, feedbackLink: e.target.value })}
-                      placeholder="https://forms.gle/..."
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                    />
-                  </div>
+              {/* Quiz/Feedback links — auto-filled when a course module is linked above,
+                  but always editable manually too, so this section is unconditional
+                  (the old `form.quizLink !== undefined` check was dead: emptyForm
+                  initializes both fields to '', so it was never false). */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Quiz Link</label>
+                  <input
+                    value={form.quizLink}
+                    onChange={(e) => setForm({ ...form, quizLink: e.target.value })}
+                    placeholder="https://forms.gle/..."
+                    className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                  />
                 </div>
-              )}
+                <div>
+                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Feedback Link</label>
+                  <input
+                    value={form.feedbackLink}
+                    onChange={(e) => setForm({ ...form, feedbackLink: e.target.value })}
+                    placeholder="https://forms.gle/..."
+                    className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
+                  />
+                </div>
+              </div>
 
               <div>
                 <label className="text-xs font-medium text-white/60 mb-1.5 block">Status</label>

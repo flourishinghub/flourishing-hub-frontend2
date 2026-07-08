@@ -217,16 +217,16 @@ export default function MembersTab({
           { key: 'batchDisplay', label: 'Batch' },
           {
             key: 'role', label: 'Role',
-            render: (row) => {
-              const r = (row as unknown as MemberDirectory & { yearDisplay: string; batchDisplay: string; idDisplay: string });
+            render: (value) => {
+              const role = value as unknown as MemberDirectory['role'];
               return (
                 <span className={
-                  r.role === 'admin' ? 'badge-red' :
-                  r.role === 'instructor' ? 'badge-purple' :
-                  r.role === 'volunteer' ? 'badge-green' :
-                  r.role === 'associate-instructor' ? 'badge-yellow' : 'badge-purple'
+                  role === 'admin' ? 'badge-red' :
+                  role === 'instructor' ? 'badge-purple' :
+                  role === 'volunteer' ? 'badge-green' :
+                  role === 'associate-instructor' ? 'badge-yellow' : 'badge-purple'
                 }>
-                  {r.role}
+                  {role}
                 </span>
               );
             },

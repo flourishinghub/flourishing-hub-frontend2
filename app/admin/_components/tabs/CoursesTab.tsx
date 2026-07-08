@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowLeft, BookOpen, Calendar, ClipboardList, Edit2, Layers, Link2, Plus, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, ClipboardList, Edit2, Layers, Link2, Plus, Star, X } from 'lucide-react';
 import type { Event } from '@/types';
 
 type CourseStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
@@ -89,6 +89,11 @@ export default function CoursesTab({
                       <div className="flex items-center gap-3 mb-1.5">
                         <h4 className="text-base font-bold text-white">{course.name}</h4>
                         <span className={courseStatusColors[course.status as CourseStatus]}>{course.status}</span>
+                        {course.isCompulsory && (
+                          <span className="bg-amber-500/15 text-amber-400 border border-amber-500/30 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                            <Star className="w-3 h-3 fill-amber-400" /> Required
+                          </span>
+                        )}
                       </div>
                       {course.description && (
                         <p className="text-sm text-white/50 mb-2 line-clamp-2">{course.description}</p>

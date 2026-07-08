@@ -68,7 +68,8 @@ export default function VideosPage() {
   const filtered = videos.filter(v =>
     search === '' ||
     v.title.toLowerCase().includes(search.toLowerCase()) ||
-    v.description.toLowerCase().includes(search.toLowerCase())
+    v.description.toLowerCase().includes(search.toLowerCase()) ||
+    v.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (

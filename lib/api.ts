@@ -65,7 +65,7 @@ export const apiCall = async (endpoint: string, options: RequestInit = {}) => {
         localStorage.removeItem("user");
         document.cookie = "token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
         window.location.href = "/login";
-        return;
+        throw new ApiError(401, "Unauthorized");
       }
       let errMsg = `${response.status} ${response.statusText}`;
       try {

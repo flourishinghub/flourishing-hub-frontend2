@@ -42,21 +42,20 @@ export default function ExplorePage() {
         );
 
         // For each optional course, check if student has registrations via course analytics
-        const enrolledIdsArr: string[] = [];
-        for (const course of allCourses) {
-          if (!course.isCompulsory && course._count?.events > 0) {
+        // (fired concurrently instead of one-at-a-time to avoid N sequential round trips)
+        const coursesToCheck = allCourses.filter((c: any) => !c.isCompulsory && c._count?.events > 0);
+        const enrolledResults = await Promise.all(
+          coursesToCheck.map(async (course: any) => {
             try {
               const analyticsRes = await apiCall(`/courses/${course.id}/analytics`);
               const courseEvents: any[] = analyticsRes.data?.moduleStats?.flatMap((m: any) => m.recentWorkshops) || [];
-              if (courseEvents.some((ev: any) => registeredEventIds.has(ev.id))) {
-                enrolledIdsArr.push(course.id);
-              }
+              return courseEvents.some((ev: any) => registeredEventIds.has(ev.id)) ? course.id : null;
             } catch {
-              // silent
+              return null;
             }
-          }
-        }
-        setEnrolledCourseIds(new Set(enrolledIdsArr));
+          })
+        );
+        setEnrolledCourseIds(new Set(enrolledResults.filter((id): id is string => id !== null)));
       } catch (error) {
         console.error('Failed to load courses:', error);
         toast.error('Failed to load course catalog');

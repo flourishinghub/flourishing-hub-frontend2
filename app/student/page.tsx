@@ -8,7 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
 import DataTable from '@/components/DataTable';
-import { getCurrentUser, apiCall } from '@/lib/api';
+import { getCurrentUser, apiCall, transformUserData } from '@/lib/api';
 import { formatDate, formatTime, renderStars } from '@/lib/utils';
 import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
 import { getRegistrationMetrics, getRegisteredEventIds } from '@/lib/registrationUtils';
@@ -122,21 +122,9 @@ export default function StudentDashboard() {
         const userResponse = await getCurrentUser();
         const freshUserData = userResponse?.data?.data || userResponse?.data || userResponse;
         
-        // Transform and set fresh user data
-        const transformedUser = {
-          id: freshUserData.id,
-          email: freshUserData.email,
-          name: freshUserData.name,
-          role: freshUserData.role.toLowerCase(),
-          rollNo: freshUserData.studentProfile?.rollNumber,
-          empId: freshUserData.employeeId || freshUserData.adminProfile?.employeeId,
-          department: freshUserData.studentProfile?.department || freshUserData.instructorProfile?.department,
-          year: freshUserData.studentProfile?.yearOfStudy,
-          batch: freshUserData.studentProfile?.cohort,
-          programme: freshUserData.studentProfile?.programme,
-          iat: Date.now(),
-        };
-        
+        // Transform and set fresh user data (shared helper — null-safe via optional chaining)
+        const transformedUser = transformUserData(freshUserData);
+
         setUser(transformedUser);
         
         // Update localStorage with fresh data

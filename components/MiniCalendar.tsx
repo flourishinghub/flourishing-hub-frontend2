@@ -23,6 +23,11 @@ interface MiniCalendarProps {
   events?: any[]; // Full event data for details
   registrations?: any[]; // Registration data
   onDateSelect?: (date: Date) => void;
+  // Labels for the legend entries corresponding to registeredEventDates / unregisteredEventDates.
+  // Callers that pass non-registration data (e.g. upcoming/past sessions) should override these
+  // so the legend never mislabels the bucket it's describing.
+  registeredLabel?: string;
+  unregisteredLabel?: string;
 }
 
 const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -33,6 +38,8 @@ export default function MiniCalendar({
   events = [],
   registrations = [],
   onDateSelect,
+  registeredLabel = 'registered event',
+  unregisteredLabel = 'upcoming event',
 }: MiniCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -247,13 +254,13 @@ export default function MiniCalendar({
           {registeredCount > 0 && (
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary" />
-              <span className="text-[10px] text-white/40">{registeredCount} registered event{registeredCount !== 1 ? 's' : ''}</span>
+              <span className="text-[10px] text-white/40">{registeredCount} {registeredLabel}{registeredCount !== 1 ? 's' : ''}</span>
             </div>
           )}
           {unregisteredCount > 0 && (
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-accent" />
-              <span className="text-[10px] text-white/40">{unregisteredCount} upcoming event{unregisteredCount !== 1 ? 's' : ''}</span>
+              <span className="text-[10px] text-white/40">{unregisteredCount} {unregisteredLabel}{unregisteredCount !== 1 ? 's' : ''}</span>
             </div>
           )}
         </div>

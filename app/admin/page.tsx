@@ -123,6 +123,15 @@ const emptyForm: EventFormData = {
 
 const ROLES: UserRole[] = ['student', 'instructor', 'admin', 'volunteer', 'associate-instructor'];
 
+// Frontend role values are lowercase/hyphenated; backend enum is uppercase/underscored
+const ROLE_TO_BACKEND: Record<UserRole, string> = {
+  student: 'STUDENT',
+  instructor: 'INSTRUCTOR',
+  admin: 'ADMIN',
+  volunteer: 'VOLUNTEER',
+  'associate-instructor': 'ASSOCIATE_INSTRUCTOR',
+};
+
 const statusColors: Record<EventStatus, string> = {
   published: 'badge-green',
   completed: 'bg-gray-500/15 text-gray-400 border border-gray-500/30 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
@@ -635,13 +644,16 @@ export default function AdminDashboard() {
 
   const handleRoleChange = async (memberId: string, newRole: UserRole) => {
     try {
-      // Note: You'll need to implement a role change API endpoint
-      // For now, just update locally
+      await apiCall(`/users/${memberId}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role: ROLE_TO_BACKEND[newRole] }),
+      });
+      // Only update local state after the API call actually succeeds
       setMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, role: newRole } : m));
       toast.success('Role updated successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating role:', error);
-      toast.error('Failed to update role');
+      toast.error(error?.message || 'Failed to update role');
     }
   };
 

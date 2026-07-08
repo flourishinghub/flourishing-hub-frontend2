@@ -9,6 +9,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
+import { apiCall } from '@/lib/api';
 import { formatTime } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -56,6 +57,7 @@ interface InstructorData {
     title: string;
     startAt: string;
   }>;
+  studentsImpacted?: number;
 }
 
 function SessionCard({ session }: { session: Session }) {
@@ -190,39 +192,34 @@ export default function InstructorDashboard() {
   }, []);
 
   const fetchDashboardData = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login first');
+      window.location.href = '/login';
+      return;
+    }
+
+    // Main dashboard fetch — its own try/catch so a feedback-only failure
+    // never gets mislabeled as "Failed to load dashboard"
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Please login first');
-        window.location.href = '/login';
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instructor/dashboard`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to fetch dashboard data');
-      }
-
+      const result = await apiCall('/instructor/dashboard');
       setData(result.data);
-
-      // Fetch feedback in parallel
-      const fbRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instructor/feedback`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (fbRes.ok) {
-        const fbResult = await fbRes.json();
-        setFeedbackData(fbResult.data || []);
-      }
     } catch (error) {
       console.error('Dashboard fetch error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to load dashboard');
-    } finally {
       setLoading(false);
+      return;
+    }
+    setLoading(false);
+
+    // Feedback fetch — separate try/catch; failure here shouldn't block or
+    // mislabel the (already successfully loaded) main dashboard
+    try {
+      const fbResult = await apiCall('/instructor/feedback');
+      setFeedbackData(fbResult.data || []);
+    } catch (error) {
+      console.error('Feedback fetch error:', error);
+      toast.error('Failed to load feedback data');
     }
   };
 
@@ -252,8 +249,10 @@ export default function InstructorDashboard() {
     return sessionDate.toDateString() === today.toDateString();
   });
 
-  // Students Impacted - count from past sessions attendance
-  const studentsImpacted = data.pastSessions.length * 20; // Will be replaced with actual attendance count
+  // Students Impacted — real distinct-attendee count from backend (see dashboard.service.js).
+  // Falls back to a plain "—" rather than a fabricated number if the backend hasn't provided it yet.
+  const studentsImpacted = data.studentsImpacted;
+  const studentsImpactedDisplay = studentsImpacted != null ? studentsImpacted : '—';
 
   // Filter workshops based on type
   const getFilteredWorkshops = () => {
@@ -390,11 +389,11 @@ export default function InstructorDashboard() {
           icon={Clock} 
           color="yellow" 
         />
-        <StatCard 
-          title="Students Impacted" 
-          value={studentsImpacted} 
-          icon={Users} 
-          color="blue" 
+        <StatCard
+          title="Students Impacted"
+          value={studentsImpactedDisplay}
+          icon={Users}
+          color="blue"
         />
       </div>
 
@@ -405,7 +404,7 @@ export default function InstructorDashboard() {
           {/* Total Users Impacted */}
           <div className="space-y-2">
             <p className="text-xs text-white/40 uppercase tracking-wider">Total Users Impacted</p>
-            <p className="text-2xl font-bold text-white">{studentsImpacted}</p>
+            <p className="text-2xl font-bold text-white">{studentsImpactedDisplay}</p>
             <p className="text-xs text-white/30">Across all workshops</p>
           </div>
           
@@ -723,6 +722,8 @@ export default function InstructorDashboard() {
           <MiniCalendar
             registeredEventDates={data.upcomingSessions.map(s => s.startAt)}
             unregisteredEventDates={data.pastSessions.map(s => s.startAt)}
+            registeredLabel="upcoming session"
+            unregisteredLabel="completed session"
           />
 
           {/* Profile Card */}

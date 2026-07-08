@@ -66,14 +66,14 @@ export default function AnalyticsTab({
 
   const topicOptions = useMemo(() => {
     const base = filterCourse ? analyticsData.filter((r) => r.courseName === filterCourse) : analyticsData;
-    return Array.from(new Set(base.map((r) => r.workshopName).filter(Boolean)));
+    return Array.from(new Set(base.map((r) => r.workshopName).filter((v) => v && v !== '—')));
   }, [analyticsData, filterCourse]);
 
   const instructorOptions = useMemo(() => {
     let base = analyticsData;
     if (filterCourse) base = base.filter((r) => r.courseName === filterCourse);
     if (filterTopic) base = base.filter((r) => r.workshopName === filterTopic);
-    return Array.from(new Set(base.map((r) => r.instructorName).filter(Boolean)));
+    return Array.from(new Set(base.map((r) => r.instructorName).filter((v) => v && v !== '—')));
   }, [analyticsData, filterCourse, filterTopic]);
 
   const batchOptions = useMemo(() => {
@@ -81,7 +81,7 @@ export default function AnalyticsTab({
     if (filterCourse) base = base.filter((r) => r.courseName === filterCourse);
     if (filterTopic) base = base.filter((r) => r.workshopName === filterTopic);
     if (filterInstructor) base = base.filter((r) => r.instructorName === filterInstructor);
-    return Array.from(new Set(base.map((r) => r.batch).filter(Boolean)));
+    return Array.from(new Set(base.map((r) => r.batch).filter((v) => v && v !== '—')));
   }, [analyticsData, filterCourse, filterTopic, filterInstructor]);
 
   const filtered = useMemo(() => {
