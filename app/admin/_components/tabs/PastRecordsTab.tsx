@@ -20,15 +20,21 @@ interface PastRecordsTabProps {
     avgRating: number | null;
     feedbackCount: number;
   }[];
+  courses: any[];
 }
 
-export default function PastRecordsTab({ eventsLoading, events, pastRecordsData }: PastRecordsTabProps) {
+const OPEN_WORKSHOPS_LABEL = 'Open Workshops';
+
+export default function PastRecordsTab({ eventsLoading, events, pastRecordsData, courses }: PastRecordsTabProps) {
   const [courseFilter, setCourseFilter] = useState('');
 
-  const courseOptions = useMemo(
-    () => Array.from(new Set(pastRecordsData.map((r) => r.courseName).filter((c) => c && c !== '—'))),
-    [pastRecordsData]
-  );
+  // Real course names come from the full /courses list (not just past records) so
+  // every course is filterable even before it has any completed events. "Open
+  // Workshops" is always offered too, covering events with no linked course.
+  const courseOptions = useMemo(() => {
+    const realCourseNames = Array.from(new Set(courses.map((c) => c.name).filter(Boolean)));
+    return [...realCourseNames.sort((a, b) => a.localeCompare(b)), OPEN_WORKSHOPS_LABEL];
+  }, [courses]);
 
   const filteredData = courseFilter
     ? pastRecordsData.filter((r) => r.courseName === courseFilter)

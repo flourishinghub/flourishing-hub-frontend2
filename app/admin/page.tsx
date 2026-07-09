@@ -471,7 +471,7 @@ export default function AdminDashboard() {
   // Past records table data — attended count from real DB attendance records
   const pastRecordsData = completedEventsAll.map(e => ({
     eventName: e.title,
-    courseName: (e as any).course?.name || '—',
+    courseName: (e as any).course?.name || 'Open Workshops',
     date: formatDate(e.date),
     rawDate: e.date,
     venue: e.venue,
@@ -1144,7 +1144,7 @@ export default function AdminDashboard() {
           {activeTab === 'event-status' && <EventStatusTab eventsLoading={eventsLoading} events={events} eventStatusFilter={eventStatusFilter} setEventStatusFilter={setEventStatusFilter} overviewFilter={overviewFilter} setOverviewFilter={setOverviewFilter} overviewEvents={overviewEvents} router={router} />}
 
           {/* Past Records Tab */}
-          {activeTab === 'past-records' && <PastRecordsTab eventsLoading={eventsLoading} events={events} pastRecordsData={pastRecordsData} />}
+          {activeTab === 'past-records' && <PastRecordsTab eventsLoading={eventsLoading} events={events} pastRecordsData={pastRecordsData} courses={courses} />}
 
           {/* Analytics Tab */}
           {activeTab === 'analytics' && <AnalyticsTab analyticsLoading={analyticsLoading} analyticsData={analyticsData} selectedAnalyticsEvent={selectedAnalyticsEvent} setSelectedAnalyticsEvent={setSelectedAnalyticsEvent} courses={courses} />}
