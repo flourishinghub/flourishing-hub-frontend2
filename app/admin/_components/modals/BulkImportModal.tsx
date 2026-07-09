@@ -404,6 +404,21 @@ export default function BulkImportModal({
                       </button>
                     </div>
 
+                    {(() => {
+                      const unmatchedCount = previewEvents.filter(
+                        (ev) => (ev.instructor && ev.instructorMatched === false) || (ev.associateInstructorName && ev.associateInstructorMatched === false)
+                      ).length;
+                      if (!unmatchedCount) return null;
+                      return (
+                        <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
+                          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <p className="text-xs text-amber-300">
+                            {unmatchedCount} row{unmatchedCount !== 1 ? 's have' : ' has'} an instructor/associate instructor name that doesn&apos;t match any registered account (highlighted below). The event will still import, but won&apos;t be assigned to that person — check spelling or import anyway and assign manually from Events later.
+                          </p>
+                        </div>
+                      );
+                    })()}
+
                     {/* Preview table */}
                     <div className="rounded-xl border border-white/8 overflow-hidden">
                       <div className="overflow-x-auto max-h-60 overflow-y-auto">
@@ -435,11 +450,21 @@ export default function BulkImportModal({
                                 <td className="px-3 py-2 text-white/60 max-w-[120px]">
                                   <p className="truncate">{ev.venue || '—'}</p>
                                 </td>
-                                <td className="px-3 py-2 text-white/60 max-w-[120px]">
-                                  <p className="truncate">{ev.instructor || '—'}</p>
+                                <td className="px-3 py-2 max-w-[140px]">
+                                  <p className={`truncate ${ev.instructor && ev.instructorMatched === false ? 'text-amber-400' : 'text-white/60'}`}>
+                                    {ev.instructor || '—'}
+                                  </p>
+                                  {ev.instructor && ev.instructorMatched === false && (
+                                    <p className="text-[9px] text-amber-400/70 mt-0.5">⚠ No matching account — won&apos;t be assigned</p>
+                                  )}
                                 </td>
-                                <td className="px-3 py-2 text-white/60 max-w-[120px]">
-                                  <p className="truncate">{ev.associateInstructorName || '—'}</p>
+                                <td className="px-3 py-2 max-w-[140px]">
+                                  <p className={`truncate ${ev.associateInstructorName && ev.associateInstructorMatched === false ? 'text-amber-400' : 'text-white/60'}`}>
+                                    {ev.associateInstructorName || '—'}
+                                  </p>
+                                  {ev.associateInstructorName && ev.associateInstructorMatched === false && (
+                                    <p className="text-[9px] text-amber-400/70 mt-0.5">⚠ No matching account — won&apos;t be assigned</p>
+                                  )}
                                 </td>
                                 <td className="px-3 py-2 text-white/60 max-w-[120px]">
                                   {ev.quizLink
