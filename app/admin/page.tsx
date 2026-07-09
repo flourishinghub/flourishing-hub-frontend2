@@ -1222,7 +1222,7 @@ export default function AdminDashboard() {
       <BulkImportModal showBulkImport={showBulkImport} setShowBulkImport={setShowBulkImport} bulkImportFile={bulkImportFile} setBulkImportFile={setBulkImportFile} bulkImporting={bulkImporting} setBulkImporting={setBulkImporting} courses={courses} />
 
       {/* Batch Upload Modal */}
-      <BatchUploadModal show={showBatchUpload} onClose={() => { setShowBatchUpload(false); refreshMembers(); }} />
+      <BatchUploadModal show={showBatchUpload} onClose={() => { setShowBatchUpload(false); refreshMembers(); }} courses={courses} />
     </DashboardLayout>
   );
 }

@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, FileSpreadsheet, Users, CheckCircle, AlertCircle, Trash2, ChevronDown, Search } from 'lucide-react';
+import { X, Upload, FileSpreadsheet, Users, CheckCircle, AlertCircle, Trash2, ChevronDown, Search, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface BatchUploadModalProps {
   show: boolean;
   onClose: () => void;
+  courses: any[];
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 interface FileResult {
   fileName: string;
-  status: 'pending' | 'uploading' | 'done' | 'error';
+  status: 'pending' | 'uploading' | 'needs-resolution' | 'done' | 'error';
   matched?: number;
   stored?: number;
   skipped?: number;
@@ -22,7 +23,17 @@ interface FileResult {
   errorMessage?: string;
 }
 
-export default function BatchUploadModal({ show, onClose }: BatchUploadModalProps) {
+interface PendingResolution {
+  fileIndex: number;
+  courseName: string;
+  totalRows: number;
+  newCount: number;
+  duplicateCount: number;
+  duplicates: { row: number; name: string | null; email: string | null; rollNumber: string | null; batchCode: string }[];
+}
+
+export default function BatchUploadModal({ show, onClose, courses }: BatchUploadModalProps) {
+  const [selectedCourseId, setSelectedCourseId] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [fileResults, setFileResults] = useState<FileResult[]>([]);
@@ -32,15 +43,25 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
   const [records, setRecords] = useState<any[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [recordSearch, setRecordSearch] = useState('');
+  const [pendingResolution, setPendingResolution] = useState<PendingResolution | null>(null);
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
-    if (!show) { setFiles([]); setFileResults([]); setAllDone(false); setShowRecords(false); setRecords([]); }
-    if (show) fetchStats();
+    if (!show) {
+      setFiles([]); setFileResults([]); setAllDone(false); setShowRecords(false);
+      setRecords([]); setSelectedCourseId(''); setPendingResolution(null);
+    }
   }, [show]);
+
+  useEffect(() => {
+    if (show && selectedCourseId) fetchStats();
+    if (show && selectedCourseId) { setShowRecords(false); setRecords([]); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, selectedCourseId]);
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`${API_BASE}/batch-assignments/stats`, {
+      const res = await fetch(`${API_BASE}/batch-assignments/stats?courseId=${selectedCourseId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       const data = await res.json();
@@ -51,7 +72,7 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
   const fetchRecords = async () => {
     setLoadingRecords(true);
     try {
-      const res = await fetch(`${API_BASE}/batch-assignments/records`, {
+      const res = await fetch(`${API_BASE}/batch-assignments/records?courseId=${selectedCourseId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       const data = await res.json();
@@ -91,41 +112,59 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
     setAllDone(false);
   };
 
-  const handleUploadAll = async () => {
-    if (!files.length) return;
-    setUploading(true);
-    setAllDone(false);
+  const uploadOneFile = async (file: File, resolutionMode?: 'confirm' | 'skip-duplicates') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('courseId', selectedCourseId);
+    if (resolutionMode) formData.append('resolutionMode', resolutionMode);
+    const res = await fetch(`${API_BASE}/batch-assignments/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || 'Upload failed');
+    return data.data;
+  };
 
-    const results: FileResult[] = files.map(f => ({ fileName: f.name, status: 'pending' }));
-    setFileResults([...results]);
-
+  // Uploads files starting at `fromIndex`, pausing (without advancing) the
+  // moment a file comes back needing duplicate resolution — handleResolution
+  // picks the loop back up from the same index once the admin chooses.
+  const runUploadQueue = async (fromIndex: number, results: FileResult[]) => {
     let totalMatched = 0, totalStored = 0;
 
-    for (let i = 0; i < files.length; i++) {
+    for (let i = fromIndex; i < files.length; i++) {
       results[i].status = 'uploading';
       setFileResults([...results]);
 
       try {
-        const formData = new FormData();
-        formData.append('file', files[i]);
-        const res = await fetch(`${API_BASE}/batch-assignments/upload`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-          body: formData
-        });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.message || 'Upload failed');
+        const data = await uploadOneFile(files[i]);
+
+        if (data.requiresResolution) {
+          results[i] = { fileName: files[i].name, status: 'needs-resolution' };
+          setFileResults([...results]);
+          setPendingResolution({
+            fileIndex: i,
+            courseName: data.courseName,
+            totalRows: data.totalRows,
+            newCount: data.newCount,
+            duplicateCount: data.duplicateCount,
+            duplicates: data.duplicates,
+          });
+          setUploading(false);
+          return; // paused — handleResolution resumes from here
+        }
 
         results[i] = {
           fileName: files[i].name,
           status: 'done',
-          matched: data.data.matched,
-          stored: data.data.stored,
-          skipped: data.data.skipped,
-          errors: data.data.errors
+          matched: data.matched,
+          stored: data.stored,
+          skipped: data.skipped,
+          errors: data.errors
         };
-        totalMatched += data.data.matched || 0;
-        totalStored += data.data.stored || 0;
+        totalMatched += data.matched || 0;
+        totalStored += data.stored || 0;
       } catch (err: any) {
         results[i] = { fileName: files[i].name, status: 'error', errorMessage: err.message };
       }
@@ -136,7 +175,46 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
     setUploading(false);
     setAllDone(true);
     fetchStats();
-    toast.success(`${files.length} files processed — ${totalMatched} matched, ${totalStored} stored`, { duration: 5000 });
+    if (totalMatched || totalStored) {
+      toast.success(`${files.length} file(s) processed — ${totalMatched} matched, ${totalStored} stored`, { duration: 5000 });
+    }
+  };
+
+  const handleUploadAll = async () => {
+    if (!files.length) return;
+    if (!selectedCourseId) { toast.error('Select a course first'); return; }
+    setUploading(true);
+    setAllDone(false);
+    const results: FileResult[] = files.map(f => ({ fileName: f.name, status: 'pending' }));
+    setFileResults(results);
+    runUploadQueue(0, results);
+  };
+
+  const handleResolution = async (mode: 'confirm' | 'skip-duplicates') => {
+    if (!pendingResolution) return;
+    const { fileIndex } = pendingResolution;
+    setResolving(true);
+    const results = [...fileResults];
+
+    try {
+      const data = await uploadOneFile(files[fileIndex], mode);
+      results[fileIndex] = {
+        fileName: files[fileIndex].name,
+        status: 'done',
+        matched: data.matched,
+        stored: data.stored,
+        skipped: data.skipped,
+        errors: data.errors
+      };
+    } catch (err: any) {
+      results[fileIndex] = { fileName: files[fileIndex].name, status: 'error', errorMessage: err.message };
+    }
+
+    setFileResults(results);
+    setPendingResolution(null);
+    setResolving(false);
+    setUploading(true);
+    runUploadQueue(fileIndex + 1, results);
   };
 
   const totalMatched = fileResults.reduce((s, r) => s + (r.matched || 0), 0);
@@ -149,7 +227,7 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && !uploading && onClose()}
+          onClick={(e) => e.target === e.currentTarget && !uploading && !pendingResolution && onClose()}
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -164,10 +242,10 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
                 <Users className="w-5 h-5 text-primary" />
                 <div>
                   <h2 className="text-lg font-semibold text-white">Upload Student Batch Data</h2>
-                  <p className="text-xs text-white/40 mt-0.5">Upload multiple files at once</p>
+                  <p className="text-xs text-white/40 mt-0.5">Course-wise — upload multiple files at once</p>
                 </div>
               </div>
-              {!uploading && (
+              {!uploading && !pendingResolution && (
                 <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all">
                   <X className="w-5 h-5" />
                 </button>
@@ -175,6 +253,29 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
             </div>
 
             <div className="overflow-y-auto flex-1 p-6 space-y-5">
+              {/* Course selection — required, drives everything else */}
+              <div>
+                <label className="text-xs font-medium text-white/60 mb-1.5 block">Course <span className="text-amber-400">*</span></label>
+                <select
+                  value={selectedCourseId}
+                  onChange={(e) => setSelectedCourseId(e.target.value)}
+                  disabled={uploading || files.length > 0}
+                  className="filter-select w-full px-4 py-2.5 rounded-xl text-sm bg-white/5 border border-white/10 text-white disabled:opacity-50"
+                >
+                  <option value="">— Select a course —</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.code ? `${c.code} · ${c.name}` : c.name}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-white/30 mt-1">Course name comes from Course Management — students are uploaded against this specific course.</p>
+              </div>
+
+              {!selectedCourseId && (
+                <div className="text-center py-6 text-white/30 text-sm">Select a course above to continue</div>
+              )}
+
+              {selectedCourseId && (
+              <>
               {/* Stats */}
               {stats && (
                 <div className="grid grid-cols-3 gap-3">
@@ -196,7 +297,7 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
               {/* Batch breakdown */}
               {stats?.byBatch?.length > 0 && (
                 <div className="rounded-xl bg-white/[0.03] border border-white/5 p-4">
-                  <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">By Batch</p>
+                  <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">By Batch (this course)</p>
                   <div className="flex flex-wrap gap-2">
                     {stats.byBatch.map((b: any) => (
                       <span key={b.batchCode} className="px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary font-mono">
@@ -214,7 +315,7 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
                     onClick={toggleRecords}
                     className="w-full flex items-center justify-between px-4 py-3 text-xs font-semibold text-white/70 hover:text-white transition-colors"
                   >
-                    <span>View Uploaded Records ({stats.total})</span>
+                    <span>View Records for This Course ({stats.total})</span>
                     <ChevronDown className={`w-4 h-4 transition-transform ${showRecords ? 'rotate-180' : ''}`} />
                   </button>
                   {showRecords && (
@@ -278,11 +379,68 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
                 <p className="text-[10px] text-white/30 mt-1.5">Required: <span className="text-white/50">batch_code</span> + at least one of <span className="text-white/50">email</span> or <span className="text-white/50">roll_no</span></p>
               </div>
 
+              {/* Duplicate resolution panel */}
+              {pendingResolution && (
+                <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-4 space-y-3">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-300">
+                        {pendingResolution.duplicateCount} duplicate student{pendingResolution.duplicateCount !== 1 ? 's' : ''} found in {pendingResolution.courseName}
+                      </p>
+                      <p className="text-xs text-amber-400/70 mt-0.5">
+                        {pendingResolution.newCount} new · {pendingResolution.duplicateCount} already uploaded for this course
+                      </p>
+                    </div>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto rounded-lg border border-white/5">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-[#1A1A2E]">
+                        <tr className="border-b border-white/5">
+                          <th className="px-3 py-2 text-left text-white/40 font-semibold">Row</th>
+                          <th className="px-3 py-2 text-left text-white/40 font-semibold">Name</th>
+                          <th className="px-3 py-2 text-left text-white/40 font-semibold">Email / Roll No</th>
+                          <th className="px-3 py-2 text-left text-white/40 font-semibold">Batch</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingResolution.duplicates.map((d) => (
+                          <tr key={d.row} className="border-b border-white/[0.03]">
+                            <td className="px-3 py-2 text-white/40">{d.row}</td>
+                            <td className="px-3 py-2 text-white">{d.name || '—'}</td>
+                            <td className="px-3 py-2 text-white/60 font-mono">{d.email || d.rollNumber || '—'}</td>
+                            <td className="px-3 py-2 text-white/60 font-mono">{d.batchCode}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      disabled={resolving}
+                      onClick={() => handleResolution('skip-duplicates')}
+                      className="flex-1 py-2 rounded-lg text-xs font-semibold bg-white/5 text-white/70 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50"
+                    >
+                      Remove Duplicates &amp; Upload {pendingResolution.newCount} New
+                    </button>
+                    <button
+                      disabled={resolving}
+                      onClick={() => handleResolution('confirm')}
+                      className="flex-1 py-2 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-all disabled:opacity-50"
+                    >
+                      {resolving ? 'Uploading...' : `Confirm Upload All ${pendingResolution.totalRows}`}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* File drop zone */}
               <div>
                 <div
-                  className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:border-primary/40 transition-all cursor-pointer"
-                  onClick={() => !uploading && document.getElementById('batch-multi-input')?.click()}
+                  className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${
+                    uploading || !!pendingResolution ? 'border-white/5 opacity-50 cursor-not-allowed' : 'border-white/10 hover:border-primary/40 cursor-pointer'
+                  }`}
+                  onClick={() => !uploading && !pendingResolution && document.getElementById('batch-multi-input')?.click()}
                 >
                   <FileSpreadsheet className="w-8 h-8 text-white/20 mx-auto mb-2" />
                   <p className="text-white/50 text-sm font-medium">Click to select files</p>
@@ -292,6 +450,7 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
                     type="file"
                     accept=".csv,.xlsx"
                     multiple
+                    disabled={uploading || !!pendingResolution}
                     className="hidden"
                     onChange={(e) => handleFilesChange(e.target.files)}
                   />
@@ -331,11 +490,15 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
                             {result?.status === 'uploading' && (
                               <p className="text-[10px] text-primary mt-0.5">Uploading...</p>
                             )}
+                            {result?.status === 'needs-resolution' && (
+                              <p className="text-[10px] text-amber-400 mt-0.5">⚠️ Duplicates found — resolve above</p>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             {result?.status === 'done' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
                             {result?.status === 'error' && <AlertCircle className="w-4 h-4 text-red-400" />}
-                            {result?.status === 'uploading' && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
+                            {(result?.status === 'uploading') && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
+                            {result?.status === 'needs-resolution' && <AlertTriangle className="w-4 h-4 text-amber-400" />}
                             {!uploading && !result && (
                               <button onClick={() => removeFile(i)} className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-red-400 transition-all">
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -362,19 +525,21 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
                   )}
                 </div>
               )}
+              </>
+              )}
             </div>
 
             {/* Footer */}
             <div className="px-6 pb-6 pt-2 flex gap-3 shrink-0 border-t border-white/5">
               <button
                 onClick={onClose}
-                disabled={uploading}
+                disabled={uploading || !!pendingResolution}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-40"
               >
                 {allDone ? 'Close' : 'Cancel'}
               </button>
               <button
-                disabled={!files.length || uploading}
+                disabled={!files.length || uploading || !selectedCourseId || !!pendingResolution}
                 onClick={handleUploadAll}
                 className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >

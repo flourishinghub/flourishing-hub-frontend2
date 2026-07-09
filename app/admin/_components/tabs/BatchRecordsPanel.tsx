@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ChevronDown, Filter } from 'lucide-react';
 import { apiCall } from '@/lib/api';
@@ -14,31 +14,41 @@ interface BatchRecordsPanelProps {
 // of the Member Directory (header + collapsible filter panel + DataTable) so
 // admins get the same experience instead of a one-off modal.
 export default function BatchRecordsPanel({ onBack }: BatchRecordsPanelProps) {
+  const [courses, setCourses] = useState<any[]>([]);
   const [records, setRecords] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [courseFilter, setCourseFilter] = useState('');
   const [batchFilter, setBatchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [recordsRes, statsRes] = await Promise.all([
-          apiCall('/batch-assignments/records'),
-          apiCall('/batch-assignments/stats'),
-        ]);
-        setRecords(recordsRes?.data || []);
-        setStats(statsRes?.data || null);
-      } catch {
-        setRecords([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    apiCall('/courses').then((res) => setCourses(res?.data || [])).catch(() => {});
   }, []);
+
+  // Records/stats are fetched scoped to the selected course (server-side
+  // filter) rather than fetching everything and filtering client-side —
+  // course-wise datasets can each be sizeable, so this keeps each request
+  // to just the rows that matter instead of the whole table every time.
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const courseQuery = courseFilter ? `?courseId=${courseFilter}` : '';
+      const [recordsRes, statsRes] = await Promise.all([
+        apiCall(`/batch-assignments/records${courseQuery}`),
+        apiCall(`/batch-assignments/stats${courseQuery}`),
+      ]);
+      setRecords(recordsRes?.data || []);
+      setStats(statsRes?.data || null);
+    } catch {
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [courseFilter]);
+
+  useEffect(() => { load(); }, [load]);
 
   const batchOptions = useMemo(
     () => Array.from(new Set(records.map((r) => r.batchCode).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
@@ -54,7 +64,7 @@ export default function BatchRecordsPanel({ onBack }: BatchRecordsPanelProps) {
     });
   }, [records, batchFilter, statusFilter]);
 
-  const clearFilters = () => { setBatchFilter(''); setStatusFilter(''); };
+  const clearFilters = () => { setCourseFilter(''); setBatchFilter(''); setStatusFilter(''); };
 
   return (
     <div id="batch-records">
@@ -64,7 +74,7 @@ export default function BatchRecordsPanel({ onBack }: BatchRecordsPanelProps) {
             <ArrowLeft className="w-4 h-4" /> Back to Members
           </button>
           <h3 className="text-lg font-semibold text-white">Batch Assignment Records</h3>
-          <p className="text-xs text-white/40 mt-0.5">Every uploaded student — who has signed up vs who is still pending</p>
+          <p className="text-xs text-white/40 mt-0.5">Every uploaded student, by course — who has signed up vs who is still pending</p>
         </div>
         <motion.button
           whileHover={{ scale: 1.02 }}
@@ -103,7 +113,20 @@ export default function BatchRecordsPanel({ onBack }: BatchRecordsPanelProps) {
             exit={{ opacity: 0, height: 0 }}
             className="mb-6 p-4 rounded-xl bg-white/[0.02] border border-white/5"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="text-xs font-medium text-white/60 mb-2 block">Course</label>
+                <select
+                  value={courseFilter}
+                  onChange={(e) => { setCourseFilter(e.target.value); setBatchFilter(''); }}
+                  className="filter-select w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                >
+                  <option value="">All Courses</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.code ? `${c.code} · ${c.name}` : c.name}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="text-xs font-medium text-white/60 mb-2 block">Batch</label>
                 <select
@@ -156,6 +179,11 @@ export default function BatchRecordsPanel({ onBack }: BatchRecordsPanelProps) {
             { key: 'name', label: 'Name', sortable: true },
             { key: 'rollNumber', label: 'Roll No' },
             { key: 'email', label: 'Email' },
+            {
+              key: 'course', label: 'Course', sortable: true,
+              sortValue: (row: any) => row.course?.name || '',
+              render: (value: any) => value?.name || '—',
+            },
             { key: 'batchCode', label: 'Batch', sortable: true },
             { key: 'department', label: 'Department', sortable: true },
             {
