@@ -15,7 +15,7 @@ interface BulkImportModalProps {
   courses: any[];
 }
 
-const TEMPLATE_HEADERS = ['date', 'day', 'time', 'end time', 'venue', 'tutorial/batch', 'instructor', 'workshop name'];
+const TEMPLATE_HEADERS = ['date', 'day', 'start time', 'end time', 'venue', 'tutorial/batch', 'instructor', 'associate instructor', 'quiz link', 'workshop name'];
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -335,7 +335,7 @@ export default function BulkImportModal({
                         <p className="text-[10px] text-white/30 mb-1 uppercase tracking-wider">Columns</p>
                         <p className="text-xs text-white/50 font-mono">{TEMPLATE_HEADERS.join(', ')}</p>
                         <p className="text-[10px] text-white/30 mt-2 uppercase tracking-wider">Format</p>
-                        <p className="text-[10px] text-white/40 mt-0.5">date: YYYY-MM-DD &nbsp;·&nbsp; time / end time: HH:MM AM/PM (e.g. 02:30 PM)</p>
+                        <p className="text-[10px] text-white/40 mt-0.5">date: DD-MM-YYYY &nbsp;·&nbsp; start time / end time: HH:MM AM/PM (e.g. 02:30 PM)</p>
                       </div>
                       <button
                         onClick={downloadTemplate}
@@ -413,10 +413,12 @@ export default function BulkImportModal({
                               <th className="px-3 py-2 text-left text-white/40 font-semibold w-8">#</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Workshop</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Date</th>
-                              <th className="px-3 py-2 text-left text-white/40 font-semibold">Time</th>
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold">Start Time</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">End Time</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Venue</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Instructor</th>
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold">Associate Instructor</th>
+                              <th className="px-3 py-2 text-left text-white/40 font-semibold">Quiz Link</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Batch</th>
                             </tr>
                           </thead>
@@ -435,6 +437,14 @@ export default function BulkImportModal({
                                 </td>
                                 <td className="px-3 py-2 text-white/60 max-w-[120px]">
                                   <p className="truncate">{ev.instructor || '—'}</p>
+                                </td>
+                                <td className="px-3 py-2 text-white/60 max-w-[120px]">
+                                  <p className="truncate">{ev.associateInstructorName || '—'}</p>
+                                </td>
+                                <td className="px-3 py-2 text-white/60 max-w-[120px]">
+                                  {ev.quizLink
+                                    ? <a href={ev.quizLink} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate block" onClick={(e) => e.stopPropagation()}>Link</a>
+                                    : <span className="text-white/20">—</span>}
                                 </td>
                                 <td className="px-3 py-2">
                                   {ev.batch
