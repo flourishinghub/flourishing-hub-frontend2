@@ -75,6 +75,91 @@
   --glass-alpha: 0.04;
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+   Light-theme text/overlay visibility fix
+   The app was built dark-first, so almost every component hardcodes
+   Tailwind's literal white utilities (text-white/60, bg-white/5,
+   border-white/10, ...) instead of the theme-aware --color-fg variable.
+   Those literal whites don't move when data-theme switches to a light
+   variant, so text and subtle panel backgrounds stayed white-on-white —
+   invisible. Rather than touching every component, every such class
+   actually used in the app is redirected here to the same opacity but
+   against --color-fg (dark ink in light themes), which is exactly what
+   .glass-card/.input-dark already do by design. Plain bg-white/border-white
+   (no opacity — toggle knobs, spinners-on-colored-buttons, badge dots)
+   are intentionally left alone; they're meant to stay literal white.
+   ───────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  /* text-white */
+  [data-theme^="light-"] .text-white { color: rgb(var(--color-fg) / 1) !important; }
+  [data-theme^="light-"] .text-white\/10 { color: rgb(var(--color-fg) / 0.1) !important; }
+  [data-theme^="light-"] .text-white\/15 { color: rgb(var(--color-fg) / 0.15) !important; }
+  [data-theme^="light-"] .text-white\/20 { color: rgb(var(--color-fg) / 0.2) !important; }
+  [data-theme^="light-"] .text-white\/25 { color: rgb(var(--color-fg) / 0.25) !important; }
+  [data-theme^="light-"] .text-white\/30 { color: rgb(var(--color-fg) / 0.3) !important; }
+  [data-theme^="light-"] .text-white\/35 { color: rgb(var(--color-fg) / 0.35) !important; }
+  [data-theme^="light-"] .text-white\/40 { color: rgb(var(--color-fg) / 0.4) !important; }
+  [data-theme^="light-"] .text-white\/45 { color: rgb(var(--color-fg) / 0.45) !important; }
+  [data-theme^="light-"] .text-white\/50 { color: rgb(var(--color-fg) / 0.5) !important; }
+  [data-theme^="light-"] .text-white\/55 { color: rgb(var(--color-fg) / 0.55) !important; }
+  [data-theme^="light-"] .text-white\/60 { color: rgb(var(--color-fg) / 0.6) !important; }
+  [data-theme^="light-"] .text-white\/70 { color: rgb(var(--color-fg) / 0.7) !important; }
+  [data-theme^="light-"] .text-white\/75 { color: rgb(var(--color-fg) / 0.75) !important; }
+  [data-theme^="light-"] .text-white\/80 { color: rgb(var(--color-fg) / 0.8) !important; }
+
+  /* bg-white */
+  [data-theme^="light-"] .bg-white\/10 { background-color: rgb(var(--color-fg) / 0.1) !important; }
+  [data-theme^="light-"] .bg-white\/15 { background-color: rgb(var(--color-fg) / 0.15) !important; }
+  [data-theme^="light-"] .bg-white\/20 { background-color: rgb(var(--color-fg) / 0.2) !important; }
+  [data-theme^="light-"] .bg-white\/30 { background-color: rgb(var(--color-fg) / 0.3) !important; }
+  [data-theme^="light-"] .bg-white\/5 { background-color: rgb(var(--color-fg) / 0.05) !important; }
+  [data-theme^="light-"] .bg-white\/8 { background-color: rgb(var(--color-fg) / 0.08) !important; }
+  [data-theme^="light-"] .bg-white\/\[0\.01\] { background-color: rgb(var(--color-fg) / 0.01) !important; }
+  [data-theme^="light-"] .bg-white\/\[0\.02\] { background-color: rgb(var(--color-fg) / 0.02) !important; }
+  [data-theme^="light-"] .bg-white\/\[0\.03\] { background-color: rgb(var(--color-fg) / 0.03) !important; }
+  [data-theme^="light-"] .bg-white\/\[0\.04\] { background-color: rgb(var(--color-fg) / 0.04) !important; }
+  [data-theme^="light-"] .bg-white\/\[0\.05\] { background-color: rgb(var(--color-fg) / 0.05) !important; }
+  [data-theme^="light-"] .bg-white\/\[0\.06\] { background-color: rgb(var(--color-fg) / 0.06) !important; }
+  [data-theme^="light-"] .bg-white\/\[0\.08\] { background-color: rgb(var(--color-fg) / 0.08) !important; }
+
+  /* border-white */
+  [data-theme^="light-"] .border-white\/10 { border-color: rgb(var(--color-fg) / 0.1) !important; }
+  [data-theme^="light-"] .border-white\/15 { border-color: rgb(var(--color-fg) / 0.15) !important; }
+  [data-theme^="light-"] .border-white\/20 { border-color: rgb(var(--color-fg) / 0.2) !important; }
+  [data-theme^="light-"] .border-white\/30 { border-color: rgb(var(--color-fg) / 0.3) !important; }
+  [data-theme^="light-"] .border-white\/40 { border-color: rgb(var(--color-fg) / 0.4) !important; }
+  [data-theme^="light-"] .border-white\/5 { border-color: rgb(var(--color-fg) / 0.05) !important; }
+  [data-theme^="light-"] .border-white\/8 { border-color: rgb(var(--color-fg) / 0.08) !important; }
+  [data-theme^="light-"] .border-white\/\[0\.03\] { border-color: rgb(var(--color-fg) / 0.03) !important; }
+
+  /* hover:text-white */
+  [data-theme^="light-"] .hover\:text-white:hover { color: rgb(var(--color-fg) / 1) !important; }
+  [data-theme^="light-"] .hover\:text-white\/60:hover { color: rgb(var(--color-fg) / 0.6) !important; }
+  [data-theme^="light-"] .hover\:text-white\/70:hover { color: rgb(var(--color-fg) / 0.7) !important; }
+  [data-theme^="light-"] .hover\:text-white\/80:hover { color: rgb(var(--color-fg) / 0.8) !important; }
+
+  /* hover:bg-white */
+  [data-theme^="light-"] .hover\:bg-white\/10:hover { background-color: rgb(var(--color-fg) / 0.1) !important; }
+  [data-theme^="light-"] .hover\:bg-white\/15:hover { background-color: rgb(var(--color-fg) / 0.15) !important; }
+  [data-theme^="light-"] .hover\:bg-white\/20:hover { background-color: rgb(var(--color-fg) / 0.2) !important; }
+  [data-theme^="light-"] .hover\:bg-white\/5:hover { background-color: rgb(var(--color-fg) / 0.05) !important; }
+  [data-theme^="light-"] .hover\:bg-white\/8:hover { background-color: rgb(var(--color-fg) / 0.08) !important; }
+  [data-theme^="light-"] .hover\:bg-white\/\[0\.02\]:hover { background-color: rgb(var(--color-fg) / 0.02) !important; }
+  [data-theme^="light-"] .hover\:bg-white\/\[0\.03\]:hover { background-color: rgb(var(--color-fg) / 0.03) !important; }
+  [data-theme^="light-"] .hover\:bg-white\/\[0\.04\]:hover { background-color: rgb(var(--color-fg) / 0.04) !important; }
+  [data-theme^="light-"] .hover\:bg-white\/\[0\.05\]:hover { background-color: rgb(var(--color-fg) / 0.05) !important; }
+  [data-theme^="light-"] .hover\:bg-white\/\[0\.06\]:hover { background-color: rgb(var(--color-fg) / 0.06) !important; }
+  [data-theme^="light-"] .hover\:bg-white\/\[0\.08\]:hover { background-color: rgb(var(--color-fg) / 0.08) !important; }
+
+  /* hover:border-white */
+  [data-theme^="light-"] .hover\:border-white\/10:hover { border-color: rgb(var(--color-fg) / 0.1) !important; }
+  [data-theme^="light-"] .hover\:border-white\/15:hover { border-color: rgb(var(--color-fg) / 0.15) !important; }
+  [data-theme^="light-"] .hover\:border-white\/20:hover { border-color: rgb(var(--color-fg) / 0.2) !important; }
+
+  /* group-hover:text-white */
+  [data-theme^="light-"] .group:hover .group-hover\:text-white { color: rgb(var(--color-fg) / 1) !important; }
+}
+
 @layer base {
   * {
     @apply border-border;
