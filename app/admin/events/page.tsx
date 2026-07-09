@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Calendar, Plus, X, Edit2, AlertTriangle,
-  Wifi, WifiOff, Check, Download, ChevronDown, BookOpen,
+  Wifi, WifiOff, Check, Download, ChevronDown, BookOpen, Trash2, Square, CheckSquare,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import VolunteerAssignment from '@/components/VolunteerAssignment';
@@ -102,6 +102,10 @@ export default function AdminEventsPage() {
   const [courseFilter, setCourseFilter] = useState<string>('');
   const [exporting, setExporting] = useState(false);
   const [modulesForEvent, setModulesForEvent] = useState<any[]>([]);
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showCourseDeleteModal, setShowCourseDeleteModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -278,6 +282,51 @@ export default function AdminEventsPage() {
     }
   };
 
+  const toggleSelectEvent = (eventId: string) => {
+    setSelectedEventIds((prev) => {
+      const next = new Set(prev);
+      next.has(eventId) ? next.delete(eventId) : next.add(eventId);
+      return next;
+    });
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedEventIds.size === 0) return;
+    try {
+      setBulkDeleting(true);
+      const res = await apiCall('/admin/events/bulk', {
+        method: 'DELETE',
+        body: JSON.stringify({ eventIds: [...selectedEventIds] }),
+      });
+      toast.success(res.message || `${selectedEventIds.size} event(s) deleted successfully!`);
+      setSelectedEventIds(new Set());
+      setShowBulkDeleteModal(false);
+      await refreshEvents();
+    } catch (error) {
+      console.error('Error bulk deleting events:', error);
+      toast.error('Failed to delete selected events');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const confirmDeleteAllInCourse = async () => {
+    if (!courseFilter) return;
+    try {
+      setBulkDeleting(true);
+      const res = await apiCall(`/admin/events/course/${courseFilter}`, { method: 'DELETE' });
+      toast.success(res.message || 'All events in this course deleted successfully!');
+      setSelectedEventIds(new Set());
+      setShowCourseDeleteModal(false);
+      await refreshEvents();
+    } catch (error) {
+      console.error('Error deleting course events:', error);
+      toast.error('Failed to delete events for this course');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const exportToCSV = (data: any[], filename: string) => {
     if (data.length === 0) { toast.error('No data to export'); return; }
     setExporting(true);
@@ -313,17 +362,29 @@ export default function AdminEventsPage() {
       </motion.div>
 
       {/* Header Controls */}
-      <div className="flex items-center justify-between">
-        <select
-          value={courseFilter}
-          onChange={(e) => setCourseFilter(e.target.value)}
-          className="input-dark px-4 py-2 rounded-xl text-sm font-medium"
-        >
-          <option value="">All Workshops</option>
-          {courses.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <select
+            value={courseFilter}
+            onChange={(e) => { setCourseFilter(e.target.value); setSelectedEventIds(new Set()); }}
+            className="input-dark px-4 py-2 rounded-xl text-sm font-medium"
+          >
+            <option value="">All Workshops</option>
+            {courses.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          {courseFilter && (
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setShowCourseDeleteModal(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all"
+            >
+              <Trash2 className="w-4 h-4" /> Delete All in Course ({filteredEvents.length})
+            </motion.button>
+          )}
+        </div>
 
         <motion.button
           whileHover={{ scale: 1.03 }}
@@ -334,6 +395,36 @@ export default function AdminEventsPage() {
           <Plus className="w-4 h-4" /> Create Event
         </motion.button>
       </div>
+
+      {/* Bulk Selection Bar */}
+      {filteredEvents.length > 0 && (
+        <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10">
+          <button
+            onClick={() => {
+              const allSelected = filteredEvents.every((e) => selectedEventIds.has(e.id));
+              setSelectedEventIds(allSelected ? new Set() : new Set(filteredEvents.map((e) => e.id)));
+            }}
+            className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
+          >
+            {filteredEvents.length > 0 && filteredEvents.every((e) => selectedEventIds.has(e.id)) ? (
+              <CheckSquare className="w-4 h-4 text-primary" />
+            ) : (
+              <Square className="w-4 h-4" />
+            )}
+            {selectedEventIds.size > 0 ? `${selectedEventIds.size} selected` : 'Select all'}
+          </button>
+          {selectedEventIds.size > 0 && (
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setShowBulkDeleteModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all"
+            >
+              <Trash2 className="w-4 h-4" /> Delete Selected ({selectedEventIds.size})
+            </motion.button>
+          )}
+        </div>
+      )}
 
       {/* Events List */}
       <div className="space-y-6">
@@ -356,6 +447,16 @@ export default function AdminEventsPage() {
               <div className="p-6 border-b border-white/5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-4 flex-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleSelectEvent(event.id); }}
+                      className="shrink-0 mt-0.5"
+                    >
+                      {selectedEventIds.has(event.id) ? (
+                        <CheckSquare className="w-5 h-5 text-primary" />
+                      ) : (
+                        <Square className="w-5 h-5 text-white/25 hover:text-white/50 transition-colors" />
+                      )}
+                    </button>
                     <div className={`w-3 h-3 rounded-full mt-1 shrink-0 ${
                       event.status === 'published' ? 'bg-emerald-400' :
                       event.status === 'draft' ? 'bg-yellow-400' : 'bg-gray-500'
@@ -945,6 +1046,110 @@ export default function AdminEventsPage() {
                   {deleting ? (
                     <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
                   ) : 'Delete Event'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Delete Selected Confirmation Modal */}
+      <AnimatePresence>
+        {showBulkDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="w-full max-w-sm rounded-2xl border border-white/10 shadow-2xl p-6"
+              style={{ background: '#1A1A2E' }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-white">Delete Selected Events</h3>
+                  <p className="text-xs text-white/50">This action cannot be undone</p>
+                </div>
+              </div>
+              <p className="text-sm text-white/70 mb-6">
+                Are you sure you want to delete <span className="text-white font-medium">{selectedEventIds.size} event{selectedEventIds.size !== 1 ? 's' : ''}</span>? All their registrations, attendance, and feedback will also be removed.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowBulkDeleteModal(false)}
+                  disabled={bulkDeleting}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBulkDelete}
+                  disabled={bulkDeleting}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {bulkDeleting ? (
+                    <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                  ) : `Delete ${selectedEventIds.size} Event${selectedEventIds.size !== 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete All Events in Course Confirmation Modal */}
+      <AnimatePresence>
+        {showCourseDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="w-full max-w-sm rounded-2xl border border-white/10 shadow-2xl p-6"
+              style={{ background: '#1A1A2E' }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-white">Delete All Events in Course</h3>
+                  <p className="text-xs text-white/50">This action cannot be undone</p>
+                </div>
+              </div>
+              <p className="text-sm text-white/70 mb-6">
+                Are you sure you want to delete <span className="text-white font-medium">all {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}</span> under{' '}
+                <span className="text-white font-medium">{courses.find((c) => c.id === courseFilter)?.name || 'this course'}</span>?
+                All their registrations, attendance, and feedback will also be removed.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCourseDeleteModal(false)}
+                  disabled={bulkDeleting}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteAllInCourse}
+                  disabled={bulkDeleting}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {bulkDeleting ? (
+                    <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                  ) : 'Delete All in Course'}
                 </button>
               </div>
             </motion.div>
