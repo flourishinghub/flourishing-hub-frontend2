@@ -11,6 +11,7 @@ import DataTable from '@/components/DataTable';
 import { getCurrentUser, apiCall, transformUserData } from '@/lib/api';
 import { formatDate, formatTime, renderStars } from '@/lib/utils';
 import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
+import { useNowTick } from '@/lib/useNowTick';
 import { getRegistrationMetrics, getRegisteredEventIds } from '@/lib/registrationUtils';
 import type { CompletedEvent, AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
@@ -75,6 +76,7 @@ function CompletedEventCard({ event }: { event: CompletedEvent }) {
 }
 
 export default function StudentDashboard() {
+  useNowTick();
   const [user, setUser] = useState<AuthPayload | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);

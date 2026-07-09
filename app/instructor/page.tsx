@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Video, Users, Clock, CheckCircle, Wifi, WifiOff, MapPin,
-  Calendar, ExternalLink, Bell, User, Filter, Star, MessageSquare
+  Calendar, ExternalLink, Bell, User, Filter, Star, MessageSquare, Zap
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
 import { apiCall } from '@/lib/api';
 import { formatTime } from '@/lib/utils';
-import { toLocalDateKey } from '@/lib/dateUtils';
+import { toLocalDateKey, isEventLive } from '@/lib/dateUtils';
+import { useNowTick } from '@/lib/useNowTick';
 import toast from 'react-hot-toast';
 
 // Custom date format for instructor: "May 6, Wed, 2026"
@@ -65,11 +66,12 @@ interface InstructorData {
 function SessionCard({ session }: { session: Session }) {
   const startDate = new Date(session.startAt);
   const endDate = new Date(session.endAt);
-  
+  const live = isEventLive(session.startAt, session.endAt);
+
   return (
     <motion.div
       whileHover={{ y: -2 }}
-      className="glass-card rounded-2xl p-5"
+      className={`glass-card rounded-2xl p-5 ${live ? 'border-emerald-500/30' : ''}`}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
@@ -78,16 +80,23 @@ function SessionCard({ session }: { session: Session }) {
           </h3>
           <p className="text-xs text-white/50">{session.title}</p>
         </div>
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 ${
-          session.mode === 'online'
-            ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-            : 'bg-teal-500/15 text-teal-400 border-teal-500/30'
-        }`}>
-          {session.mode === 'online' ? <Wifi className="w-2.5 h-2.5" /> : <WifiOff className="w-2.5 h-2.5" />}
-          {session.mode === 'online' ? 'Online' : 'In-Classroom'}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {live && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+            </span>
+          )}
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+            session.mode === 'online'
+              ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+              : 'bg-teal-500/15 text-teal-400 border-teal-500/30'
+          }`}>
+            {session.mode === 'online' ? <Wifi className="w-2.5 h-2.5" /> : <WifiOff className="w-2.5 h-2.5" />}
+            {session.mode === 'online' ? 'Online' : 'In-Classroom'}
+          </span>
+        </div>
       </div>
-      
+
       <div className="space-y-1.5 mb-4">
         <div className="flex items-center gap-2 text-xs text-white/50">
           <Calendar className="w-3.5 h-3.5 text-primary/70" />
@@ -180,6 +189,7 @@ function PastSessionCard({ session }: { session: Session }) {
 }
 
 export default function InstructorDashboard() {
+  useNowTick();
   const [data, setData] = useState<InstructorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedbackData, setFeedbackData] = useState<any[]>([]);
@@ -290,6 +300,12 @@ export default function InstructorDashboard() {
   };
 
   const filteredWorkshops = getFilteredWorkshops();
+
+  // Sessions currently in their live window — upcomingSessions now includes
+  // these too (backend switched from startAt>=now to endAt>=now), so split
+  // them out here rather than double-fetching.
+  const liveSessionsNow = filteredWorkshops.filter((s) => isEventLive(s.startAt, s.endAt));
+  const strictlyUpcoming = filteredWorkshops.filter((s) => !isEventLive(s.startAt, s.endAt));
 
   // Filter past workshops
   const getFilteredPastWorkshops = () => {
@@ -532,15 +548,31 @@ export default function InstructorDashboard() {
       {activeTab === 'workshops' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Live Now */}
+          {liveSessionsNow.length > 0 && (
+            <div className="glass-card rounded-2xl p-6 border-emerald-500/20">
+              <div className="flex items-center gap-2 mb-4">
+                <Zap className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-base font-semibold text-white">Live Now</h2>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {liveSessionsNow.map((session) => (
+                  <SessionCard key={session.id} session={session} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Upcoming Workshops */}
           <div className="glass-card rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-white">Upcoming Workshops</h2>
               <span className="text-xs text-white/40">
-                {filteredWorkshops.length} workshop{filteredWorkshops.length !== 1 ? 's' : ''}
+                {strictlyUpcoming.length} workshop{strictlyUpcoming.length !== 1 ? 's' : ''}
               </span>
             </div>
-            
+
             {/* Filters */}
             <div className="mb-4 space-y-3">
               {/* Workshop Type Filter */}
@@ -626,13 +658,13 @@ export default function InstructorDashboard() {
               )}
             </div>
             
-            {filteredWorkshops.length === 0 ? (
+            {strictlyUpcoming.length === 0 ? (
               <div className="text-center py-12 text-white/30 text-sm">
                 No workshops found for selected filter
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {filteredWorkshops.map((session) => (
+                {strictlyUpcoming.map((session) => (
                   <SessionCard key={session.id} session={session} />
                 ))}
               </div>

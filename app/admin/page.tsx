@@ -13,6 +13,7 @@ import StatCard from '@/components/StatCard';
 import { apiCall, getCurrentUser } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLive, isEventUpcoming, isEventPast, toLocalDateKey } from '@/lib/dateUtils';
+import { useNowTick } from '@/lib/useNowTick';
 import { downloadCsv } from '@/lib/csv';
 import type { Event, MemberDirectory, UserRole } from '@/types';
 import toast from 'react-hot-toast';
@@ -142,6 +143,7 @@ const statusColors: Record<EventStatus, string> = {
 
 // Admin Dashboard Component
 export default function AdminDashboard() {
+  useNowTick();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('new-events');
   const [dashboardData, setDashboardData] = useState<any>(null);
