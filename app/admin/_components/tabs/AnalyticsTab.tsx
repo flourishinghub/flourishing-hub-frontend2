@@ -11,6 +11,7 @@ interface AnalyticsTabProps {
   analyticsData: any[];
   selectedAnalyticsEvent: any | null;
   setSelectedAnalyticsEvent: (event: any | null) => void;
+  courses: any[];
 }
 
 function MetricCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -51,6 +52,7 @@ export default function AnalyticsTab({
   analyticsData,
   selectedAnalyticsEvent,
   setSelectedAnalyticsEvent,
+  courses,
 }: AnalyticsTabProps) {
   const [filterCourse, setFilterCourse] = useState('');
   const [filterTopic, setFilterTopic] = useState('');
@@ -85,10 +87,12 @@ export default function AnalyticsTab({
   const [rollSearch, setRollSearch] = useState('');
   const [rollProfile, setRollProfile] = useState<{ name: string; rollNo: string; records: any[] } | null>(null);
 
-  /* ── Cascading filter option derivation ── */
+  /* ── Cascading filter option derivation ──
+     Course options come from the full /courses list (not just analyticsData) so
+     the dropdown shows every course even before it has any completed workshops. */
   const courseOptions = useMemo(
-    () => Array.from(new Set(analyticsData.map((r) => r.courseName).filter((c) => c && c !== '—'))),
-    [analyticsData],
+    () => Array.from(new Set(courses.map((c) => c.name).filter(Boolean))),
+    [courses],
   );
 
   const topicOptions = useMemo(() => {

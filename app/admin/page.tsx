@@ -1145,7 +1145,7 @@ export default function AdminDashboard() {
           {activeTab === 'past-records' && <PastRecordsTab eventsLoading={eventsLoading} events={events} pastRecordsData={pastRecordsData} />}
 
           {/* Analytics Tab */}
-          {activeTab === 'analytics' && <AnalyticsTab analyticsLoading={analyticsLoading} analyticsData={analyticsData} selectedAnalyticsEvent={selectedAnalyticsEvent} setSelectedAnalyticsEvent={setSelectedAnalyticsEvent} />}
+          {activeTab === 'analytics' && <AnalyticsTab analyticsLoading={analyticsLoading} analyticsData={analyticsData} selectedAnalyticsEvent={selectedAnalyticsEvent} setSelectedAnalyticsEvent={setSelectedAnalyticsEvent} courses={courses} />}
 
           {/* Calendar Tab */}
           {activeTab === 'calendar' && <CalendarTab eventsLoading={eventsLoading} events={events} allEventDates={allEventDates} calendarSelectedDate={calendarSelectedDate} setCalendarSelectedDate={setCalendarSelectedDate} calendarDateEvents={calendarDateEvents} router={router} />}
