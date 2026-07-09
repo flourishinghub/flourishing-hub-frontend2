@@ -528,11 +528,33 @@
   background: rgb(var(--color-card) / 0.6);
   border: 1px solid rgb(var(--color-fg) / 0.08);
   padding: 1rem;
+  width: 100%;
 }
 
 .admin-big-calendar .rbc-calendar {
   color: rgb(var(--color-fg) / 0.85);
   font-family: 'Inter', system-ui, sans-serif;
+  width: 100% !important;
+  height: 85vh !important;
+  min-height: 850px !important;
+}
+
+/* Bigger cells/text throughout — the default library sizing reads as
+   cramped once reskinned, so this bumps date numbers, event chips and
+   row heights up to actually look like a "big calendar". !important
+   guards against Next.js not preserving source import order between
+   this file and react-big-calendar's own stylesheet in the compiled
+   CSS bundle (confirmed via build output that order isn't reliable). */
+.admin-big-calendar .rbc-month-row {
+  min-height: 130px !important;
+}
+
+.admin-big-calendar .rbc-event {
+  padding: 3px 4px !important;
+}
+
+.admin-big-calendar .rbc-event-content {
+  font-size: 12px !important;
 }
 
 /* Month view grid */
@@ -557,11 +579,11 @@
 .admin-big-calendar .rbc-header {
   background: rgb(var(--color-primary) / 0.06);
   color: rgb(var(--color-fg) / 0.5);
-  font-size: 11px;
+  font-size: 13px !important;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 10px 4px;
+  padding: 14px 4px !important;
   border-bottom: 1px solid rgb(var(--color-fg) / 0.08);
 }
 
@@ -579,8 +601,8 @@
 
 .admin-big-calendar .rbc-date-cell {
   color: rgb(var(--color-fg) / 0.6);
-  font-size: 12px;
-  padding: 4px 8px;
+  font-size: 15px !important;
+  padding: 8px 10px !important;
 }
 
 .admin-big-calendar .rbc-date-cell.rbc-now {

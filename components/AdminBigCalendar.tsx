@@ -163,7 +163,7 @@ export default function AdminBigCalendar({ events, router }: AdminBigCalendarPro
           date={date}
           onNavigate={setDate}
           views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
-          style={{ height: 700 }}
+          style={{ height: '85vh', minHeight: 850, width: '100%' }}
           eventPropGetter={eventPropGetter}
           dayPropGetter={dayPropGetter}
           onSelectEvent={(event: any) => setSelectedEvent(event.resource)}
