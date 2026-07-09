@@ -1128,6 +1128,8 @@ export default function AdminDashboard() {
           {activeTab === 'overview' && (
             <OverviewTab
               todaysEvents={todaysEvents}
+              liveEvents={liveEvents}
+              upcomingEvents={upcomingEventsAll}
               dashboardData={dashboardData}
               router={router}
             />
