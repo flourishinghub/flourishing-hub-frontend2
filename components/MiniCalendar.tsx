@@ -31,6 +31,10 @@ interface MiniCalendarProps {
 }
 
 const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 export default function MiniCalendar({
   registeredEventDates = [],
@@ -131,11 +135,41 @@ export default function MiniCalendar({
   const registeredCount = registeredEventDates.length;
   const unregisteredCount = unregisteredEventDates.length;
 
+  const thisYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 7 }, (_, i) => thisYear - 3 + i);
+  const isCurrentMonth = isSameMonth(currentMonth, new Date());
+
+  const jumpToMonth = (monthIndex: number) => setCurrentMonth((d) => new Date(d.getFullYear(), monthIndex, 1));
+  const jumpToYear = (year: number) => setCurrentMonth((d) => new Date(year, d.getMonth(), 1));
+
   return (
     <div className="glass-card rounded-2xl p-5 relative">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-sm font-semibold text-white">{format(currentMonth, 'MMMM yyyy')}</h3>
-        <div className="flex gap-1">
+      <div className="flex items-center justify-between mb-5 gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <select
+            value={currentMonth.getMonth()}
+            onChange={(e) => jumpToMonth(Number(e.target.value))}
+            className="filter-select bg-white/5 hover:bg-white/10 text-white text-sm font-semibold rounded-lg px-2 py-1 border border-white/10 focus:outline-none focus:border-primary/50 transition-colors cursor-pointer"
+          >
+            {MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}
+          </select>
+          <select
+            value={currentMonth.getFullYear()}
+            onChange={(e) => jumpToYear(Number(e.target.value))}
+            className="filter-select bg-white/5 hover:bg-white/10 text-white text-sm font-semibold rounded-lg px-2 py-1 border border-white/10 focus:outline-none focus:border-primary/50 transition-colors cursor-pointer"
+          >
+            {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-1">
+          {!isCurrentMonth && (
+            <button
+              onClick={() => setCurrentMonth(new Date())}
+              className="px-2.5 h-7 flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-semibold transition-all"
+            >
+              Today
+            </button>
+          )}
           <button
             onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1))}
             className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-primary/20 text-white/50 hover:text-white transition-all"
@@ -198,6 +232,42 @@ export default function MiniCalendar({
                   {unreg && <div className={`w-1 h-1 rounded-full ${selected ? 'bg-white' : 'bg-accent'}`} />}
                 </div>
               )}
+              {inMonth && dayEvents.length > 1 && (
+                <span className={`absolute top-0.5 right-0.5 z-10 min-w-[13px] h-[13px] px-0.5 flex items-center justify-center rounded-full text-[8px] font-bold ${
+                  selected ? 'bg-white text-primary' : 'bg-primary text-white'
+                }`}>
+                  {dayEvents.length}
+                </span>
+              )}
+
+              {/* Hover preview — lists up to 3 event titles for the day */}
+              <AnimatePresence>
+                {showTooltip && hoveredDate && isSameDay(hoveredDate, day) && hasEvents && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute z-30 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-xl border border-white/10 bg-[#1A1A2E] shadow-2xl p-2.5 text-left pointer-events-none"
+                  >
+                    <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-1.5">
+                      {format(day, 'MMM d')} · {dayEvents.length} event{dayEvents.length !== 1 ? 's' : ''}
+                    </p>
+                    <div className="space-y-1">
+                      {dayEvents.slice(0, 3).map((ev) => (
+                        <div key={ev.id} className="flex items-center gap-1.5">
+                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${ev.isRegistered ? 'bg-primary' : 'bg-accent'}`} />
+                          <p className="text-[11px] text-white/80 truncate">{ev.title}</p>
+                        </div>
+                      ))}
+                      {dayEvents.length > 3 && (
+                        <p className="text-[10px] text-white/30 pl-3">+{dayEvents.length - 3} more</p>
+                      )}
+                    </div>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-[#1A1A2E] border-r border-b border-white/10 rotate-45 -mt-1" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.button>
           );
         })}
