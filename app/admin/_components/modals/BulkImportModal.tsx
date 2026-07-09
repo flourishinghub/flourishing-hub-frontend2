@@ -145,8 +145,25 @@ export default function BulkImportModal({
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Import failed');
+
+      // The backend returns HTTP success even when every row inside the file
+      // failed to import (it only marks the job status/result as failed) —
+      // check that explicitly instead of trusting `data.success`, otherwise a
+      // fully-failed import silently shows a "success" toast with 0 events created.
+      const jobResult = data.data?.result;
+      const created = jobResult?.created ?? previewEvents.length;
+      const failed = jobResult?.failed ?? 0;
+
+      if (data.data?.status === 'FAILED' || (created === 0 && failed > 0)) {
+        const firstError = jobResult?.errors?.[0]?.message;
+        throw new Error(firstError ? `Import failed: ${firstError}` : 'Import failed — no events were created. Check your file format.');
+      }
+
       const batchMsg = workshopType === 'compulsory' && batchCode.trim() ? ` · Batch ${batchCode.trim()} auto-registered` : workshopType === 'optional' ? ' · Open for student registration (60 seats)' : '';
-      toast.success(`${previewEvents.length} events imported successfully${batchMsg}!`, { duration: 5000 });
+      if (failed > 0) {
+        toast.error(`${failed} row(s) failed to import — ${jobResult?.errors?.[0]?.message || 'check your file'}`, { duration: 6000 });
+      }
+      toast.success(`${created} events imported successfully${batchMsg}!`, { duration: 5000 });
       setShowBulkImport(false);
     } catch (err: any) {
       toast.error(err.message || 'Import failed');
