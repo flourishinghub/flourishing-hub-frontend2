@@ -11,7 +11,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import VolunteerAssignment from '@/components/VolunteerAssignment';
 import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import { toLocalDateKey } from '@/lib/dateUtils';
+import { toLocalDateKey, isEventLive } from '@/lib/dateUtils';
 import { downloadCsv } from '@/lib/csv';
 import toast from 'react-hot-toast';
 
@@ -342,6 +342,10 @@ export default function AdminEventsPage() {
 
   const today = toLocalDateKey(new Date());
   const sortedEvents = [...events].sort((a, b) => {
+    const aLive = a.status === 'published' && isEventLive(`${a.date}T${a.time}`, a.endTime ? `${a.date}T${a.endTime}` : null);
+    const bLive = b.status === 'published' && isEventLive(`${b.date}T${b.time}`, b.endTime ? `${b.date}T${b.endTime}` : null);
+    if (aLive && !bLive) return -1;
+    if (!aLive && bLive) return 1;
     const aIsToday = a.date === today && a.status === 'published';
     const bIsToday = b.date === today && b.status === 'published';
     if (aIsToday && !bIsToday) return -1;

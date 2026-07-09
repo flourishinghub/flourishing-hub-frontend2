@@ -292,6 +292,22 @@ export default function AdminDashboard() {
     } catch {}
   };
 
+  // Re-fetches just the events list — used on initial load and after a bulk
+  // import completes, since the events state otherwise only ever loads once
+  // on mount and a freshly-imported event wouldn't show up anywhere in the
+  // dashboard until a full page reload.
+  const refreshEvents = async () => {
+    setEventsLoading(true);
+    try {
+      const eventsResponse = await apiCall('/admin/events-with-registrations');
+      setEvents(transformEventsData(eventsResponse?.data || []));
+    } catch (error) {
+      console.error('⚠️ Events fetch failed:', error);
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
   // Fetch dashboard data from backend
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -343,14 +359,7 @@ export default function AdminDashboard() {
       }
 
       // Phase 2: Events (slow query) — loads after page is already visible
-      try {
-        const eventsResponse = await apiCall('/admin/events-with-registrations');
-        setEvents(transformEventsData(eventsResponse?.data || []));
-      } catch (error) {
-        console.error('⚠️ Events fetch failed:', error);
-      } finally {
-        setEventsLoading(false);
-      }
+      await refreshEvents();
     };
 
     fetchDashboardData();
@@ -445,8 +454,12 @@ export default function AdminDashboard() {
   const todaysEvents = events.filter((e) => e.status === 'published' && e.date === today);
   const activeEvent = events.find((e) => e.status === 'published') ?? null;
   
-  // Sort events: live/today first, then by date
+  // Sort events: live right now first, then today's, then by date
   const sortedEvents = [...events].sort((a, b) => {
+    const aLive = a.status === 'published' && isEventLive(a.startAt || `${a.date}T${a.time}`, a.endAt);
+    const bLive = b.status === 'published' && isEventLive(b.startAt || `${b.date}T${b.time}`, b.endAt);
+    if (aLive && !bLive) return -1;
+    if (!aLive && bLive) return 1;
     const aIsToday = a.date === today && a.status === 'published';
     const bIsToday = b.date === today && b.status === 'published';
     if (aIsToday && !bIsToday) return -1;
@@ -1212,7 +1225,7 @@ export default function AdminDashboard() {
       <DeleteModal showDeleteModal={showDeleteModal} setShowDeleteModal={setShowDeleteModal} eventToDelete={eventToDelete} setEventToDelete={setEventToDelete} confirmDelete={confirmDelete} deleting={deleting} />
 
       {/* Bulk Import Modal */}
-      <BulkImportModal showBulkImport={showBulkImport} setShowBulkImport={setShowBulkImport} bulkImportFile={bulkImportFile} setBulkImportFile={setBulkImportFile} bulkImporting={bulkImporting} setBulkImporting={setBulkImporting} courses={courses} />
+      <BulkImportModal showBulkImport={showBulkImport} setShowBulkImport={setShowBulkImport} bulkImportFile={bulkImportFile} setBulkImportFile={setBulkImportFile} bulkImporting={bulkImporting} setBulkImporting={setBulkImporting} courses={courses} onImportComplete={refreshEvents} />
 
       {/* Batch Upload Modal */}
       <BatchUploadModal show={showBatchUpload} onClose={() => { setShowBatchUpload(false); refreshMembers(); }} courses={courses} />

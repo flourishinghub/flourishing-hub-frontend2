@@ -13,6 +13,7 @@ interface BulkImportModalProps {
   bulkImporting: boolean;
   setBulkImporting: (v: boolean) => void;
   courses: any[];
+  onImportComplete?: () => void;
 }
 
 const TEMPLATE_HEADERS = ['date', 'day', 'start time', 'end time', 'venue', 'tutorial/batch', 'instructor', 'associate instructor', 'quiz link', 'workshop name'];
@@ -37,6 +38,7 @@ export default function BulkImportModal({
   bulkImporting,
   setBulkImporting,
   courses,
+  onImportComplete,
 }: BulkImportModalProps) {
   const [workshopType, setWorkshopType] = useState<'compulsory' | 'optional' | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState('');
@@ -159,6 +161,7 @@ export default function BulkImportModal({
       }
       toast.success(`${created} events imported successfully${batchMsg}!`, { duration: 5000 });
       setShowBulkImport(false);
+      onImportComplete?.();
     } catch (err: any) {
       toast.error(err.message || 'Import failed');
     } finally {
