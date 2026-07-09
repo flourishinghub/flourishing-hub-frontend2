@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ClipboardList, Download, FileSpreadsheet, Filter, Search, Users } from 'lucide-react';
 import DataTable from '@/components/DataTable';
+import BatchRecordsPanel from './BatchRecordsPanel';
 import type { MemberDirectory } from '@/types';
 
 interface FilterState {
@@ -29,7 +31,6 @@ interface MembersTabProps {
   uniqueProgrammes: string[];
   uniqueYears: (number | undefined)[];
   onBatchUpload: () => void;
-  onViewBatchRecords: () => void;
 }
 
 export default function MembersTab({
@@ -47,8 +48,13 @@ export default function MembersTab({
   uniqueProgrammes,
   uniqueYears,
   onBatchUpload,
-  onViewBatchRecords,
 }: MembersTabProps) {
+  const [showBatchRecords, setShowBatchRecords] = useState(false);
+
+  if (showBatchRecords) {
+    return <BatchRecordsPanel onBack={() => setShowBatchRecords(false)} />;
+  }
+
   return (
     <div id="members">
       <div className="flex items-center justify-between mb-6">
@@ -75,7 +81,7 @@ export default function MembersTab({
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={onViewBatchRecords}
+            onClick={() => setShowBatchRecords(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-sm font-medium"
           >
             <ClipboardList className="w-4 h-4" /> View Batch Records

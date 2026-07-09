@@ -211,7 +211,6 @@ export default function AdminDashboard() {
   const [bulkEnrollEmails, setBulkEnrollEmails] = useState('');
   const [bulkEnrolling, setBulkEnrolling] = useState(false);
   const [showBatchUpload, setShowBatchUpload] = useState(false);
-  const [batchModalShowsRecords, setBatchModalShowsRecords] = useState(false);
 
   const transformEventsData = (rawEvents: any[]) => rawEvents.map((event: any) => ({
     id: event.id,
@@ -1183,7 +1182,7 @@ export default function AdminDashboard() {
           {activeTab === 'courses' && <CoursesTab courses={courses} selectedCourse={selectedCourse} courseModules={courseModules} loadingModules={loadingModules} deletingCourse={deletingCourse} deletingModule={deletingModule} courseStaff={courseStaff} courseStaffLoading={courseStaffLoading} openCreateCourse={openCreateCourse} openEditCourse={openEditCourse} handleDeleteCourse={handleDeleteCourse} handleViewModules={handleViewModules} handleBackToCourses={handleBackToCourses} openCreateModule={openCreateModule} openEditModule={openEditModule} handleDeleteModule={handleDeleteModule} handleCreateWorkshopFromModule={handleCreateWorkshopFromModule} />}
 
           {/* Members Tab */}
-          {activeTab === 'members' && <MembersTab members={members} filteredMembers={filteredMembers} filters={filters} setFilters={setFilters} showFilters={showFilters} setShowFilters={setShowFilters} exporting={exporting} exportAllMembers={exportAllMembers} exportStudents={exportStudents} clearFilters={clearFilters} uniqueDepartments={uniqueDepartments} uniqueProgrammes={uniqueProgrammes} uniqueYears={uniqueYears} onBatchUpload={() => { setBatchModalShowsRecords(false); setShowBatchUpload(true); }} onViewBatchRecords={() => { setBatchModalShowsRecords(true); setShowBatchUpload(true); }} />}
+          {activeTab === 'members' && <MembersTab members={members} filteredMembers={filteredMembers} filters={filters} setFilters={setFilters} showFilters={showFilters} setShowFilters={setShowFilters} exporting={exporting} exportAllMembers={exportAllMembers} exportStudents={exportStudents} clearFilters={clearFilters} uniqueDepartments={uniqueDepartments} uniqueProgrammes={uniqueProgrammes} uniqueYears={uniqueYears} onBatchUpload={() => setShowBatchUpload(true)} />}
 
           {/* Volunteers Tab */}
           {activeTab === 'volunteers' && <VolunteersTab filteredVolunteers={filteredVolunteers} filters={filters} setFilters={setFilters} exporting={exporting} exportVolunteers={exportVolunteers} />}
@@ -1221,7 +1220,7 @@ export default function AdminDashboard() {
       <BulkImportModal showBulkImport={showBulkImport} setShowBulkImport={setShowBulkImport} bulkImportFile={bulkImportFile} setBulkImportFile={setBulkImportFile} bulkImporting={bulkImporting} setBulkImporting={setBulkImporting} courses={courses} />
 
       {/* Batch Upload Modal */}
-      <BatchUploadModal show={showBatchUpload} onClose={() => { setShowBatchUpload(false); refreshMembers(); }} openToRecords={batchModalShowsRecords} />
+      <BatchUploadModal show={showBatchUpload} onClose={() => { setShowBatchUpload(false); refreshMembers(); }} />
     </DashboardLayout>
   );
 }

@@ -8,10 +8,6 @@ import toast from 'react-hot-toast';
 interface BatchUploadModalProps {
   show: boolean;
   onClose: () => void;
-  // When true, opens straight into the records list (matched/pending signup
-  // status) instead of the upload flow — used by the "View Batch Records"
-  // entry point so admins can check status anytime, not just right after uploading.
-  openToRecords?: boolean;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
@@ -26,7 +22,7 @@ interface FileResult {
   errorMessage?: string;
 }
 
-export default function BatchUploadModal({ show, onClose, openToRecords }: BatchUploadModalProps) {
+export default function BatchUploadModal({ show, onClose }: BatchUploadModalProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [fileResults, setFileResults] = useState<FileResult[]>([]);
@@ -39,10 +35,7 @@ export default function BatchUploadModal({ show, onClose, openToRecords }: Batch
 
   useEffect(() => {
     if (!show) { setFiles([]); setFileResults([]); setAllDone(false); setShowRecords(false); setRecords([]); }
-    if (show) {
-      fetchStats();
-      if (openToRecords) { setShowRecords(true); fetchRecords(); }
-    }
+    if (show) fetchStats();
   }, [show]);
 
   const fetchStats = async () => {
@@ -170,12 +163,8 @@ export default function BatchUploadModal({ show, onClose, openToRecords }: Batch
               <div className="flex items-center gap-3">
                 <Users className="w-5 h-5 text-primary" />
                 <div>
-                  <h2 className="text-lg font-semibold text-white">
-                    {openToRecords ? 'Batch Assignment Records' : 'Upload Student Batch Data'}
-                  </h2>
-                  <p className="text-xs text-white/40 mt-0.5">
-                    {openToRecords ? 'Who has signed up vs who is still pending' : 'Upload multiple files at once'}
-                  </p>
+                  <h2 className="text-lg font-semibold text-white">Upload Student Batch Data</h2>
+                  <p className="text-xs text-white/40 mt-0.5">Upload multiple files at once</p>
                 </div>
               </div>
               {!uploading && (
