@@ -61,6 +61,7 @@ export default function EventsTab({
   router,
 }: EventsTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'' | 'COMPULSORY' | 'OPTIONAL_BUNDLE' | 'OPEN'>('');
 
   return (
     <div className="space-y-6" id="events">
@@ -106,6 +107,18 @@ export default function EventsTab({
             ))}
           </select>
 
+          {/* Registration Type Filter */}
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+            className="input-dark px-4 py-2 rounded-xl text-sm font-medium"
+          >
+            <option value="">All Types</option>
+            <option value="COMPULSORY">Compulsory</option>
+            <option value="OPTIONAL_BUNDLE">Optional</option>
+            <option value="OPEN">Open</option>
+          </select>
+
           {/* Bulk Import */}
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -132,6 +145,7 @@ export default function EventsTab({
           .filter(event => {
             if (draftFilter && event.status !== 'draft') return false;
             if (courseFilter && (event as any).courseId !== courseFilter) return false;
+            if (typeFilter && (event as any).registrationMode !== typeFilter) return false;
             if (searchQuery.trim()) {
               const q = searchQuery.trim().toLowerCase();
               const haystack = [
