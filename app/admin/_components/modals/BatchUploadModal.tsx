@@ -8,6 +8,10 @@ import toast from 'react-hot-toast';
 interface BatchUploadModalProps {
   show: boolean;
   onClose: () => void;
+  // When true, opens straight into the records list (matched/pending signup
+  // status) instead of the upload flow — used by the "View Batch Records"
+  // entry point so admins can check status anytime, not just right after uploading.
+  openToRecords?: boolean;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
@@ -22,7 +26,7 @@ interface FileResult {
   errorMessage?: string;
 }
 
-export default function BatchUploadModal({ show, onClose }: BatchUploadModalProps) {
+export default function BatchUploadModal({ show, onClose, openToRecords }: BatchUploadModalProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [fileResults, setFileResults] = useState<FileResult[]>([]);
@@ -35,7 +39,10 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
 
   useEffect(() => {
     if (!show) { setFiles([]); setFileResults([]); setAllDone(false); setShowRecords(false); setRecords([]); }
-    if (show) fetchStats();
+    if (show) {
+      fetchStats();
+      if (openToRecords) { setShowRecords(true); fetchRecords(); }
+    }
   }, [show]);
 
   const fetchStats = async () => {
@@ -163,8 +170,12 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
               <div className="flex items-center gap-3">
                 <Users className="w-5 h-5 text-primary" />
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Upload Student Batch Data</h2>
-                  <p className="text-xs text-white/40 mt-0.5">Upload multiple files at once</p>
+                  <h2 className="text-lg font-semibold text-white">
+                    {openToRecords ? 'Batch Assignment Records' : 'Upload Student Batch Data'}
+                  </h2>
+                  <p className="text-xs text-white/40 mt-0.5">
+                    {openToRecords ? 'Who has signed up vs who is still pending' : 'Upload multiple files at once'}
+                  </p>
                 </div>
               </div>
               {!uploading && (
@@ -239,23 +250,25 @@ export default function BatchUploadModal({ show, onClose }: BatchUploadModalProp
                               <tr className="border-b border-white/5">
                                 <th className="px-3 py-2 text-left text-white/40 font-semibold">Name</th>
                                 <th className="px-3 py-2 text-left text-white/40 font-semibold">Roll No</th>
+                                <th className="px-3 py-2 text-left text-white/40 font-semibold">Email</th>
                                 <th className="px-3 py-2 text-left text-white/40 font-semibold">Batch</th>
                                 <th className="px-3 py-2 text-left text-white/40 font-semibold">Department</th>
-                                <th className="px-3 py-2 text-left text-white/40 font-semibold">Status</th>
+                                <th className="px-3 py-2 text-left text-white/40 font-semibold">Signup Status</th>
                               </tr>
                             </thead>
                             <tbody>
                               {filteredRecords.length === 0 ? (
-                                <tr><td colSpan={5} className="text-center py-6 text-white/30">No records found</td></tr>
+                                <tr><td colSpan={6} className="text-center py-6 text-white/30">No records found</td></tr>
                               ) : filteredRecords.map((r: any) => (
                                 <tr key={r.id} className="border-b border-white/[0.03]">
                                   <td className="px-3 py-2 text-white">{r.name || '—'}</td>
                                   <td className="px-3 py-2 text-white/60 font-mono">{r.rollNumber || '—'}</td>
+                                  <td className="px-3 py-2 text-white/60">{r.email || '—'}</td>
                                   <td className="px-3 py-2 text-white/60 font-mono">{r.batchCode}</td>
                                   <td className="px-3 py-2 text-white/60">{r.department || '—'}</td>
                                   <td className="px-3 py-2">
                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${r.isMatched ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
-                                      {r.isMatched ? 'Matched' : 'Pending Signup'}
+                                      {r.isMatched ? 'Signed Up' : 'Not Signed Up Yet'}
                                     </span>
                                   </td>
                                 </tr>
