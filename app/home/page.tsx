@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import {
   Sparkles, Calendar, ArrowRight, Star, MapPin, Clock, Users, Zap,
-  BookOpen, GraduationCap, CheckCircle2, XCircle, Radio,
+  BookOpen, GraduationCap, CheckCircle2, XCircle, Radio, Hash, Building2, ExternalLink,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getRolePath, formatDate, formatTime } from '@/lib/utils';
@@ -226,16 +226,19 @@ export default function HomePage() {
   const courseCode = (c: any) => c.code || `FH-${String(c.id).slice(-5).toUpperCase()}`;
   const registeredCourses = courses
     .map((c: any) => {
+      // Only workshops this student is actually registered for — every
+      // workshop belonging to the course used to be listed (and shown as
+      // "Not Attended") even ones the student never registered for, just
+      // because the course itself had at least one registration.
       const workshops = events
-        .filter((e: any) => e.courseId === c.id)
+        .filter((e: any) => e.courseId === c.id && registeredEventIds.has(e.id))
         .map((e: any) => ({
           ...e,
           wStatus: workshopStatus(e),
-          registered: registeredEventIds.has(e.id),
+          registered: true,
           attended: attendedEventIds.has(e.id),
         }));
-      const registeredCount = workshops.filter((w: any) => w.registered).length;
-      return { ...c, workshops, registeredCount };
+      return { ...c, workshops, registeredCount: workshops.length };
     })
     .filter((c: any) => c.registeredCount > 0);
 
@@ -363,27 +366,48 @@ export default function HomePage() {
             {/* Portfolio */}
             <div>
               <h2 className="text-sm font-semibold text-white/70 uppercase tracking-wider mb-4">Portfolio</h2>
-              <div className="glass-card rounded-2xl p-6 flex flex-col items-center text-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold shrink-0">
-                  {user.name?.charAt(0)?.toUpperCase() || 'S'}
-                </div>
-                <div className="flex flex-col gap-3 w-full max-w-xs">
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">Name</p>
-                    <p className="text-white font-semibold">{user.name}</p>
+              <div className="glass-card rounded-2xl p-6 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
+                <div className="relative flex items-center gap-5 flex-wrap sm:flex-nowrap">
+                  <div className="relative shrink-0">
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-3xl font-bold shadow-glow-sm">
+                      {user.name?.charAt(0)?.toUpperCase() || 'S'}
+                    </div>
+                    <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-400 border-2 border-[#1A1A2E] flex items-center justify-center">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">Roll No</p>
-                    <p className="text-white font-semibold">{user.rollNo || '—'}</p>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-lg font-bold text-white truncate">{user.name}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{user.email}</p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
+                        <Hash className="w-3 h-3 text-primary" /> {user.rollNo || '—'}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
+                        <GraduationCap className="w-3 h-3 text-primary" />
+                        {user.programme || '—'}{user.year ? ` · Yr ${user.year}` : ''}
+                      </span>
+                      {user.department && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
+                          <Building2 className="w-3 h-3 text-primary" /> {user.department}
+                        </span>
+                      )}
+                      {user.batch && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 font-mono">
+                          {user.batch}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5 flex items-center justify-center gap-1">
-                      <GraduationCap className="w-3 h-3" /> Degree
-                    </p>
-                    <p className="text-white font-semibold">
-                      {user.programme || '—'}{user.year ? ` · Year ${user.year}` : ''}
-                    </p>
-                  </div>
+
+                  <Link
+                    href="/student/profile"
+                    className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/25 text-xs font-semibold hover:bg-primary/20 transition-colors"
+                  >
+                    View Profile <ExternalLink className="w-3 h-3" />
+                  </Link>
                 </div>
               </div>
             </div>
