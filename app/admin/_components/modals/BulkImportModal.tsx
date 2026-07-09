@@ -90,10 +90,6 @@ export default function BulkImportModal({
 
   const handlePreview = async () => {
     if (!bulkImportFile) return;
-    if (workshopType === 'compulsory' && !batchCode.trim()) {
-      toast.error('Batch Code is required for a Compulsory Workshop import');
-      return;
-    }
     setPreviewing(true);
     try {
       const formData = new FormData();
@@ -123,10 +119,6 @@ export default function BulkImportModal({
 
   const handleImport = async () => {
     if (!bulkImportFile) return;
-    if (workshopType === 'compulsory' && !batchCode.trim()) {
-      toast.error('Batch Code is required for a Compulsory Workshop import');
-      return;
-    }
     setBulkImporting(true);
     setShowConfirmDialog(false);
     try {
@@ -159,7 +151,9 @@ export default function BulkImportModal({
         throw new Error(firstError ? `Import failed: ${firstError}` : 'Import failed — no events were created. Check your file format.');
       }
 
-      const batchMsg = workshopType === 'compulsory' && batchCode.trim() ? ` · Batch ${batchCode.trim()} auto-registered` : workshopType === 'optional' ? ' · Open for student registration (60 seats)' : '';
+      const batchMsg = workshopType === 'compulsory'
+        ? (batchCode.trim() ? ` · Batch ${batchCode.trim()} auto-registered` : ' · Students auto-registered per row\'s batch')
+        : workshopType === 'optional' ? ' · Open for student registration (60 seats)' : '';
       if (failed > 0) {
         toast.error(`${failed} row(s) failed to import — ${jobResult?.errors?.[0]?.message || 'check your file'}`, { duration: 6000 });
       }
@@ -310,17 +304,20 @@ export default function BulkImportModal({
                       {workshopType === 'compulsory' && (
                         <div>
                           <label className="text-xs font-medium text-white/60 mb-1.5 block">
-                            Batch Code <span className="text-amber-400">*</span>
+                            Batch Code <span className="text-white/30 font-normal">(optional)</span>
                           </label>
                           <input
                             type="text"
                             value={batchCode}
                             onChange={(e) => setBatchCode(e.target.value)}
-                            placeholder="e.g. d1t1, d1t2"
+                            placeholder="Leave blank to auto-detect from the file"
                             className="input-dark w-full px-4 py-2.5 rounded-xl text-sm font-mono"
                           />
                           <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
-                            <Users className="w-2.5 h-2.5" /> Students of this batch auto-registered
+                            <Users className="w-2.5 h-2.5" />
+                            {batchCode.trim()
+                              ? `All rows use "${batchCode.trim()}" — students of this batch auto-registered`
+                              : 'Auto-detected per row from the "tutorial/batch" column — one file can cover multiple batches'}
                           </p>
                         </div>
                       )}
@@ -384,10 +381,12 @@ export default function BulkImportModal({
                         <p className="text-sm font-semibold text-white">
                           {previewEvents.length} Events Ready to Import
                         </p>
-                        {workshopType === 'compulsory' && batchCode.trim() && (
+                        {workshopType === 'compulsory' && (
                           <p className="text-xs text-amber-400 mt-0.5 flex items-center gap-1.5">
                             <Users className="w-3 h-3" />
-                            Batch <span className="font-mono font-bold">{batchCode.trim()}</span> students will be auto-registered
+                            {batchCode.trim()
+                              ? <>Batch <span className="font-mono font-bold">{batchCode.trim()}</span> students will be auto-registered</>
+                              : 'Each event auto-registers students of its own row\'s batch'}
                           </p>
                         )}
                         {workshopType === 'optional' && (
@@ -485,7 +484,7 @@ export default function BulkImportModal({
                       <ArrowLeft className="w-4 h-4" /> Back
                     </button>
                     <button
-                      disabled={!bulkImportFile || previewing || (workshopType === 'compulsory' && !batchCode.trim())}
+                      disabled={!bulkImportFile || previewing}
                       onClick={handlePreview}
                       className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -542,8 +541,10 @@ export default function BulkImportModal({
                   <p className="text-sm font-semibold text-white">Import {previewEvents.length} Events?</p>
                   <p className="text-xs text-white/50 mt-1.5 leading-relaxed">
                     This will create <span className="text-white font-semibold">{previewEvents.length} events</span>
-                    {workshopType === 'compulsory' && batchCode.trim() && (
-                      <> and auto-register all students with batch code <span className="font-mono font-bold text-primary">{batchCode.trim()}</span></>
+                    {workshopType === 'compulsory' && (
+                      batchCode.trim()
+                        ? <> and auto-register all students with batch code <span className="font-mono font-bold text-primary">{batchCode.trim()}</span></>
+                        : <> and auto-register each event's students based on the batch in its own row</>
                     )}
                     {workshopType === 'optional' && (
                       <> as open workshops with <span className="text-white font-semibold">60 seats</span> each for student self-registration</>
