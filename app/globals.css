@@ -346,6 +346,22 @@
     color: white;
   }
 
+  /* Cascading filter selects (Admin Analytics) — same fix as .input-dark:
+     without an explicit option background/color, browsers render the open
+     dropdown list with a native (white) theme regardless of the closed
+     select's Tailwind classes, making white text on white unreadable. */
+  select.cascade-select option {
+    background-color: rgb(var(--color-card));
+    color: rgb(var(--color-fg));
+    padding: 0.5rem;
+  }
+
+  select.cascade-select option:hover,
+  select.cascade-select option:checked {
+    background-color: #6c63ff;
+    color: white;
+  }
+
   .table-dark th {
     background: rgb(var(--color-primary) / 0.08);
     color: rgb(var(--color-fg) / 0.7);

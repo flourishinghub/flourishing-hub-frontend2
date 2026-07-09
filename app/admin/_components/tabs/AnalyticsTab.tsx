@@ -35,7 +35,7 @@ function CascadeSelect({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="appearance-none w-full pl-3 pr-8 py-2 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:border-primary/50 transition-colors"
+        className="cascade-select appearance-none w-full pl-3 pr-8 py-2 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:border-primary/50 transition-colors"
       >
         <option value="">{label}: All</option>
         {options.map((o) => (
