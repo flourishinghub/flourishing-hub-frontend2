@@ -56,7 +56,7 @@ export default function VolunteersTab({
           <select
             value={filters.volunteerStatus}
             onChange={(e) => setFilters(prev => ({ ...prev, volunteerStatus: e.target.value }))}
-            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+            className="filter-select px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
           >
             <option value="">All Volunteers</option>
             <option value="active">Active Volunteers</option>

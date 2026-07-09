@@ -282,11 +282,11 @@ export default function AssociateInstructorDashboard() {
               <select
                 value={selectedEventId || ''}
                 onChange={(e) => setSelectedEventId(e.target.value || null)}
-                className="w-full appearance-none px-4 py-2.5 pr-9 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary/50 cursor-pointer"
+                className="filter-select w-full appearance-none px-4 py-2.5 pr-9 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary/50 cursor-pointer"
               >
-                <option value="" className="bg-gray-900">— Select an event —</option>
+                <option value="">— Select an event —</option>
                 {liveEvents.map((ev: any) => (
-                  <option key={ev.id || ev.eventId} value={ev.id || ev.eventId} className="bg-gray-900">
+                  <option key={ev.id || ev.eventId} value={ev.id || ev.eventId}>
                     {ev.title || ev.sessionTitle || ev.name || 'Unnamed Event'}
                   </option>
                 ))}
@@ -491,11 +491,11 @@ export default function AssociateInstructorDashboard() {
                         <select
                           value={selectedEventId || ''}
                           onChange={(e) => setSelectedEventId(e.target.value || null)}
-                          className="w-full appearance-none px-4 py-2.5 pr-9 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary/50 cursor-pointer"
+                          className="filter-select w-full appearance-none px-4 py-2.5 pr-9 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary/50 cursor-pointer"
                         >
-                          <option value="" className="bg-gray-900">— Select a workshop —</option>
+                          <option value="">— Select a workshop —</option>
                           {eventsInSelectedCourse.map((ev: any) => (
-                            <option key={ev.id} value={ev.id} className="bg-gray-900">
+                            <option key={ev.id} value={ev.id}>
                               {ev.title}
                             </option>
                           ))}

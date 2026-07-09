@@ -362,6 +362,22 @@
     color: white;
   }
 
+  /* Generic filter/role selects across the app (Members, Roles, Volunteers,
+     profile forms, etc.) — same fix as .input-dark/.cascade-select: without an
+     explicit option background/color, the open dropdown list renders with the
+     browser's native (white) theme regardless of the closed select's classes. */
+  select.filter-select option {
+    background-color: rgb(var(--color-card));
+    color: rgb(var(--color-fg));
+    padding: 0.5rem;
+  }
+
+  select.filter-select option:hover,
+  select.filter-select option:checked {
+    background-color: #6c63ff;
+    color: white;
+  }
+
   .table-dark th {
     background: rgb(var(--color-primary) / 0.08);
     color: rgb(var(--color-fg) / 0.7);

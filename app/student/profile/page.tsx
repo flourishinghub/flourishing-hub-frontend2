@@ -270,11 +270,11 @@ export default function ProfilePage() {
           <select
             value={value || ''}
             onChange={(e) => handleInputChange(field, e.target.value)}
-            className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors"
+            className="filter-select w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors"
           >
             <option value="">Select {label}</option>
             {options.map(option => (
-              <option key={option.value} value={option.value} className="bg-[#1A1A2E] text-white">
+              <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}

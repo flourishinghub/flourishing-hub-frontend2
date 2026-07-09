@@ -118,7 +118,7 @@ export default function MembersTab({
                 <select
                   value={filters.role}
                   onChange={(e) => setFilters(prev => ({ ...prev, role: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                  className="filter-select w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
                 >
                   <option value="">All Roles</option>
                   <option value="student">Student</option>
@@ -135,7 +135,7 @@ export default function MembersTab({
                 <select
                   value={filters.department}
                   onChange={(e) => setFilters(prev => ({ ...prev, department: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                  className="filter-select w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
                 >
                   <option value="">All Departments</option>
                   {uniqueDepartments.map(dept => (
@@ -150,7 +150,7 @@ export default function MembersTab({
                 <select
                   value={filters.programme}
                   onChange={(e) => setFilters(prev => ({ ...prev, programme: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                  className="filter-select w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
                 >
                   <option value="">All Programmes</option>
                   {uniqueProgrammes.map(prog => (
@@ -165,7 +165,7 @@ export default function MembersTab({
                 <select
                   value={filters.year}
                   onChange={(e) => setFilters(prev => ({ ...prev, year: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
+                  className="filter-select w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm"
                 >
                   <option value="">All Years</option>
                   {uniqueYears.map(year => (
