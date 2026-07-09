@@ -194,7 +194,6 @@ export default function AdminDashboard() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventStatusFilter, setEventStatusFilter] = useState<'all' | 'workshop' | 'course'>('all');
   const [overviewFilter, setOverviewFilter] = useState<'live' | 'upcoming' | 'completed'>('upcoming');
-  const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | null>(null);
   const [analyticsData, setAnalyticsData] = useState<any[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [selectedAnalyticsEvent, setSelectedAnalyticsEvent] = useState<any | null>(null);
@@ -480,12 +479,6 @@ export default function AdminDashboard() {
 
   // New Events: published with 0 registrations
   const newEvents = events.filter(e => e.status === 'published' && e.registeredCount === 0);
-
-  // Calendar dates
-  const allEventDates = events.filter(e => e.status === 'published').map(e => e.date);
-  const calendarDateEvents = calendarSelectedDate
-    ? events.filter(e => e.date === toLocalDateKey(calendarSelectedDate))
-    : [];
 
   // 4 Summary stats
   const coursesCompletedCount = courses.filter(c => c.status === 'ARCHIVED' || (c.endDate && new Date(c.endDate) < now)).length;
@@ -1175,7 +1168,7 @@ export default function AdminDashboard() {
           {activeTab === 'analytics' && <AnalyticsTab analyticsLoading={analyticsLoading} analyticsData={analyticsData} selectedAnalyticsEvent={selectedAnalyticsEvent} setSelectedAnalyticsEvent={setSelectedAnalyticsEvent} courses={courses} />}
 
           {/* Calendar Tab */}
-          {activeTab === 'calendar' && <CalendarTab eventsLoading={eventsLoading} events={events} allEventDates={allEventDates} calendarSelectedDate={calendarSelectedDate} setCalendarSelectedDate={setCalendarSelectedDate} calendarDateEvents={calendarDateEvents} router={router} />}
+          {activeTab === 'calendar' && <CalendarTab eventsLoading={eventsLoading} events={events} router={router} />}
 
           {/* Events Tab */}
           {activeTab === 'events' && <EventsTab eventsLoading={eventsLoading} events={events} sortedEvents={sortedEvents} draftFilter={draftFilter} setDraftFilter={setDraftFilter} courseFilter={courseFilter} setCourseFilter={setCourseFilter} courses={courses} setShowBulkImport={setShowBulkImport} openCreate={openCreate} openEdit={openEdit} handleDelete={handleDelete} deleting={deleting} expandedEvents={expandedEvents} setExpandedEvents={setExpandedEvents} exportToCSV={exportToCSV} exporting={exporting} router={router} />}

@@ -516,3 +516,148 @@
     scrollbar-width: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   react-big-calendar dark-theme reskin (Admin Calendar tab)
+   The library ships a plain light theme (white panels, black text, grey
+   borders) with no dark-mode option, so every one of its class names is
+   overridden here to match the app's glassmorphic dark UI instead of
+   pulling in a second, clashing visual language.
+   ───────────────────────────────────────────────────────────────────── */
+.admin-big-calendar {
+  background: rgb(var(--color-card) / 0.6);
+  border: 1px solid rgb(var(--color-fg) / 0.08);
+  padding: 1rem;
+}
+
+.admin-big-calendar .rbc-calendar {
+  color: rgb(var(--color-fg) / 0.85);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Month view grid */
+.admin-big-calendar .rbc-month-view,
+.admin-big-calendar .rbc-time-view,
+.admin-big-calendar .rbc-agenda-view {
+  border: 1px solid rgb(var(--color-fg) / 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-big-calendar .rbc-month-row + .rbc-month-row,
+.admin-big-calendar .rbc-day-bg + .rbc-day-bg,
+.admin-big-calendar .rbc-header + .rbc-header,
+.admin-big-calendar .rbc-time-content > * + * > *,
+.admin-big-calendar .rbc-timeslot-group,
+.admin-big-calendar .rbc-time-header-content,
+.admin-big-calendar .rbc-time-content {
+  border-color: rgb(var(--color-fg) / 0.06);
+}
+
+.admin-big-calendar .rbc-header {
+  background: rgb(var(--color-primary) / 0.06);
+  color: rgb(var(--color-fg) / 0.5);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 4px;
+  border-bottom: 1px solid rgb(var(--color-fg) / 0.08);
+}
+
+.admin-big-calendar .rbc-off-range-bg {
+  background: rgb(var(--color-fg) / 0.02);
+}
+
+.admin-big-calendar .rbc-off-range {
+  color: rgb(var(--color-fg) / 0.2);
+}
+
+.admin-big-calendar .rbc-today {
+  background: rgb(var(--color-primary) / 0.08);
+}
+
+.admin-big-calendar .rbc-date-cell {
+  color: rgb(var(--color-fg) / 0.6);
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.admin-big-calendar .rbc-date-cell.rbc-now {
+  color: rgb(var(--color-primary));
+  font-weight: 700;
+}
+
+.admin-big-calendar .rbc-event {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.admin-big-calendar .rbc-event:focus {
+  outline: 2px solid rgb(var(--color-primary));
+}
+
+.admin-big-calendar .rbc-show-more {
+  color: rgb(var(--color-primary));
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.admin-big-calendar .rbc-off-range-bg,
+.admin-big-calendar .rbc-day-bg {
+  transition: background-color 0.15s ease;
+}
+
+.admin-big-calendar .rbc-day-bg:hover {
+  background: rgb(var(--color-fg) / 0.03);
+}
+
+/* Time (week/day) view */
+.admin-big-calendar .rbc-time-gutter,
+.admin-big-calendar .rbc-time-header-gutter {
+  color: rgb(var(--color-fg) / 0.4);
+  font-size: 11px;
+}
+
+.admin-big-calendar .rbc-current-time-indicator {
+  background-color: #EF4444;
+}
+
+.admin-big-calendar .rbc-time-slot {
+  color: rgb(var(--color-fg) / 0.3);
+}
+
+/* Agenda view */
+.admin-big-calendar .rbc-agenda-view table.rbc-agenda-table {
+  border: none;
+}
+
+.admin-big-calendar .rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+  background: rgb(var(--color-primary) / 0.06);
+  color: rgb(var(--color-fg) / 0.5);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgb(var(--color-fg) / 0.08);
+  padding: 10px;
+}
+
+.admin-big-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr > td {
+  border-top: 1px solid rgb(var(--color-fg) / 0.06);
+  color: rgb(var(--color-fg) / 0.8);
+  padding: 10px;
+}
+
+.admin-big-calendar .rbc-agenda-date-cell,
+.admin-big-calendar .rbc-agenda-time-cell {
+  color: rgb(var(--color-fg) / 0.4);
+  font-size: 12px;
+}
+
+.admin-big-calendar .rbc-agenda-empty {
+  color: rgb(var(--color-fg) / 0.3);
+  padding: 2rem;
+  text-align: center;
+}

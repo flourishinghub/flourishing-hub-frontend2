@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
+// Global CSS can only be imported from the root layout in the App Router —
+// used by components/AdminBigCalendar.tsx, scoped to .rbc-* class names so
+// it doesn't affect any other page even though it loads everywhere.
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Providers } from '@/components/Providers';
 import { ThemeProvider } from '@/components/ThemeProvider';
 
