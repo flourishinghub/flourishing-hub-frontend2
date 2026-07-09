@@ -88,6 +88,8 @@ export default function HomePage() {
               startAt: event.startAt,
               endAt: event.endAt || null,
               courseId: event.courseId || null,
+              courseModuleId: event.courseModuleId || null,
+              batch: event.batch || null,
               venue: event.venue || 'TBD',
               mode: event.meetLink ? 'Online' : 'In Classroom',
               capacity: event.capacity || 0,
@@ -237,8 +239,36 @@ export default function HomePage() {
           wStatus: workshopStatus(e),
           registered: true,
           attended: attendedEventIds.has(e.id),
+          pending: false,
         }));
-      return { ...c, workshops, registeredCount: workshops.length };
+
+      if (workshops.length === 0) return { ...c, workshops, registeredCount: 0 };
+
+      // Compulsory bundle courses: the course template (CourseModule) may
+      // list workshops that haven't been scheduled yet. A student already
+      // in this course's bundle is in for those too — shown here as
+      // "Pending Schedule" using the template's title, sourced from
+      // c.modules (now included by the /courses API) rather than needing a
+      // real Event/registration row, since there's no eventId to attach one
+      // to until an admin actually schedules it.
+      const studentBatch = workshops.find((w: any) => w.batch)?.batch ?? null;
+      const scheduledModuleIds = new Set(
+        events
+          .filter((e: any) => e.courseModuleId && (e.batch === studentBatch || !e.batch))
+          .map((e: any) => e.courseModuleId)
+      );
+      const pendingWorkshops = (c.modules || [])
+        .filter((m: any) => !scheduledModuleIds.has(m.id))
+        .map((m: any) => ({
+          id: `pending-${m.id}`,
+          title: m.title,
+          wStatus: 'pending',
+          registered: false,
+          attended: false,
+          pending: true,
+        }));
+
+      return { ...c, workshops: [...workshops, ...pendingWorkshops], registeredCount: workshops.length };
     })
     .filter((c: any) => c.registeredCount > 0);
 
@@ -445,7 +475,11 @@ export default function HomePage() {
                               <span className="text-white/80 text-sm truncate">{w.title}</span>
                             </div>
                             <div className="shrink-0">
-                              {w.wStatus === 'live' ? (
+                              {w.pending ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/10 text-white/50 border border-white/15">
+                                  Pending Schedule
+                                </span>
+                              ) : w.wStatus === 'live' ? (
                                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                                   <Radio className="w-3 h-3" /> Live
                                 </span>
