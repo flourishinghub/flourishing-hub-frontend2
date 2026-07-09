@@ -252,13 +252,22 @@ export default function HomePage() {
       // real Event/registration row, since there's no eventId to attach one
       // to until an admin actually schedules it.
       const studentBatch = workshops.find((w: any) => w.batch)?.batch ?? null;
+      const relevantEvents = events.filter((e: any) => e.courseId === c.id && (e.batch === studentBatch || !e.batch));
       const scheduledModuleIds = new Set(
-        events
-          .filter((e: any) => e.courseModuleId && (e.batch === studentBatch || !e.batch))
-          .map((e: any) => e.courseModuleId)
+        relevantEvents.filter((e: any) => e.courseModuleId).map((e: any) => e.courseModuleId)
+      );
+      // Events created outside the module-based flow (e.g. a plain bulk
+      // schedule import) never get a courseModuleId, so a module can only be
+      // "already scheduled" via that link when one was actually set — fall
+      // back to matching the event's title against the module's title,
+      // otherwise a module whose event skipped that link shows up as a
+      // duplicate "Pending Schedule" entry next to the real, already-
+      // registered one.
+      const scheduledTitles = new Set(
+        relevantEvents.map((e: any) => (e.title || '').trim().toLowerCase()).filter(Boolean)
       );
       const pendingWorkshops = (c.modules || [])
-        .filter((m: any) => !scheduledModuleIds.has(m.id))
+        .filter((m: any) => !scheduledModuleIds.has(m.id) && !scheduledTitles.has((m.title || '').trim().toLowerCase()))
         .map((m: any) => ({
           id: `pending-${m.id}`,
           title: m.title,
