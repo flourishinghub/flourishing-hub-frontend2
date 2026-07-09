@@ -269,6 +269,28 @@ export default function AdminDashboard() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  // Re-fetches just the member directory — used after batch upload so admins
+  // see newly-assigned cohort/department data without a full page reload.
+  const refreshMembers = async () => {
+    try {
+      const res = await apiCall('/admin/members');
+      const membersData = res?.data || [];
+      setMembers(membersData.map((member: any) => ({
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        role: member.role.toLowerCase().replace('_', '-'),
+        department: member.department || 'N/A',
+        programme: member.programme || 'N/A',
+        year: member.yearOfStudy,
+        batch: member.cohort,
+        rollNo: member.rollNumber,
+        empId: member.employeeId || member.adminEmployeeId,
+        status: member.isActive === false ? 'inactive' : 'active',
+      })));
+    } catch {}
+  };
+
   // Fetch dashboard data from backend
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -1198,7 +1220,7 @@ export default function AdminDashboard() {
       <BulkImportModal showBulkImport={showBulkImport} setShowBulkImport={setShowBulkImport} bulkImportFile={bulkImportFile} setBulkImportFile={setBulkImportFile} bulkImporting={bulkImporting} setBulkImporting={setBulkImporting} courses={courses} />
 
       {/* Batch Upload Modal */}
-      <BatchUploadModal show={showBatchUpload} onClose={() => setShowBatchUpload(false)} />
+      <BatchUploadModal show={showBatchUpload} onClose={() => { setShowBatchUpload(false); refreshMembers(); }} />
     </DashboardLayout>
   );
 }
