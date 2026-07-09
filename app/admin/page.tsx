@@ -306,7 +306,8 @@ export default function AdminDashboard() {
             year: member.yearOfStudy,
             batch: member.cohort,
             rollNo: member.rollNumber,
-            empId: member.employeeId || member.adminEmployeeId
+            empId: member.employeeId || member.adminEmployeeId,
+            status: member.isActive === false ? 'inactive' : 'active',
           })));
         }
         if (volunteersResult.status === 'fulfilled') setVolunteers(volunteersResult.value?.data || []);

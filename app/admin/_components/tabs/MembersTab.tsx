@@ -211,6 +211,7 @@ export default function MembersTab({
         columns={[
           { key: 'name', label: 'Name', sortable: true },
           { key: 'idDisplay', label: 'ID' },
+          { key: 'email', label: 'Email' },
           { key: 'department', label: 'Department', sortable: true },
           { key: 'programme', label: 'Programme', sortable: true },
           { key: 'yearDisplay', label: 'Year' },
@@ -231,8 +232,16 @@ export default function MembersTab({
               );
             },
           },
+          {
+            key: 'status', label: 'Status', sortable: true,
+            render: (value) => (
+              <span className={value === 'inactive' ? 'badge-red' : 'badge-green'}>
+                {value === 'inactive' ? 'Inactive' : 'Active'}
+              </span>
+            ),
+          },
         ]}
-        searchKeys={['name', 'department', 'programme'] as never[]}
+        searchKeys={['name', 'email', 'department', 'programme'] as never[]}
         searchPlaceholder="Search members..."
         emptyMessage="No members found"
       />

@@ -118,6 +118,7 @@ export interface MemberDirectory {
   batch?: string;
   programme: Programme;
   role: UserRole;
+  status?: 'active' | 'inactive';
 }
 
 export interface VolunteerPool {
