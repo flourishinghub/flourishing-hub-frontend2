@@ -647,6 +647,21 @@ export default function AdminDashboard() {
       const eventsResponse = await apiCall('/admin/events-with-registrations');
       if (eventsResponse?.data) setEvents(transformEventsData(eventsResponse.data));
     } catch {}
+
+    // Also refresh course "workshops conducted" counts (and the currently
+    // open course's per-module counts, if the Courses tab has one open) —
+    // a course-linked event otherwise stays invisible there until the whole
+    // page reloads, same stale-state class as the bulk-import refresh fix.
+    try {
+      const coursesResponse = await apiCall('/courses');
+      if (coursesResponse?.data) setCourses(coursesResponse.data);
+    } catch {}
+    if (selectedCourse) {
+      try {
+        const modulesResponse = await apiCall(`/courses/${selectedCourse.id}/modules`);
+        if (modulesResponse?.data) setCourseModules(modulesResponse.data);
+      } catch {}
+    }
   };
 
   const handleDelete = async (eventId: string, eventTitle: string) => {

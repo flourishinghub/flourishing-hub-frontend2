@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Video, Users, Clock, CheckCircle, Wifi, WifiOff, MapPin,
-  Calendar, ExternalLink, Bell, User, Filter, Star, MessageSquare, Zap
+  Calendar, ExternalLink, Bell, User, Filter, Star, MessageSquare, Zap,
+  UserCheck, ShieldCheck, ShieldX, RefreshCw, ChevronDown, BookOpen
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
@@ -193,11 +194,133 @@ export default function InstructorDashboard() {
   const [data, setData] = useState<InstructorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedbackData, setFeedbackData] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'workshops' | 'feedback'>('workshops');
+  const [activeTab, setActiveTab] = useState<'workshops' | 'attendance' | 'feedback'>('workshops');
   const [workshopFilter, setWorkshopFilter] = useState<WorkshopFilter>('all');
   const [courseFilter, setCourseFilter] = useState<CourseFilter>('all');
   const [pastWorkshopFilter, setPastWorkshopFilter] = useState<WorkshopFilter>('all');
   const [dateRange, setDateRange] = useState<DateRange>({ startDate: '', endDate: '' });
+
+  // ── Attendance / check-in verification (same /event-operations
+  // endpoints already used on the Associate Instructor dashboard — the
+  // backend authorizes both INSTRUCTOR and ASSOCIATE_INSTRUCTOR for these,
+  // this page just never had the UI for it) ──
+  const [assignedEvents, setAssignedEvents] = useState<any[]>([]);
+  const [loadingAssignedEvents, setLoadingAssignedEvents] = useState(true);
+  const [selectedAttendanceEventId, setSelectedAttendanceEventId] = useState<string | null>(null);
+  const [selectedCourseGroup, setSelectedCourseGroup] = useState<string | null>(null);
+  const [checkIns, setCheckIns] = useState<any[]>([]);
+  const [loadingCheckIns, setLoadingCheckIns] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+  const fetchAssignedEvents = async (silent = false) => {
+    if (!silent) setLoadingAssignedEvents(true);
+    try {
+      const response = await apiCall('/event-operations/my-assigned-events');
+      setAssignedEvents(response.data || []);
+    } catch {
+      if (!silent) toast.error('Could not load assigned events');
+    } finally {
+      setLoadingAssignedEvents(false);
+    }
+  };
+
+  const fetchCheckIns = async (eventId: string) => {
+    setLoadingCheckIns(true);
+    try {
+      const response = await apiCall('/event-operations/' + eventId + '/check-ins');
+      setCheckIns(response.data || []);
+    } catch {
+      toast.error('Could not load check-ins');
+    } finally {
+      setLoadingCheckIns(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignedEvents();
+    const interval = setInterval(() => fetchAssignedEvents(true), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedAttendanceEventId) { setCheckIns([]); return; }
+    fetchCheckIns(selectedAttendanceEventId);
+    const interval = setInterval(() => fetchCheckIns(selectedAttendanceEventId), 15000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAttendanceEventId]);
+
+  const handleVerify = async (checkInId: string, status: 'VERIFIED' | 'REJECTED', note = '') => {
+    setVerifyingId(checkInId);
+    try {
+      await apiCall('/event-operations/check-ins/' + checkInId, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, note }),
+      });
+      toast.success(status === 'VERIFIED' ? 'Attendance verified' : 'Marked absent');
+      if (selectedAttendanceEventId) await fetchCheckIns(selectedAttendanceEventId);
+    } catch {
+      toast.error('Action failed. Please try again.');
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const handleVerifyAll = async () => {
+    if (!selectedAttendanceEventId) return;
+    setVerifyingId('__all__');
+    try {
+      await apiCall('/event-operations/' + selectedAttendanceEventId + '/check-ins/verify-all', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      toast.success('All pending check-ins verified');
+      await fetchCheckIns(selectedAttendanceEventId);
+    } catch {
+      toast.error('Bulk verify failed. Please try again.');
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const attendanceCourseGroups: { label: string; events: any[] }[] = (() => {
+    const groups: Record<string, any[]> = {};
+    for (const ev of assignedEvents) {
+      const key = ev.course?.name || 'Open Workshops';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(ev);
+    }
+    return Object.entries(groups).map(([label, events]) => ({ label, events }));
+  })();
+
+  useEffect(() => {
+    if (attendanceCourseGroups.length === 1 && !selectedCourseGroup) {
+      setSelectedCourseGroup(attendanceCourseGroups[0].label);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignedEvents.length]);
+
+  const eventsInSelectedCourseGroup = selectedCourseGroup
+    ? (attendanceCourseGroups.find((g) => g.label === selectedCourseGroup)?.events ?? [])
+    : [];
+  const selectedAttendanceEvent = assignedEvents.find((e) => e.id === selectedAttendanceEventId);
+  const verifiedCount = checkIns.filter((c) => c.status === 'VERIFIED').length;
+  const pendingCount = checkIns.filter((c) => c.status === 'PENDING').length;
+
+  // Sidebar links use hash navigation (/instructor#attendance etc.) — sync
+  // activeTab to the hash so those links (and a direct/bookmarked URL)
+  // actually land on the right tab instead of always defaulting to Workshops.
+  useEffect(() => {
+    const validTabs = ['workshops', 'attendance', 'feedback'] as const;
+    const syncFromHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash === 'sessions' || hash === 'schedule') { setActiveTab('workshops'); return; }
+      if ((validTabs as readonly string[]).includes(hash)) setActiveTab(hash as typeof validTabs[number]);
+    };
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
+    return () => window.removeEventListener('hashchange', syncFromHash);
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
@@ -381,6 +504,16 @@ export default function InstructorDashboard() {
           <Video className="w-4 h-4 inline mr-1.5" />Workshops
         </button>
         <button
+          onClick={() => setActiveTab('attendance')}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+            activeTab === 'attendance'
+              ? 'bg-primary/20 text-primary border-primary/30'
+              : 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10'
+          }`}
+        >
+          <UserCheck className="w-4 h-4 inline mr-1.5" />Attendance
+        </button>
+        <button
           onClick={() => setActiveTab('feedback')}
           className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all flex items-center gap-1.5 ${
             activeTab === 'feedback'
@@ -481,6 +614,228 @@ export default function InstructorDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Attendance Tab Content */}
+      {activeTab === 'attendance' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h3 className="text-sm font-semibold text-white">Live Workshop Attendance</h3>
+            {selectedAttendanceEventId && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-white/40">Auto-refreshes every 15s</span>
+                <button
+                  onClick={() => selectedAttendanceEventId && fetchCheckIns(selectedAttendanceEventId)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 transition-all text-xs"
+                >
+                  <RefreshCw className="w-3 h-3" /> Refresh
+                </button>
+              </div>
+            )}
+          </div>
+
+          {loadingAssignedEvents ? (
+            <div className="flex items-center gap-2 text-white/50 text-sm py-6 justify-center">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              Loading events...
+            </div>
+          ) : assignedEvents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
+                <Clock className="w-6 h-6 text-white/30" />
+              </div>
+              <p className="text-white/50 text-sm">No assigned workshops</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {attendanceCourseGroups.length > 1 && (
+                <div>
+                  <p className="text-xs text-white/40 font-medium mb-2 uppercase tracking-wider">Select Course</p>
+                  <div className="flex flex-wrap gap-2">
+                    {attendanceCourseGroups.map((group) => (
+                      <button
+                        key={group.label}
+                        onClick={() => { setSelectedCourseGroup(group.label); setSelectedAttendanceEventId(null); }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
+                          selectedCourseGroup === group.label
+                            ? 'bg-primary/20 border-primary/50 text-primary'
+                            : 'bg-white/5 border-white/10 text-white/50 hover:text-white/80 hover:border-white/20'
+                        }`}
+                      >
+                        <BookOpen className="w-3 h-3" />
+                        {group.label}
+                        <span className="ml-0.5 opacity-60">({group.events.length})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedCourseGroup && (
+                <div>
+                  <p className="text-xs text-white/40 font-medium mb-2 uppercase tracking-wider">Select Workshop</p>
+                  <div className="relative max-w-sm">
+                    <select
+                      value={selectedAttendanceEventId || ''}
+                      onChange={(e) => setSelectedAttendanceEventId(e.target.value || null)}
+                      className="filter-select w-full appearance-none px-4 py-2.5 pr-9 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-primary/50 cursor-pointer"
+                    >
+                      <option value="">— Select a workshop —</option>
+                      {eventsInSelectedCourseGroup.map((ev: any) => (
+                        <option key={ev.id} value={ev.id}>{ev.title}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                  </div>
+                </div>
+              )}
+
+              {selectedAttendanceEvent && (
+                <div className="flex flex-wrap gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5 text-xs text-white/60">
+                  <span className="text-white/80 font-medium">{selectedAttendanceEvent.title}</span>
+                  {selectedAttendanceEvent.course?.name && (
+                    <span>Course: <span className="text-white/80">{selectedAttendanceEvent.course.name}</span></span>
+                  )}
+                  {selectedAttendanceEvent.venue && (
+                    <span>Venue: <span className="text-white/80">{selectedAttendanceEvent.venue}</span></span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!loadingAssignedEvents && selectedAttendanceEventId && (
+            <>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                    {verifiedCount} Verified
+                  </span>
+                  <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/25">
+                    {pendingCount} Pending
+                  </span>
+                </div>
+                {pendingCount > 0 && (
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleVerifyAll}
+                    disabled={verifyingId === '__all__'}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all text-xs font-semibold disabled:opacity-60"
+                  >
+                    {verifyingId === '__all__' ? (
+                      <div className="w-3 h-3 border border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                    )}
+                    Verify All Pending
+                  </motion.button>
+                )}
+              </div>
+
+              {loadingCheckIns ? (
+                <div className="flex items-center justify-center py-8 gap-2 text-white/40 text-sm">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  Loading check-ins...
+                </div>
+              ) : checkIns.length === 0 ? (
+                <div className="text-center py-8 text-white/40 text-sm">
+                  No check-ins yet — students will appear here once they record attendance
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-white/5">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/5 bg-white/[0.02]">
+                        <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Name</th>
+                        <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Roll No</th>
+                        <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Batch</th>
+                        <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Check-in Time</th>
+                        <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Status</th>
+                        <th className="text-left px-4 py-3 text-white/50 font-medium text-xs">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {checkIns.map((ci: any) => {
+                        const isActing = verifyingId === ci.id;
+                        const checkinTime = (ci.checkedInAt || ci.createdAt)
+                          ? new Date(ci.checkedInAt || ci.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : '—';
+                        return (
+                          <tr key={ci.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                            <td className="px-4 py-3 text-white font-medium">{ci.user?.name || '—'}</td>
+                            <td className="px-4 py-3 text-white/60 text-xs">{ci.user?.studentProfile?.rollNumber || '—'}</td>
+                            <td className="px-4 py-3 text-white/60 text-xs">{ci.user?.studentProfile?.cohort || ci.user?.studentProfile?.section || '—'}</td>
+                            <td className="px-4 py-3 text-white/60 text-xs">{checkinTime}</td>
+                            <td className="px-4 py-3">
+                              {ci.status === 'PENDING' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/15 text-yellow-400 border border-yellow-500/25">
+                                  <Clock className="w-3 h-3" /> Pending
+                                </span>
+                              )}
+                              {ci.status === 'VERIFIED' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                                  <ShieldCheck className="w-3 h-3" /> Verified
+                                </span>
+                              )}
+                              {ci.status === 'REJECTED' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/25">
+                                  <ShieldX className="w-3 h-3" /> Rejected
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {ci.status === 'PENDING' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleVerify(ci.id, 'VERIFIED')}
+                                      disabled={isActing}
+                                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all text-xs font-medium disabled:opacity-50"
+                                    >
+                                      {isActing ? <div className="w-3 h-3 border border-emerald-400 border-t-transparent rounded-full animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                                      Verify
+                                    </button>
+                                    <button
+                                      onClick={() => handleVerify(ci.id, 'REJECTED', 'Absent')}
+                                      disabled={isActing}
+                                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition-all text-xs font-medium disabled:opacity-50"
+                                    >
+                                      <ShieldX className="w-3 h-3" /> Mark Absent
+                                    </button>
+                                  </>
+                                )}
+                                {ci.status === 'VERIFIED' && (
+                                  <button
+                                    onClick={() => handleVerify(ci.id, 'REJECTED', 'Unverified by instructor')}
+                                    disabled={isActing}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 text-white/50 border border-white/10 hover:bg-yellow-500/10 hover:text-yellow-400 hover:border-yellow-500/30 transition-all text-xs font-medium disabled:opacity-50"
+                                  >
+                                    {isActing ? <div className="w-3 h-3 border border-white/40 border-t-transparent rounded-full animate-spin" /> : <ShieldX className="w-3 h-3" />}
+                                    Unverify
+                                  </button>
+                                )}
+                                {ci.status === 'REJECTED' && (
+                                  <button
+                                    onClick={() => handleVerify(ci.id, 'VERIFIED')}
+                                    disabled={isActing}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all text-xs font-medium disabled:opacity-50"
+                                  >
+                                    {isActing ? <div className="w-3 h-3 border border-emerald-400 border-t-transparent rounded-full animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                                    Re-verify
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Feedback Tab Content */}
       {activeTab === 'feedback' && (
