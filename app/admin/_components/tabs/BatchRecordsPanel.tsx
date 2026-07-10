@@ -50,14 +50,27 @@ export default function BatchRecordsPanel({ onBack }: BatchRecordsPanelProps) {
 
   useEffect(() => { load(); }, [load]);
 
-  const batchOptions = useMemo(
-    () => Array.from(new Set(records.map((r) => r.batchCode).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
-    [records]
-  );
+  // Keyed by course+batch (not batch alone) — the same batch code (e.g.
+  // "Batch 1") can exist under multiple different courses, and those are
+  // different real-world groups of students. Deduping by batch code alone
+  // previously let "Batch 1" merge every course's Batch 1 into one filter.
+  const batchOptions = useMemo(() => {
+    const map = new Map<string, { key: string; batchCode: string; courseName: string }>();
+    records.forEach((r) => {
+      if (!r.batchCode) return;
+      const key = `${r.courseId || r.course?.id || ''}::${r.batchCode}`;
+      if (!map.has(key)) {
+        map.set(key, { key, batchCode: r.batchCode, courseName: r.course?.name || 'Unknown Course' });
+      }
+    });
+    return Array.from(map.values()).sort(
+      (a, b) => a.batchCode.localeCompare(b.batchCode) || a.courseName.localeCompare(b.courseName)
+    );
+  }, [records]);
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
-      if (batchFilter && r.batchCode !== batchFilter) return false;
+      if (batchFilter && `${r.courseId || r.course?.id || ''}::${r.batchCode}` !== batchFilter) return false;
       if (statusFilter === 'matched' && !r.isMatched) return false;
       if (statusFilter === 'pending' && r.isMatched) return false;
       return true;
@@ -136,7 +149,7 @@ export default function BatchRecordsPanel({ onBack }: BatchRecordsPanelProps) {
                 >
                   <option value="">All Batches</option>
                   {batchOptions.map((b) => (
-                    <option key={b} value={b}>{b}</option>
+                    <option key={b.key} value={b.key}>{b.batchCode} · {b.courseName}</option>
                   ))}
                 </select>
               </div>
