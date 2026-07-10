@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Wifi, WifiOff, X } from 'lucide-react';
-import { apiCall } from '@/lib/api';
 import { formatTime } from '@/lib/utils';
 import type { Event } from '@/types';
 
@@ -40,11 +39,15 @@ const VENUE_PRESETS = [
   'Online (Google Meet)',
 ];
 
-const REGISTRATION_MODES: { value: RegistrationMode; label: string; desc: string; color: string }[] = [
-  { value: 'compulsory', label: 'Compulsory Roster', desc: 'Admin uploads CSV/Excel — students auto-enrolled', color: 'amber' },
-  { value: 'optional',   label: 'Optional Bundle',   desc: 'Students opt-in via portal catalog',             color: 'blue'  },
-  { value: 'open',       label: 'Open Workshop',      desc: 'First-come self-registration, standalone',       color: 'teal'  },
-];
+// Compulsory Roster / Optional Bundle events are only ever created via Bulk
+// Import (which has its own course+workshop-type picker) — Create Event is
+// Open Workshop only. This map is just for the read-only badge shown when
+// editing an existing event that was created one of those other ways.
+const REGISTRATION_MODE_LABELS: Record<RegistrationMode, { label: string; color: string }> = {
+  compulsory: { label: 'Compulsory Roster', color: 'amber' },
+  optional:   { label: 'Optional Bundle',   color: 'blue'  },
+  open:       { label: 'Open Workshop',     color: 'teal'  },
+};
 
 interface EventModalProps {
   showModal: boolean;
@@ -102,99 +105,38 @@ export default function EventModal({
 
             <div className="p-6 space-y-4">
 
-              {/* ── Registration Mode ── */}
-              <div>
-                <label className="text-xs font-medium text-white/60 mb-2 block">Registration Mode *</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {REGISTRATION_MODES.map(({ value, label, desc, color }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setForm({ ...form, registrationMode: value })}
-                      className={`flex flex-col items-start gap-1 p-2.5 rounded-xl border text-left transition-all ${
-                        form.registrationMode === value
-                          ? color === 'amber'
-                            ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
-                            : color === 'blue'
-                            ? 'bg-blue-500/15 border-blue-500/40 text-blue-400'
-                            : 'bg-teal-500/15 border-teal-500/40 text-teal-400'
-                          : 'bg-white/[0.03] border-white/8 text-white/40 hover:bg-white/[0.06]'
-                      }`}
-                    >
-                      <span className="text-[11px] font-semibold leading-tight">{label}</span>
-                      <span className="text-[9px] leading-tight opacity-70">{desc}</span>
-                    </button>
-                  ))}
+              {/* ── Registration Mode — Create Event only makes Open Workshops;
+                   Compulsory Roster / Optional Bundle are Bulk-Import-only. When
+                   editing an event that already has one of those modes (created
+                   via Bulk Import), show it read-only instead of a picker so it
+                   can't be silently switched to Open. ── */}
+              {editingEvent && form.registrationMode !== 'open' && (
+                <div>
+                  <label className="text-xs font-medium text-white/60 mb-2 block">Registration Mode</label>
+                  <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+                    REGISTRATION_MODE_LABELS[form.registrationMode].color === 'amber'
+                      ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                      : 'bg-blue-500/15 border-blue-500/40 text-blue-400'
+                  }`}>
+                    {REGISTRATION_MODE_LABELS[form.registrationMode].label}
+                  </div>
+                  <p className="text-[10px] text-white/30 mt-1">Set via Bulk Import — not editable here.</p>
                 </div>
-              </div>
+              )}
 
-              {/* ── Course & Module Selection ── */}
-              {courses.length > 0 && (
-                <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
-                  <p className="text-xs font-semibold text-primary/80 uppercase tracking-wider">Link to Course (optional)</p>
-                  <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Course / Program</label>
-                    <select
-                      value={form.courseId}
-                      onChange={async (e) => {
-                        const cId = e.target.value;
-                        setForm({ ...form, courseId: cId, courseModuleId: '' });
-                        if (cId) {
-                          try {
-                            const r = await apiCall(`/courses/${cId}/modules`);
-                            setModulesForEvent(r.data || []);
-                          } catch { setModulesForEvent([]); }
-                        } else {
-                          setModulesForEvent([]);
-                        }
-                      }}
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                    >
-                      <option value="">— No course —</option>
-                      {courses.map(c => (
-                        <option key={c.id} value={c.id}>{c.code ? `${c.code} · ${c.name}` : c.name}</option>
-                      ))}
-                    </select>
+              {/* ── Linked Course — same idea: Create Event doesn't link a course
+                   anymore (that's Bulk Import's job). Read-only when editing an
+                   event that's already linked. ── */}
+              {editingEvent && form.courseId && (
+                <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1">
+                  <p className="text-xs font-semibold text-primary/80 uppercase tracking-wider">Linked Course</p>
+                  <p className="text-sm text-white/70">
                     {(() => {
                       const sel = courses.find(c => c.id === form.courseId);
-                      return sel?.code ? (
-                        <p className="text-[11px] text-primary/80 mt-1.5 font-mono">
-                          Course Code: <span className="font-semibold">{sel.code}</span> (event ke saath attach)
-                        </p>
-                      ) : null;
+                      return sel ? (sel.code ? `${sel.code} · ${sel.name}` : sel.name) : 'Course';
                     })()}
-                  </div>
-                  {form.courseId && modulesForEvent.length > 0 && (
-                    <div>
-                      <label className="text-xs font-medium text-white/60 mb-1.5 block">Module (auto-fills details)</label>
-                      <select
-                        value={form.courseModuleId}
-                        onChange={(e) => {
-                          const mId = e.target.value;
-                          const mod = modulesForEvent.find(m => m.id === mId);
-                          if (mod) {
-                            setForm({
-                              ...form,
-                              courseModuleId: mId,
-                              title: form.title || mod.title,
-                              description: form.description || mod.description || '',
-                              posterUrl: mod.posterUrl || form.posterUrl,
-                              quizLink: mod.quizLink || '',
-                              feedbackLink: mod.feedbackLink || '',
-                            });
-                          } else {
-                            setForm({ ...form, courseModuleId: mId });
-                          }
-                        }}
-                        className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                      >
-                        <option value="">— No module —</option>
-                        {modulesForEvent.map(m => (
-                          <option key={m.id} value={m.id}>{m.title}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                  </p>
+                  <p className="text-[10px] text-white/30">Set via Bulk Import — not editable here.</p>
                 </div>
               )}
 

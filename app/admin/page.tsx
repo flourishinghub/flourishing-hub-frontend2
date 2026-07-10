@@ -555,8 +555,8 @@ export default function AdminDashboard() {
   };
 
   const handleSave = async () => {
-    if (!form.title || !form.description || !form.date || !form.time || !form.venue || !form.capacity) {
-      toast.error('Please fill in all required fields (title, description, date, time, venue, capacity)');
+    if (!form.title || !form.date || !form.time || !form.venue || !form.capacity) {
+      toast.error('Please fill in all required fields (title, date, time, venue, capacity)');
       return;
     }
 
