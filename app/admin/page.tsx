@@ -503,6 +503,7 @@ export default function AdminDashboard() {
   const pastRecordsData = completedEventsAll.map(e => ({
     eventName: e.title,
     courseName: (e as any).course?.name || 'Open Workshops',
+    batch: (e as any).batch || null,
     date: formatDate(e.date),
     rawDate: e.date,
     venue: e.venue,

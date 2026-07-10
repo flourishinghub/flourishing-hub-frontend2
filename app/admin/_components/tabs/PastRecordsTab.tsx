@@ -11,6 +11,7 @@ interface PastRecordsTabProps {
   pastRecordsData: {
     eventName: string;
     courseName: string;
+    batch: string | null;
     date: string;
     rawDate: string;
     venue: string;
@@ -24,9 +25,11 @@ interface PastRecordsTabProps {
 }
 
 const OPEN_WORKSHOPS_LABEL = 'Open Workshops';
+const NO_BATCH_LABEL = 'No Batch';
 
 export default function PastRecordsTab({ eventsLoading, events, pastRecordsData, courses }: PastRecordsTabProps) {
   const [courseFilter, setCourseFilter] = useState('');
+  const [batchFilter, setBatchFilter] = useState('');
 
   // Real course names come from the full /courses list (not just past records) so
   // every course is filterable even before it has any completed events. "Open
@@ -36,9 +39,18 @@ export default function PastRecordsTab({ eventsLoading, events, pastRecordsData,
     return [...realCourseNames.sort((a, b) => a.localeCompare(b)), OPEN_WORKSHOPS_LABEL];
   }, [courses]);
 
-  const filteredData = courseFilter
-    ? pastRecordsData.filter((r) => r.courseName === courseFilter)
-    : pastRecordsData;
+  // Batch has no equivalent standalone list — it only ever exists on an
+  // actual scheduled event — so options are derived from whatever past
+  // records already have one. "No Batch" covers open/ad-hoc workshops that
+  // were never scheduled per-batch.
+  const batchOptions = useMemo(() => {
+    const realBatches = Array.from(new Set(pastRecordsData.map((r) => r.batch).filter(Boolean))) as string[];
+    return [...realBatches.sort((a, b) => a.localeCompare(b)), NO_BATCH_LABEL];
+  }, [pastRecordsData]);
+
+  const filteredData = pastRecordsData
+    .filter((r) => !courseFilter || r.courseName === courseFilter)
+    .filter((r) => !batchFilter || (batchFilter === NO_BATCH_LABEL ? !r.batch : r.batch === batchFilter));
 
   return (
     <div className="space-y-4">
@@ -53,18 +65,33 @@ export default function PastRecordsTab({ eventsLoading, events, pastRecordsData,
           <h3 className="text-lg font-semibold text-white">Past Records</h3>
           <p className="text-xs text-white/40 mt-0.5">Completed events with attendance data from database</p>
         </div>
-        <div className="relative">
-          <select
-            value={courseFilter}
-            onChange={(e) => setCourseFilter(e.target.value)}
-            className="input-dark appearance-none pl-4 pr-9 py-2 rounded-xl text-sm"
-          >
-            <option value="">All Courses</option>
-            {courseOptions.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <select
+              value={courseFilter}
+              onChange={(e) => setCourseFilter(e.target.value)}
+              className="input-dark appearance-none pl-4 pr-9 py-2 rounded-xl text-sm"
+            >
+              <option value="">All Courses</option>
+              {courseOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select
+              value={batchFilter}
+              onChange={(e) => setBatchFilter(e.target.value)}
+              className="input-dark appearance-none pl-4 pr-9 py-2 rounded-xl text-sm"
+            >
+              <option value="">All Batches</option>
+              {batchOptions.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+          </div>
         </div>
       </div>
       <DataTable
@@ -72,6 +99,7 @@ export default function PastRecordsTab({ eventsLoading, events, pastRecordsData,
         columns={[
           { key: 'eventName', label: 'Event Name', sortable: true },
           { key: 'courseName', label: 'Course Name', sortable: true },
+          { key: 'batch', label: 'Batch', sortable: true, render: (value: string | null) => value || <span className="text-white/30">—</span> },
           { key: 'date', label: 'Date', sortable: true, sortValue: (row: any) => new Date(row.rawDate).getTime() },
           { key: 'venue', label: 'Venue' },
           { key: 'instructorName', label: 'Instructor', sortable: true },

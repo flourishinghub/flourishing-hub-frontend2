@@ -33,9 +33,13 @@ export default function EventDetailPage() {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState<{ totalMarks: number | null; totalMax: number | null; scores: any[] } | null>(null);
   const [graceSecsLeft, setGraceSecsLeft] = useState(0);
+  const [showExitChecklist, setShowExitChecklist] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scorePollerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const graceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // null = not yet known (avoids a false "session ended" toast firing on
+  // first mount for an event that's already over when the page loads).
+  const wasLiveRef = useRef<boolean | null>(null);
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
@@ -91,6 +95,21 @@ export default function EventDetailPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event?.endAt]);
 
+  // Detect the exact moment the live session ends while this page is open —
+  // piggybacks on the 1s grace-timer tick above rather than a second
+  // interval. Previously the page just silently swapped from the live view
+  // to the standard view with no notification at all.
+  useEffect(() => {
+    if (!event?.startAt && !event?.date) return;
+    const nowIsLive = isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt);
+    if (wasLiveRef.current === true && nowIsLive === false) {
+      toast('Session has ended.', { icon: '🔔', duration: 6000 });
+      setShowExitChecklist(true);
+    }
+    wasLiveRef.current = nowIsLive;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graceSecsLeft, event?.startAt, event?.endAt, event?.date, event?.time]);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { router.push('/login'); return; }
@@ -103,10 +122,11 @@ export default function EventDetailPage() {
           setUser(userData);
         }
 
-        const [eventsResponse, registrationsResponse, attendanceResponse] = await Promise.all([
+        const [eventsResponse, registrationsResponse, attendanceResponse, myFeedbackResponse] = await Promise.all([
           apiCall('/events?limit=200'),
           apiCall('/registrations/me'),
           apiCall('/event-operations/attendance/me').catch(() => ({ data: [] })),
+          apiCall('/event-operations/' + eventId + '/my-feedback').catch(() => ({ data: null })),
         ]);
 
         const eventData = eventsResponse.data.items.find((e: any) => e.id === eventId);
@@ -146,6 +166,13 @@ export default function EventDetailPage() {
         };
 
         setEvent(transformedEvent);
+        // Page loaded mid-grace-window (student refreshed/re-opened after
+        // the session ended rather than watching it end live) — show the
+        // exit checklist right away instead of only on the live→ended
+        // transition, which won't fire since it's already ended.
+        if (isGracePeriodActive(transformedEvent.endAt)) {
+          setShowExitChecklist(true);
+        }
 
         const userRegistrations = registrationsResponse.data || [];
         const registered = userRegistrations.some((reg: any) =>
@@ -162,6 +189,14 @@ export default function EventDetailPage() {
         setMyAttendanceRec(thisEventRec || null);
         if (thisEventRec?.starRating) {
           setFeedbackRating(thisEventRec.starRating);
+          setFeedbackSubmitted(true);
+        }
+        // Authoritative "did I already rate this" check — the Feedback
+        // table, not the attendance record above, is what submitting a
+        // rating actually writes to. Without this, reloading the page
+        // after rating would forget it happened and re-block Exit.
+        if (myFeedbackResponse?.data?.eventRating) {
+          setFeedbackRating(myFeedbackResponse.data.eventRating);
           setFeedbackSubmitted(true);
         }
 
@@ -327,6 +362,91 @@ export default function EventDetailPage() {
           <h1 className="text-2xl lg:text-3xl font-bold text-white leading-tight">{event.title}</h1>
           <p className="text-white/40 text-sm mt-1">Organized by <span className="text-white/60">{event.organizer}</span></p>
         </motion.div>
+
+        {/* ── Post-session exit checklist — the session has ended (or the
+             page loaded mid grace-window); make sure the student sees a
+             final checklist and can't leave without at least rating. ── */}
+        {showExitChecklist && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-5 rounded-2xl border border-primary/25"
+            style={{ background: 'rgba(108,99,255,0.06)' }}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                <Award className="w-4.5 h-4.5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Session has ended</p>
+                <p className="text-xs text-white/50 mt-0.5">
+                  Before you go, make sure you&apos;ve checked in, attempted the quiz, and rated this session.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              {[
+                { label: 'Checked in', done: hasCheckedIn },
+                { label: 'Quiz attempted', done: !!quizScore?.totalMarks },
+                { label: 'Rating given', done: feedbackSubmitted },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-2 text-xs">
+                  {item.done ? (
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  )}
+                  <span className={item.done ? 'text-white/70' : 'text-white/40'}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {!feedbackSubmitted && (
+              <div className="mb-4">
+                <p className="text-xs text-white/50 mb-2">Rate this session to unlock &quot;Exit the Session&quot;:</p>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => handleFeedback(star)}
+                      onMouseEnter={() => setFeedbackHover(star)}
+                      onMouseLeave={() => setFeedbackHover(0)}
+                      disabled={feedbackSubmitting}
+                      className="p-0.5 disabled:opacity-50"
+                    >
+                      <Star
+                        className={`w-6 h-6 transition-colors ${
+                          star <= (feedbackHover || feedbackRating) ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                if (!feedbackSubmitted) {
+                  toast.error('Please rate this session before exiting.');
+                  return;
+                }
+                router.push('/student/events');
+              }}
+              disabled={!feedbackSubmitted}
+              title={!feedbackSubmitted ? 'Rate this session to exit' : undefined}
+              className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                feedbackSubmitted
+                  ? 'btn-primary'
+                  : 'bg-white/5 text-white/30 border border-white/10 cursor-not-allowed'
+              }`}
+            >
+              {!feedbackSubmitted && <Lock className="w-3.5 h-3.5" />}
+              Exit the Session
+            </button>
+          </motion.div>
+        )}
 
         {/* ── Step Progress Bar ── */}
         <motion.div
