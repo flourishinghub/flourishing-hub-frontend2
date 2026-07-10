@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Lock, Eye, EyeOff, Sparkles, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import { Lock, Eye, EyeOff, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import Logo from '@/components/Logo';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -85,9 +86,7 @@ export default function ResetPasswordPage() {
         className="w-full max-w-md"
       >
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
+          <Logo className="w-8 h-8 rounded-xl" />
           <p className="font-bold text-white">Flourishing Hub</p>
         </div>
 

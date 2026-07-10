@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Sparkles, ArrowLeft, Send, CheckCircle } from 'lucide-react';
+import { Mail, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import Logo from '@/components/Logo';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -40,9 +41,7 @@ export default function ForgotPasswordPage() {
         className="w-full max-w-md"
       >
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
+          <Logo className="w-8 h-8 rounded-xl" />
           <p className="font-bold text-white">Flourishing Hub</p>
         </div>
 

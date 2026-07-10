@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Hash, Building, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Hash, Building, ArrowRight, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { Programme } from '@/types';
 import toast from 'react-hot-toast';
+import Logo from '@/components/Logo';
 
 const PROGRAMMES: Programme[] = ['BTech', 'MTech', 'PhD', 'MSc', 'Staff', 'Dual Degree'];
 // Explicit mapping — backend Programme enum values don't always match
@@ -144,9 +145,7 @@ export default function SignupPage() {
           <div className="absolute bottom-20 right-10 w-56 h-56 rounded-full bg-primary/10 blur-3xl" />
         </div>
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-sm">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
+          <Logo className="w-10 h-10 rounded-2xl" />
           <div>
             <p className="text-base font-bold text-white">Flourishing Hub</p>
             <p className="text-xs text-white/40">IIT Bombay Wellness Center</p>
@@ -180,9 +179,7 @@ export default function SignupPage() {
           className="w-full max-w-lg py-8"
         >
           <div className="lg:hidden flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
+            <Logo className="w-8 h-8 rounded-xl" />
             <p className="font-bold text-white">Flourishing Hub</p>
           </div>
 

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { logout } from '@/lib/auth';
+import Logo from '@/components/Logo';
 
 interface NavItem { label: string; href: string; icon: React.ElementType }
 
@@ -123,9 +124,7 @@ export default function Sidebar({ role, userName, mobileOpen = false, onMobileCl
               exit={{ opacity: 0, x: -10 }}
               className="flex items-center gap-2.5"
             >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
+              <Logo className="w-8 h-8 rounded-xl" />
               <div>
                 <p className="text-sm font-bold text-white leading-none">Flourishing</p>
                 <p className="text-[10px] text-white/40 leading-none mt-0.5">Hub • IITB</p>
@@ -134,9 +133,7 @@ export default function Sidebar({ role, userName, mobileOpen = false, onMobileCl
           )}
         </AnimatePresence>
         {collapsed && (
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
+          <Logo className="w-8 h-8 rounded-xl mx-auto" />
         )}
         <button
           onClick={onMobileClose}

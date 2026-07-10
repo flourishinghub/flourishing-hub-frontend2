@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, Sparkles, ArrowRight, Brain, Heart, Shield } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Brain, Heart, Shield } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { setAuthTokenCookie } from '@/lib/utils';
+import Logo from '@/components/Logo';
 
 const WORDS = ['Mindfulness', 'Resilience', 'Growth', 'Clarity', 'Balance', 'Joy', 'Flourish'];
 const FEATURES = [
@@ -130,9 +131,7 @@ export default function LoginPage() {
           <div className="absolute bottom-20 right-10 w-56 h-56 rounded-full bg-accent/10 blur-3xl" />
         </div>
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-sm">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
+          <Logo className="w-10 h-10 rounded-2xl" />
           <div>
             <p className="text-base font-bold text-white">Flourishing Hub</p>
             <p className="text-xs text-white/40">IIT Bombay Wellness Center</p>
@@ -180,9 +179,7 @@ export default function LoginPage() {
           className="w-full max-w-md"
         >
           <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
+            <Logo className="w-8 h-8 rounded-xl" />
             <p className="font-bold text-white">Flourishing Hub</p>
           </div>
 

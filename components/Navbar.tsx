@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Menu, Sparkles } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { getInitials } from '@/lib/utils';
 import type { AuthPayload, Notification } from '@/types';
 import NotificationDropdown from '@/components/NotificationDropdown';
 import ProfileDropdown from '@/components/ProfileDropdown';
+import Logo from '@/components/Logo';
 import ThemeSwitcher from '@/components/ThemeSwitcher';
 
 interface NavbarProps {
@@ -57,9 +58,7 @@ export default function Navbar({ user, notifications = [], onLogout, onMarkAllRe
           <Menu className="w-4 h-4" />
         </button>
         <Link href={dashboardUrl} className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-sm">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
+          <Logo className="w-8 h-8 rounded-xl" />
           <div className="hidden sm:block">
             <p className="text-sm font-bold text-white leading-none">Flourishing Hub</p>
             <p className="text-[10px] text-white/40 leading-none mt-0.5">IIT Bombay</p>
