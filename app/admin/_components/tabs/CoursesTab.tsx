@@ -1,8 +1,9 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowLeft, BookOpen, Calendar, ClipboardList, Edit2, Layers, Link2, Plus, Star, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, ClipboardList, Copy, Edit2, Layers, Link2, Plus, Star, X } from 'lucide-react';
 import type { Event } from '@/types';
+import toast from 'react-hot-toast';
 
 type CourseStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 
@@ -108,6 +109,18 @@ export default function CoursesTab({
                           <span className="text-white/70 font-medium">{course._count?.events ?? 0}</span> workshops conducted
                         </span>
                         {course.instructorName && <span>by {course.instructorName}</span>}
+                        {course.isCompulsory && (
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(course.id);
+                              toast.success('Course ID copied — paste into the Google Form quiz script');
+                            }}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-white/40 hover:text-white/70 transition-all font-mono text-[11px]"
+                            title="Copy Course ID (for the Google Form quiz webhook's COMPULSORY_COURSE_ID)"
+                          >
+                            <Copy className="w-3 h-3" /> Course ID
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
