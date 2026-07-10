@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Calendar, MapPin, Clock, Users, Edit2, Save, X,
-  CheckCircle, UserCheck, Heart, Download, Wifi, WifiOff
+  CheckCircle, UserCheck, Heart, Download, Wifi, WifiOff, Star, XCircle
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import DataTable from '@/components/DataTable';
@@ -85,7 +85,9 @@ export default function AdminEventDetailPage() {
       'Roll No': r.user?.studentProfile?.rollNumber || 'N/A',
       Department: r.user?.studentProfile?.department || 'N/A',
       'Registered At': formatDate(r.registeredAt),
-      Status: r.status
+      Status: r.status,
+      'Quiz Score': r.quizScore != null ? `${r.quizScore}/5` : 'Not submitted',
+      Rating: r.eventRating != null ? `${r.eventRating}/5` : 'Not rated',
     }));
     if (!downloadCsv(data, `${event.title}_registrants`)) {
       toast.error('No registrants to export');
@@ -131,7 +133,10 @@ export default function AdminEventDetailPage() {
     department: r.user.studentProfile?.department || 'N/A',
     registeredAt: formatDate(r.registeredAt),
     rawRegisteredAt: r.registeredAt,
-    status: r.status
+    status: r.status,
+    quizScore: r.quizScore,
+    quizSubmitted: r.quizScore !== null && r.quizScore !== undefined,
+    eventRating: r.eventRating,
   }));
 
   const volunteersData = event.volunteers.map(v => ({
@@ -286,8 +291,8 @@ export default function AdminEventDetailPage() {
             { key: 'rollNo', label: 'Roll No' },
             { key: 'department', label: 'Department' },
             { key: 'registeredAt', label: 'Registered At', sortable: true, sortValue: (row: any) => new Date(row.rawRegisteredAt).getTime() },
-            { 
-              key: 'status', 
+            {
+              key: 'status',
               label: 'Status',
               render: (value: string) => (
                 <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -297,6 +302,34 @@ export default function AdminEventDetailPage() {
                 }`}>
                   {value}
                 </span>
+              )
+            },
+            {
+              key: 'quizSubmitted',
+              label: 'Quiz',
+              sortable: true,
+              // Set by the Google Form's Apps Script webhook (POST /quiz/submit)
+              // when the student actually submits — not just "opened the link".
+              render: (value: boolean, row: any) => value ? (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400">
+                  <CheckCircle className="w-3 h-3" /> {row.quizScore}/5
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-gray-500/20 text-gray-400">
+                  <XCircle className="w-3 h-3" /> Not submitted
+                </span>
+              )
+            },
+            {
+              key: 'eventRating',
+              label: 'Rating',
+              sortable: true,
+              render: (value: number | null) => value != null ? (
+                <span className="inline-flex items-center gap-1 text-yellow-400 font-semibold text-xs">
+                  <Star className="w-3 h-3 fill-yellow-400" /> {value}/5
+                </span>
+              ) : (
+                <span className="text-white/30 text-xs">Not rated</span>
               )
             },
           ]}
