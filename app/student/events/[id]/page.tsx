@@ -123,7 +123,12 @@ export default function EventDetailPage() {
         }
 
         const [eventsResponse, registrationsResponse, attendanceResponse, myFeedbackResponse] = await Promise.all([
-          apiCall('/events?limit=200'),
+          // activeOnly=false — this list is only used to look up THIS one
+          // event by id below; the default (active-only) filter excludes
+          // anything whose endAt has passed, so revisiting/refreshing a
+          // completed event's own detail page wrongly hit "Event not found"
+          // instead of showing it with a completed status.
+          apiCall('/events?limit=200&activeOnly=false'),
           apiCall('/registrations/me'),
           apiCall('/event-operations/attendance/me').catch(() => ({ data: [] })),
           apiCall('/event-operations/' + eventId + '/my-feedback').catch(() => ({ data: null })),
@@ -310,11 +315,14 @@ export default function EventDetailPage() {
 
     return (
       <DashboardLayout user={user} loading={false}>
-        {/* Back button */}
+        {/* Back button — navigates to a fixed destination rather than
+            router.back(), which silently does nothing if this page was
+            opened with no prior history entry (e.g. from a notification
+            or a bookmarked/shared link). */}
         <motion.button
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          onClick={() => router.back()}
+          onClick={() => router.push('/student/events')}
           className="flex items-center gap-2 text-white/50 hover:text-white transition-colors mb-5"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -978,7 +986,7 @@ export default function EventDetailPage() {
       <motion.button
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        onClick={() => router.back()}
+        onClick={() => router.push('/student/events')}
         className="flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -1046,7 +1054,12 @@ export default function EventDetailPage() {
                 }`}
               >
                 {registering ? <><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" /> Registering…</>
-                : isRegistered ? <><CheckCircle className="w-4 h-4" /> Registered</>
+                // Reaching this branch already means isLiveOrGrace is false (the live/grace
+                // view above returns first) — so a registered event that isn't upcoming has
+                // fully finished (past its grace window too), not just "registered".
+                : isRegistered ? (isUpcoming
+                    ? <><CheckCircle className="w-4 h-4" /> Registered</>
+                    : <><CheckCircle className="w-4 h-4" /> Session Completed</>)
                 : isFull ? <><AlertCircle className="w-4 h-4" /> Event Full</>
                 : regOpen ? 'Register Now'
                 : isLive ? <><AlertCircle className="w-4 h-4" /> Registration Closed</>

@@ -3,13 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Calendar, CheckCircle, Clock, MapPin, Star, Users, BookOpen, PlayCircle, ChevronLeft, ChevronRight, Bell } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, MapPin, Users, BookOpen, PlayCircle, ChevronLeft, ChevronRight, Bell } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
 import DataTable from '@/components/DataTable';
 import { getCurrentUser, apiCall, transformUserData } from '@/lib/api';
-import { formatDate, formatTime, renderStars } from '@/lib/utils';
+import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
 import { useNowTick } from '@/lib/useNowTick';
 import { getRegistrationMetrics, getRegisteredEventIds } from '@/lib/registrationUtils';
@@ -60,12 +60,6 @@ function CompletedEventCard({ event }: { event: CompletedEvent }) {
             <div className="flex items-center justify-between text-xs">
               <span className="text-white/50">Score</span>
               <span className="font-semibold text-white">{event.marks}/{event.maxMarks}</span>
-            </div>
-          )}
-          {event.starRating != null && (
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-white/50">Rating</span>
-              <span className="text-yellow-400">{renderStars(event.starRating)}</span>
             </div>
           )}
         </motion.div>
