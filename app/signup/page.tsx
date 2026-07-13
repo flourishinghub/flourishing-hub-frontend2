@@ -148,7 +148,7 @@ export default function SignupPage() {
           <Logo className="w-10 h-10 rounded-2xl" />
           <div>
             <p className="text-base font-bold text-white">Flourishing Hub</p>
-            <p className="text-xs text-white/40">IIT Bombay Wellness Center</p>
+            <p className="text-xs text-white/40">IIT Bombay</p>
           </div>
         </div>
         <div className="relative z-10 space-y-6">

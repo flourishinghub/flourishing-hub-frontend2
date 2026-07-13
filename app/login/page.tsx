@@ -134,7 +134,7 @@ export default function LoginPage() {
           <Logo className="w-10 h-10 rounded-2xl" />
           <div>
             <p className="text-base font-bold text-white">Flourishing Hub</p>
-            <p className="text-xs text-white/40">IIT Bombay Wellness Center</p>
+            <p className="text-xs text-white/40">IIT Bombay</p>
           </div>
         </div>
 
@@ -183,8 +183,8 @@ export default function LoginPage() {
             <p className="font-bold text-white">Flourishing Hub</p>
           </div>
 
-          <h2 className="text-2xl font-bold text-white mb-1">Welcome back</h2>
-          <p className="text-sm text-white/50 mb-8">Sign in to your IITB account</p>
+          <h2 className="text-2xl font-bold text-white mb-1">Welcome</h2>
+          <p className="text-sm text-white/50 mb-8">Sign in to your Flourish account</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
