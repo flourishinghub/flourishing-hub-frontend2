@@ -43,38 +43,6 @@
   --glass-alpha: 0.03;
 }
 
-/* Light 2 — Soft Lavender */
-[data-theme="light-2"] {
-  --bg: #F1EEFB;
-  --card: #FFFFFF;
-  --text-muted: rgba(30, 20, 50, 0.55);
-
-  --color-fg: 30 20 45;
-  --color-bg: 241 238 251;
-  --color-card: 255 255 255;
-  --color-primary: 94 74 227;
-  --color-accent: 0 150 140;
-  --color-border: 94 74 227;
-  --card-alpha: 0.92;
-  --glass-alpha: 0.04;
-}
-
-/* Light 3 — Warm Cream */
-[data-theme="light-3"] {
-  --bg: #FBF6EE;
-  --card: #FFFFFF;
-  --text-muted: rgba(40, 30, 15, 0.55);
-
-  --color-fg: 35 27 18;
-  --color-bg: 251 246 238;
-  --color-card: 255 255 255;
-  --color-primary: 176 108 46;
-  --color-accent: 0 140 120;
-  --color-border: 176 108 46;
-  --card-alpha: 0.92;
-  --glass-alpha: 0.04;
-}
-
 /* ─────────────────────────────────────────────────────────────────────
    Light-theme text/overlay visibility fix
    The app was built dark-first, so almost every component hardcodes

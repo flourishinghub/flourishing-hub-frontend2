@@ -2,7 +2,9 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-export type ThemeName = 'dark' | 'light-1' | 'light-2' | 'light-3';
+export type ThemeName = 'dark' | 'light-1';
+
+const VALID_THEMES: ThemeName[] = ['dark', 'light-1'];
 
 interface ThemeContextValue {
   theme: ThemeName;
@@ -25,7 +27,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as ThemeName | null;
-    if (stored) setThemeState(stored);
+    if (stored && VALID_THEMES.includes(stored)) setThemeState(stored);
   }, []);
 
   useEffect(() => {

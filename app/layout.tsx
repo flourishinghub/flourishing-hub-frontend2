@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{document.documentElement.setAttribute('data-theme', localStorage.getItem('fh-theme') || 'dark');}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('fh-theme');document.documentElement.setAttribute('data-theme', (t==='dark'||t==='light-1')?t:'dark');}catch(e){}`,
           }}
         />
       </head>

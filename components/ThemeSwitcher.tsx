@@ -8,8 +8,6 @@ import { useTheme, type ThemeName } from '@/components/ThemeProvider';
 const THEMES: { value: ThemeName; label: string; swatch: string }[] = [
   { value: 'dark', label: 'Dark', swatch: '#0F0F1A' },
   { value: 'light-1', label: 'Light — Clean White', swatch: '#F7F7FB' },
-  { value: 'light-2', label: 'Light — Soft Lavender', swatch: '#F1EEFB' },
-  { value: 'light-3', label: 'Light — Warm Cream', swatch: '#FBF6EE' },
 ];
 
 export default function ThemeSwitcher() {
