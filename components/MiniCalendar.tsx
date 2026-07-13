@@ -248,7 +248,7 @@ export default function MiniCalendar({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 4, scale: 0.96 }}
                     transition={{ duration: 0.12 }}
-                    className="absolute z-30 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-xl border border-white/10 bg-[#1A1A2E] shadow-2xl p-2.5 text-left pointer-events-none"
+                    className="absolute z-30 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-xl border border-white/10 bg-card shadow-2xl p-2.5 text-left pointer-events-none"
                   >
                     <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-1.5">
                       {format(day, 'MMM d')} · {dayEvents.length} event{dayEvents.length !== 1 ? 's' : ''}
@@ -264,7 +264,7 @@ export default function MiniCalendar({
                         <p className="text-[10px] text-white/30 pl-3">+{dayEvents.length - 3} more</p>
                       )}
                     </div>
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-[#1A1A2E] border-r border-b border-white/10 rotate-45 -mt-1" />
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-card border-r border-b border-white/10 rotate-45 -mt-1" />
                   </motion.div>
                 )}
               </AnimatePresence>

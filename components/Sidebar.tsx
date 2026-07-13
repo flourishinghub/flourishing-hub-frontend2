@@ -106,7 +106,7 @@ export default function Sidebar({ role, userName, mobileOpen = false, onMobileCl
       <motion.aside
         animate={{ width: collapsed ? 72 : 240 }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className={`fixed md:relative inset-y-0 left-0 z-50 flex flex-col h-screen bg-[#13132A] border-r border-white/5 shrink-0 transition-transform duration-300 ease-in-out md:translate-x-0 ${
+        className={`fixed md:relative inset-y-0 left-0 z-50 flex flex-col h-screen bg-card border-r border-white/5 shrink-0 transition-transform duration-300 ease-in-out md:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -137,7 +137,7 @@ export default function Sidebar({ role, userName, mobileOpen = false, onMobileCl
         )}
         <button
           onClick={onMobileClose}
-          className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-all"
+          className="md:hidden w-11 h-11 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-all"
         >
           <X className="w-4 h-4" />
         </button>
@@ -223,7 +223,7 @@ export default function Sidebar({ role, userName, mobileOpen = false, onMobileCl
 
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="hidden md:flex absolute -right-3 top-[4.5rem] z-10 w-6 h-6 rounded-full bg-[#1A1A2E] border border-white/10 items-center justify-center text-white/50 hover:text-white hover:border-primary/50 transition-all"
+        className="hidden md:flex absolute -right-3 top-[4.5rem] z-10 w-6 h-6 rounded-full bg-card border border-white/10 items-center justify-center text-white/50 hover:text-white hover:border-primary/50 transition-all"
       >
         {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
       </button>

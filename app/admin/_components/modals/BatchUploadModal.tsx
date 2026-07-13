@@ -234,7 +234,7 @@ export default function BatchUploadModal({ show, onClose, courses }: BatchUpload
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
             className="w-full max-w-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
-            style={{ background: '#1A1A2E' }}
+            style={{ background: 'rgb(var(--color-card))' }}
           >
             {/* Header */}
             <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
@@ -336,7 +336,7 @@ export default function BatchUploadModal({ show, onClose, courses }: BatchUpload
                       ) : (
                         <div className="overflow-x-auto max-h-64 overflow-y-auto rounded-lg border border-white/5">
                           <table className="w-full text-xs">
-                            <thead className="sticky top-0 bg-[#1A1A2E]">
+                            <thead className="sticky top-0 bg-card">
                               <tr className="border-b border-white/5">
                                 <th className="px-3 py-2 text-left text-white/40 font-semibold">Name</th>
                                 <th className="px-3 py-2 text-left text-white/40 font-semibold">Roll No</th>
@@ -393,9 +393,9 @@ export default function BatchUploadModal({ show, onClose, courses }: BatchUpload
                       </p>
                     </div>
                   </div>
-                  <div className="max-h-40 overflow-y-auto rounded-lg border border-white/5">
+                  <div className="max-h-40 overflow-y-auto overflow-x-auto rounded-lg border border-white/5">
                     <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-[#1A1A2E]">
+                      <thead className="sticky top-0 bg-card">
                         <tr className="border-b border-white/5">
                           <th className="px-3 py-2 text-left text-white/40 font-semibold">Row</th>
                           <th className="px-3 py-2 text-left text-white/40 font-semibold">Name</th>

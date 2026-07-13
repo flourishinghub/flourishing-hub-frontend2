@@ -1112,7 +1112,7 @@ export default function AdminDashboard() {
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard 
           title="Total Users" 
           value={dashboardData?.totals?.totalUsers || 0} 
@@ -1141,7 +1141,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* 4 Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard title="Courses Completed" value={coursesCompletedCount} icon={BookOpen} color="teal" />
         <StatCard title="Workshops Completed" value={workshopsCompletedCount} icon={CheckCircle} color="blue" />
         <StatCard title="Pending Workshops" value={pendingWorkshopsCount} icon={Clock} color="yellow" />

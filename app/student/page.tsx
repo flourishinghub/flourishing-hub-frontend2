@@ -699,7 +699,7 @@ export default function StudentDashboard() {
             ) : (
               <div className="space-y-2">
                 {/* Header */}
-                <div className="grid grid-cols-4 gap-3 px-3 pb-2 border-b border-white/5">
+                <div className="hidden sm:grid grid-cols-4 gap-3 px-3 pb-2 border-b border-white/5">
                   <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Course</p>
                   <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Workshop</p>
                   <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Date & Time</p>
@@ -710,12 +710,12 @@ export default function StudentDashboard() {
                   const isPresent = record.status === 'PRESENT';
                   const isExcused = record.status === 'EXCUSED';
                   return (
-                    <div key={record.eventId + i} className="grid grid-cols-4 gap-3 items-center p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
+                    <div key={record.eventId + i} className="grid grid-cols-2 sm:grid-cols-4 gap-y-2 gap-x-3 items-center p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
                       <div className="flex items-center gap-2 min-w-0">
                         <BookOpen className="w-3.5 h-3.5 text-primary shrink-0" />
-                        <p className="text-xs text-white/70 truncate">{record.courseName || 'Open Workshop'}</p>
+                        <p className="text-xs text-white/70 sm:truncate">{record.courseName || 'Open Workshop'}</p>
                       </div>
-                      <p className="text-xs text-white font-medium truncate">{record.eventTitle}</p>
+                      <p className="text-xs text-white font-medium sm:truncate">{record.eventTitle}</p>
                       <div>
                         <p className="text-xs text-white/70">{eventDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                         <p className="text-[10px] text-white/40 mt-0.5">{eventDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>

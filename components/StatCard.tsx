@@ -72,7 +72,7 @@ export default function StatCard({ title, value, subtitle, icon: Icon, color = '
             </span>
           )}
         </div>
-        <p className="text-3xl font-bold text-white mb-1">{value}</p>
+        <p className="text-2xl sm:text-3xl font-bold text-white mb-1">{value}</p>
         <p className="text-sm font-medium text-white/70">{title}</p>
         {subtitle && <p className="text-xs text-white/35 mt-0.5">{subtitle}</p>}
         {trend && <p className="text-[10px] text-white/30 mt-1">{trend.label}</p>}

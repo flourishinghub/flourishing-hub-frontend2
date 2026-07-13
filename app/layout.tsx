@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 // Global CSS can only be imported from the root layout in the App Router —
 // used by components/AdminBigCalendar.tsx, scoped to .rbc-* class names so
 // it doesn't affect any other page even though it loads everywhere. Must
@@ -13,6 +13,11 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 export const metadata: Metadata = {
   title: 'Flourishing Hub — IIT Bombay Student Wellness Center',
   description: 'Your comprehensive wellness companion at IIT Bombay. Track your wellbeing journey, attend workshops, and thrive.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

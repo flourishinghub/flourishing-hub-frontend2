@@ -200,7 +200,7 @@ export default function RolesTab({
             key={member.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all"
+            className="flex items-center flex-wrap justify-between gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all"
           >
             <div className="flex items-center gap-4 flex-1 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center text-white font-bold text-sm shrink-0">
@@ -227,11 +227,11 @@ export default function RolesTab({
                 </div>
               </div>
             </div>
-            <div className="shrink-0">
+            <div className="shrink-0 w-full sm:w-auto">
               <select
                 value={member.role}
                 onChange={(e) => handleRoleChange(member.id, e.target.value as UserRole)}
-                className="filter-select px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm min-w-[160px]"
+                className="filter-select w-full sm:w-auto px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-primary/50 focus:outline-none transition-colors text-sm sm:min-w-[160px]"
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r} className="capitalize">

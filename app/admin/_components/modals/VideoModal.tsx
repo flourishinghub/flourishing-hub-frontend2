@@ -28,7 +28,7 @@ export default function VideoModal({
         >
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
             className="w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
-            style={{ background: '#1A1A2E' }}
+            style={{ background: 'rgb(var(--color-card))' }}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
               <h3 className="text-base font-semibold text-white">Add Video</h3>

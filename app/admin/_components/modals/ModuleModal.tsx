@@ -48,7 +48,7 @@ export default function ModuleModal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
             className="w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
-            style={{ background: '#1A1A2E' }}
+            style={{ background: 'rgb(var(--color-card))' }}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
               <div>

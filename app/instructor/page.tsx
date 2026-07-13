@@ -138,7 +138,7 @@ function PastSessionCard({ session }: { session: Session }) {
   const startDate = new Date(session.startAt);
   
   return (
-    <div className="glass-card rounded-xl p-4 grid grid-cols-[120px_1fr_auto] gap-4 items-center">
+    <div className="glass-card rounded-xl p-4 grid grid-cols-[80px_1fr] sm:grid-cols-[120px_1fr_auto] gap-4 items-center">
       {/* Date Column - First */}
       <div className="text-center">
         <div className="text-lg font-bold text-white">{startDate.getDate()}</div>
@@ -175,8 +175,8 @@ function PastSessionCard({ session }: { session: Session }) {
       </div>
       
       {/* Feedback Rating */}
-      <div className="text-center">
-        <div className="flex items-center gap-1 text-yellow-400 mb-1">
+      <div className="text-center col-span-2 sm:col-span-1">
+        <div className="flex items-center justify-center sm:justify-start gap-1 text-yellow-400 mb-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <svg key={star} className="w-3 h-3 fill-current" viewBox="0 0 20 20">
               <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
@@ -531,7 +531,7 @@ export default function InstructorDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard 
           title="Upcoming Workshops" 
           value={data.upcomingSessions.length} 
@@ -1154,7 +1154,7 @@ export default function InstructorDashboard() {
                   onClick={() => {
                     toast('Profile picture upload coming soon!', { icon: '📸' });
                   }}
-                  className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary flex items-center justify-center text-[#ffffff] text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   +
                 </button>

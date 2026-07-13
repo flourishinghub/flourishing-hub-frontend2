@@ -160,6 +160,16 @@
   [data-theme^="light-"] .group:hover .group-hover\:text-white { color: rgb(var(--color-fg) / 1) !important; }
 }
 
+/* Login/signup left brand panel is always rendered on a fixed dark gradient
+   (regardless of theme, by design), so its text must stay literal white even
+   when a light theme redirects .text-white to --color-fg elsewhere. Instead
+   of excluding every rule above, just pin --color-fg back to white for this
+   panel's own scope — the light-theme overrides still fire but resolve to
+   white here since they read --color-fg. */
+.auth-brand-panel {
+  --color-fg: 255 255 255;
+}
+
 @layer base {
   * {
     @apply border-border;

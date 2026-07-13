@@ -13,8 +13,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#1A1A2E',
-            color: '#fff',
+            background: 'rgb(var(--color-card))',
+            color: 'rgb(var(--color-fg))',
             border: '1px solid rgba(108, 99, 255, 0.3)',
             borderRadius: '12px',
             fontSize: '14px',

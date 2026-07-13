@@ -35,7 +35,7 @@ export default function NotificationDropdown({ notifications, open, onClose }: N
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.18 }}
             className="absolute right-0 top-full mt-2 w-80 z-50 rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
-            style={{ background: '#1A1A2E' }}
+            style={{ background: 'rgb(var(--color-card))' }}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
               <span className="text-sm font-semibold text-white">Notifications</span>

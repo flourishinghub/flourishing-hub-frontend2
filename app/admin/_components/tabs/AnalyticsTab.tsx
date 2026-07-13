@@ -244,7 +244,7 @@ export default function AnalyticsTab({
             <h4 className="text-xl font-bold text-white">{selectedAnalyticsEvent.workshopName}</h4>
             <p className="text-primary text-sm mt-1">{selectedAnalyticsEvent.courseName}</p>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: 'Date', value: new Date(selectedAnalyticsEvent.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) },
               { label: 'Batch', value: selectedAnalyticsEvent.batch },
@@ -307,7 +307,7 @@ export default function AnalyticsTab({
             <div className="rounded-xl border border-white/5 overflow-hidden">
               <div className="overflow-x-auto max-h-80 overflow-y-auto">
                 <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-[#1A1A2E]">
+                  <thead className="sticky top-0 bg-card">
                     <tr className="border-b border-white/5">
                       {['Name', 'Roll No', 'Batch', 'Attendance', 'Mark Attendance', 'Quiz', 'Score', 'Rating'].map((h) => (
                         <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold text-white/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
@@ -417,7 +417,7 @@ export default function AnalyticsTab({
       {/* ── Cascading Filter Bar ── */}
       <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
         <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2.5">Cascading Filter</p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <CascadeSelect
             label="Course"
             value={filterCourse}
@@ -455,7 +455,7 @@ export default function AnalyticsTab({
       ) : (
         <>
           {/* ── Metric Cards ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <MetricCard label="Total Students" value={metrics.totalStudents} />
             <MetricCard label="Active Events" value={metrics.totalEvents} />
             <MetricCard label="Avg Form Rating" value={metrics.avgRating} />

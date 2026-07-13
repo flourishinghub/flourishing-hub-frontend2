@@ -48,12 +48,12 @@ export default function Navbar({ user, notifications = [], onLogout, onMarkAllRe
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="h-16 flex items-center justify-between px-3 sm:px-6 border-b border-white/5 bg-[#0F0F1A]/80 backdrop-blur-xl sticky top-0 z-30"
+      className="h-16 flex items-center justify-between px-3 sm:px-6 border-b border-white/5 bg-dark/80 backdrop-blur-xl sticky top-0 z-30"
     >
       <div className="flex items-center gap-2">
         <button
           onClick={onMenuClick}
-          className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0"
+          className="md:hidden w-11 h-11 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0"
         >
           <Menu className="w-4 h-4" />
         </button>
@@ -78,7 +78,7 @@ export default function Navbar({ user, notifications = [], onLogout, onMarkAllRe
           >
             <Bell className="w-4 h-4" />
             {unread > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full text-[9px] font-bold text-white flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full text-[9px] font-bold text-[#ffffff] flex items-center justify-center">
                 {unread}
               </span>
             )}
@@ -95,7 +95,7 @@ export default function Navbar({ user, notifications = [], onLogout, onMarkAllRe
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => { setProfileOpen((v) => !v); setNotifOpen(false); }}
-            className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-white cursor-pointer shadow-glow-sm"
+            className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-[#ffffff] cursor-pointer shadow-glow-sm"
           >
             {getInitials(user.name)}
           </motion.button>

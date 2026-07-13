@@ -35,7 +35,7 @@ export default function DeleteModal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
             className="w-full max-w-md rounded-2xl border border-red-500/20 shadow-2xl overflow-hidden"
-            style={{ background: '#1A1A2E' }}
+            style={{ background: 'rgb(var(--color-card))' }}
           >
             {/* Modal Header */}
             <div className="flex items-center gap-3 px-6 py-4 border-b border-white/5 bg-red-500/5">

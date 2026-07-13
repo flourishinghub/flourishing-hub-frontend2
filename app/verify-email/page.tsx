@@ -198,7 +198,7 @@ function VerifyEmailContent() {
         <button
           onClick={handleVerify}
           disabled={loading || otp.join("").length !== 6}
-          className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors mb-4"
+          className="w-full bg-primary text-[#ffffff] py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors mb-4"
         >
           {loading ? "Verifying..." : "Verify Email"}
         </button>

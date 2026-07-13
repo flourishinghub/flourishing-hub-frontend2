@@ -76,7 +76,7 @@ function ApprovalPendingContent() {
         {/* Back to Login */}
         <Link
           href="/login"
-          className="block w-full bg-primary text-white text-center py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
+          className="block w-full bg-primary text-[#ffffff] text-center py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
         >
           Back to Login
         </Link>

@@ -51,6 +51,15 @@ export function isEventLiveOrGrace(eventStartAt: string, eventEndAt?: string | n
   return now >= eventStart && now <= graceEnd;
 }
 
+// Locks the quiz link until the last stretch of a session — true starting
+// `minsBeforeEnd` before eventEndAt. Returns true (i.e. does not lock) when
+// eventEndAt is unknown, since there's no end time to gate against.
+export function isWithinMinsBeforeEnd(eventEndAt?: string | null, minsBeforeEnd = 30): boolean {
+  if (!eventEndAt) return true;
+  const windowStart = new Date(new Date(eventEndAt).getTime() - minsBeforeEnd * 60 * 1000);
+  return new Date() >= windowStart;
+}
+
 // Returns true only during the 5-min window after endAt
 export function isGracePeriodActive(eventEndAt?: string | null, graceMins = 5): boolean {
   if (!eventEndAt) return false;

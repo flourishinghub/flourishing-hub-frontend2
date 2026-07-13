@@ -58,11 +58,11 @@ export default function ProfileDropdown({ user, open, onClose, onLogout }: Profi
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.18 }}
             className="absolute right-0 top-full mt-2 w-72 z-50 rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
-            style={{ background: '#1A1A2E' }}
+            style={{ background: 'rgb(var(--color-card))' }}
           >
             <div className="px-5 py-4 bg-gradient-to-br from-primary/10 to-accent/5 border-b border-white/5">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-base font-bold text-white shadow-glow-sm">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-base font-bold text-[#ffffff] shadow-glow-sm">
                   {getInitials(user.name)}
                 </div>
                 <div>

@@ -185,7 +185,7 @@ export default function BulkImportModal({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               className="w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
-              style={{ background: '#1A1A2E' }}
+              style={{ background: 'rgb(var(--color-card))' }}
             >
               {/* Header */}
               <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
@@ -426,7 +426,7 @@ export default function BulkImportModal({
                     <div className="rounded-xl border border-white/8 overflow-hidden">
                       <div className="overflow-x-auto max-h-60 overflow-y-auto">
                         <table className="w-full text-xs">
-                          <thead className="sticky top-0" style={{ background: '#1A1A2E' }}>
+                          <thead className="sticky top-0" style={{ background: 'rgb(var(--color-card))' }}>
                             <tr className="border-b border-white/5">
                               <th className="px-3 py-2 text-left text-white/40 font-semibold w-8">#</th>
                               <th className="px-3 py-2 text-left text-white/40 font-semibold">Workshop</th>
@@ -571,7 +571,7 @@ export default function BulkImportModal({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="relative rounded-2xl p-6 max-w-sm w-full border border-white/15 shadow-2xl"
-              style={{ background: '#1A1A2E' }}
+              style={{ background: 'rgb(var(--color-card))' }}
             >
               <div className="flex items-start gap-3 mb-5">
                 <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />

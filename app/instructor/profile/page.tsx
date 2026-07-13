@@ -266,7 +266,7 @@ export default function InstructorProfilePage() {
               </div>
               <button
                 onClick={handleProfilePictureUpload}
-                className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary flex items-center justify-center text-[#ffffff] shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <Camera className="w-5 h-5" />
               </button>

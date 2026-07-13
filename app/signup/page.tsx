@@ -139,7 +139,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex bg-dark">
       {/* Left panel */}
-      <div className="hidden lg:flex flex-col justify-between w-5/12 bg-gradient-to-br from-[#13132A] to-[#0F0F1A] p-12 relative overflow-hidden">
+      <div className="auth-brand-panel hidden lg:flex flex-col justify-between w-5/12 bg-gradient-to-br from-[#13132A] to-[#0F0F1A] p-12 relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-20 left-20 w-64 h-64 rounded-full bg-accent/10 blur-3xl" />
           <div className="absolute bottom-20 right-10 w-56 h-56 rounded-full bg-primary/10 blur-3xl" />

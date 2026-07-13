@@ -26,6 +26,7 @@ export default function HomePage() {
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [volunteerStates, setVolunteerStates] = useState<Record<string, boolean>>({});
+  const [registeringIds, setRegisteringIds] = useState<string[]>([]);
   const router = useRouter();
 
   // Fetch user data and events from backend API
@@ -282,10 +283,12 @@ export default function HomePage() {
     .filter((c: any) => c.registeredCount > 0);
 
   const handleRegister = async (eventId: string, eventTitle: string) => {
+    if (registeringIds.includes(eventId)) return; // already in flight — ignore rapid double-clicks
+    setRegisteringIds(prev => [...prev, eventId]);
     try {
       console.log("🔄 REGISTERING EVENT ID:", eventId);
       console.log("📝 Event Title:", eventTitle);
-      
+
       const response = await apiCall('/registrations', {
         method: 'POST',
         body: JSON.stringify({
@@ -293,14 +296,14 @@ export default function HomePage() {
           asVolunteer: false
         })
       });
-      
+
       console.log("✅ Registration successful:", response);
       toast.success(`Successfully registered for ${eventTitle}!`);
-      
+
       // 🔥 CRITICAL: Refresh registrations to update UI
       const registrationsResponse = await apiCall('/registrations/me');
       setRegistrations(registrationsResponse.data || []);
-      
+
     } catch (error: any) {
       console.error("❌ Registration failed:", error);
       if (error.message?.includes('already registered')) {
@@ -310,21 +313,25 @@ export default function HomePage() {
       } else {
         toast.error('Registration failed. Please try again.');
       }
+    } finally {
+      setRegisteringIds(prev => prev.filter(id => id !== eventId));
     }
   };
 
   const handleVolunteer = async (eventId: string, eventTitle: string) => {
+    if (registeringIds.includes(eventId)) return; // already in flight — ignore rapid double-clicks
+
+    const isCurrentlyVolunteered = volunteerStates[eventId];
+    if (isCurrentlyVolunteered) {
+      // TODO: Implement unregister API if needed
+      toast('Volunteer unregistration not implemented yet', { icon: 'ℹ️' });
+      return;
+    }
+
+    setRegisteringIds(prev => [...prev, eventId]);
     try {
       console.log("🔄 VOLUNTEERING FOR EVENT ID:", eventId);
-      
-      const isCurrentlyVolunteered = volunteerStates[eventId];
-      
-      if (isCurrentlyVolunteered) {
-        // TODO: Implement unregister API if needed
-        toast('Volunteer unregistration not implemented yet', { icon: 'ℹ️' });
-        return;
-      }
-      
+
       const response = await apiCall('/registrations', {
         method: 'POST',
         body: JSON.stringify({
@@ -332,11 +339,11 @@ export default function HomePage() {
           asVolunteer: true
         })
       });
-      
+
       console.log("✅ Volunteer registration successful:", response);
       setVolunteerStates((prev) => ({ ...prev, [eventId]: true }));
       toast.success(`Registered as volunteer for ${eventTitle}!`);
-      
+
     } catch (error: any) {
       console.error("❌ Volunteer registration failed:", error);
       if (error.message?.includes('already registered')) {
@@ -344,6 +351,8 @@ export default function HomePage() {
       } else {
         toast.error('Volunteer registration failed. Please try again.');
       }
+    } finally {
+      setRegisteringIds(prev => prev.filter(id => id !== eventId));
     }
   };
 
@@ -409,10 +418,10 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
                 <div className="relative flex items-center gap-5 flex-wrap sm:flex-nowrap">
                   <div className="relative shrink-0">
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-3xl font-bold shadow-glow-sm">
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[#ffffff] text-3xl font-bold shadow-glow-sm">
                       {user.name?.charAt(0)?.toUpperCase() || 'S'}
                     </div>
-                    <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-400 border-2 border-[#1A1A2E] flex items-center justify-center">
+                    <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-400 border-2 border-[rgb(var(--color-card))] flex items-center justify-center">
                       <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                     </span>
                   </div>
@@ -528,7 +537,7 @@ export default function HomePage() {
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
               className="relative rounded-3xl overflow-hidden border border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.12)]"
-              style={{ background: 'linear-gradient(135deg, #1A1A2E 0%, #13131f 100%)' }}
+              style={{ background: 'rgb(var(--color-card))' }}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 to-transparent pointer-events-none" />
               <div className="relative z-10 p-8">
@@ -572,26 +581,28 @@ export default function HomePage() {
                       <motion.button
                         whileTap={{ scale: 0.97 }}
                         onClick={() => handleRegister(activeEvent.id, activeEvent.title)}
-                        className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
+                        disabled={registeringIds.includes(activeEvent.id)}
+                        className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                           isRegisteredForEvent(activeEvent.id)
                             ? 'bg-primary/20 text-primary border border-primary/30'
                             : 'btn-primary'
                         }`}
                       >
-                        {isRegisteredForEvent(activeEvent.id) ? 'Registered ✓' : 'Register Now'}
+                        {registeringIds.includes(activeEvent.id) ? 'Registering…' : isRegisteredForEvent(activeEvent.id) ? 'Registered ✓' : 'Register Now'}
                       </motion.button>
                     )}
                     {user.role === 'volunteer' && (
                       <motion.button
                         whileTap={{ scale: 0.97 }}
                         onClick={() => handleVolunteer(activeEvent.id, activeEvent.title)}
-                        className={`px-6 py-3 rounded-xl font-semibold text-sm border transition-all ${
+                        disabled={registeringIds.includes(activeEvent.id)}
+                        className={`px-6 py-3 rounded-xl font-semibold text-sm border transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                           volunteerStates[activeEvent.id]
                             ? 'bg-accent/20 text-accent border-accent/30'
                             : 'bg-white/5 text-white/70 border-white/15 hover:bg-accent/10 hover:text-accent hover:border-accent/30'
                         }`}
                       >
-                        {volunteerStates[activeEvent.id] ? '✓ Volunteered' : 'Register as Volunteer'}
+                        {registeringIds.includes(activeEvent.id) ? 'Registering…' : volunteerStates[activeEvent.id] ? '✓ Volunteered' : 'Register as Volunteer'}
                       </motion.button>
                     )}
                     {(user.role === 'instructor' || user.role === 'associate-instructor') && (
