@@ -9,7 +9,7 @@ interface LogoProps {
 // dark navy surfaces without one.
 export default function Logo({ className = 'w-8 h-8 rounded-xl' }: LogoProps) {
   return (
-    <div className={`${className} bg-white border border-primary/30 flex items-center justify-center shrink-0 shadow-glow-sm p-1`}>
+    <div className={`${className} bg-[#ffffff] border border-primary/30 flex items-center justify-center shrink-0 shadow-glow-sm p-1`}>
       <img src="/logo.png" alt="Flourishing Hub" className="w-full h-full object-contain" />
     </div>
   );

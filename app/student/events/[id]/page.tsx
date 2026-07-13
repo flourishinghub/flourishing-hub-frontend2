@@ -1014,7 +1014,7 @@ export default function EventDetailPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             {isLive && (
               <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-emerald-500/90 text-white text-sm font-semibold flex items-center gap-2">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse" /> LIVE NOW
+                <div className="w-2 h-2 bg-[#ffffff] rounded-full animate-pulse" /> LIVE NOW
               </div>
             )}
             <div className="absolute bottom-4 left-4 right-4">

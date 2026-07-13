@@ -10,7 +10,7 @@ function ApprovalPendingContent() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+      <div className="bg-[#ffffff] rounded-2xl shadow-xl p-8 max-w-md w-full">
         {/* Icon */}
         <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

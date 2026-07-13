@@ -624,7 +624,7 @@ export default function StudentDashboard() {
                         <div className="relative h-24 bg-gradient-to-br from-primary/20 to-accent/20 overflow-hidden">
                           {isLive && (
                             <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white text-[9px] font-bold flex items-center gap-1 z-10">
-                              <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />LIVE
+                              <div className="w-1.5 h-1.5 bg-[#ffffff] rounded-full animate-pulse" />LIVE
                             </div>
                           )}
                           {isReg && (

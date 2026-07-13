@@ -527,7 +527,7 @@ export default function BulkImportModal({
                       className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {previewing
-                        ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Parsing...</>
+                        ? <><div className="w-4 h-4 border-2 border-[#ffffff] border-t-transparent rounded-full animate-spin" /> Parsing...</>
                         : <><Eye className="w-4 h-4" /> Preview Events</>}
                     </button>
                   </>
@@ -545,7 +545,7 @@ export default function BulkImportModal({
                       className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {bulkImporting
-                        ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Importing...</>
+                        ? <><div className="w-4 h-4 border-2 border-[#ffffff] border-t-transparent rounded-full animate-spin" /> Importing...</>
                         : <><Upload className="w-4 h-4" /> Import Events</>}
                     </button>
                   </>

@@ -397,7 +397,7 @@ export default function ProfilePage() {
                 className="absolute inset-0 rounded-2xl bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-wait"
               >
                 {uploadingPhoto ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-[#ffffff] border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
                     <Camera className="w-5 h-5 text-white mb-1" />

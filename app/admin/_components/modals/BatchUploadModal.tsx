@@ -544,7 +544,7 @@ export default function BatchUploadModal({ show, onClose, courses }: BatchUpload
                 className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {uploading
-                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing {doneCount + 1}/{files.length}...</>
+                  ? <><div className="w-4 h-4 border-2 border-[#ffffff] border-t-transparent rounded-full animate-spin" /> Processing {doneCount + 1}/{files.length}...</>
                   : <><Upload className="w-4 h-4" /> Upload {files.length > 0 ? `${files.length} Files` : 'Files'}</>}
               </button>
             </div>

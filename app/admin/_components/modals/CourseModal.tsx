@@ -148,7 +148,7 @@ export default function CourseModal({
                     onClick={() => setCourseForm({ ...courseForm, isCompulsory: !courseForm.isCompulsory })}
                     className={`w-10 h-5 rounded-full transition-colors relative ${courseForm.isCompulsory ? 'bg-amber-500' : 'bg-white/10'}`}
                   >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${courseForm.isCompulsory ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-[#ffffff] shadow transition-transform ${courseForm.isCompulsory ? 'translate-x-5' : 'translate-x-0.5'}`} />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-white/80">Compulsory Bundle</p>
@@ -209,7 +209,7 @@ export default function CourseModal({
               >
                 {savingCourse ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-[#ffffff] border-t-transparent rounded-full animate-spin" />
                     Saving...
                   </>
                 ) : (

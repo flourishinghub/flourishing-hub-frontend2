@@ -138,7 +138,7 @@ function VerifyEmailContent() {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+        <div className="bg-[#ffffff] rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -153,7 +153,7 @@ function VerifyEmailContent() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+      <div className="bg-[#ffffff] rounded-2xl shadow-xl p-8 max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
@@ -181,7 +181,7 @@ function VerifyEmailContent() {
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 onPaste={handlePaste}
                 onFocus={(e) => e.target.select()}
-                className="w-12 h-14 text-center text-2xl font-bold text-gray-900 bg-white border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:bg-gray-100"
+                className="w-12 h-14 text-center text-2xl font-bold text-gray-900 bg-[#ffffff] border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:bg-gray-100"
                 disabled={loading}
               />
             ))}

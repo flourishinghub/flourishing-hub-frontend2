@@ -228,13 +228,13 @@ export default function MiniCalendar({
               <span className="relative z-10">{format(day, 'd')}</span>
               {inMonth && (reg || unreg) && (
                 <div className="flex gap-0.5 mt-0.5 relative z-10">
-                  {reg && <div className={`w-1 h-1 rounded-full ${selected ? 'bg-white' : 'bg-primary'}`} />}
-                  {unreg && <div className={`w-1 h-1 rounded-full ${selected ? 'bg-white' : 'bg-accent'}`} />}
+                  {reg && <div className={`w-1 h-1 rounded-full ${selected ? 'bg-[#ffffff]' : 'bg-primary'}`} />}
+                  {unreg && <div className={`w-1 h-1 rounded-full ${selected ? 'bg-[#ffffff]' : 'bg-accent'}`} />}
                 </div>
               )}
               {inMonth && dayEvents.length > 1 && (
                 <span className={`absolute top-0.5 right-0.5 z-10 min-w-[13px] h-[13px] px-0.5 flex items-center justify-center rounded-full text-[8px] font-bold ${
-                  selected ? 'bg-white text-primary' : 'bg-primary text-white'
+                  selected ? 'bg-[#ffffff] text-primary' : 'bg-primary text-[#ffffff]'
                 }`}>
                   {dayEvents.length}
                 </span>
