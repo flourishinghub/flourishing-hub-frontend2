@@ -48,6 +48,7 @@ export default function BulkImportModal({
   const [previewing, setPreviewing] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const hasModuleMismatch = previewEvents.some((ev) => ev.moduleMatched === false);
 
   const resetState = () => {
     setWorkshopType(null);
@@ -422,6 +423,19 @@ export default function BulkImportModal({
                       );
                     })()}
 
+                    {(() => {
+                      const moduleMismatchCount = previewEvents.filter((ev) => ev.moduleMatched === false).length;
+                      if (!moduleMismatchCount) return null;
+                      return (
+                        <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/25">
+                          <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                          <p className="text-xs text-red-300">
+                            {moduleMismatchCount} row{moduleMismatchCount !== 1 ? 's have' : ' has'} a workshop name that doesn&apos;t match any module in this course (highlighted below). Fix the name in your file and re-upload — these rows will fail to import as-is.
+                          </p>
+                        </div>
+                      );
+                    })()}
+
                     {/* Preview table */}
                     <div className="rounded-xl border border-white/8 overflow-hidden">
                       <div className="overflow-x-auto max-h-60 overflow-y-auto">
@@ -445,7 +459,10 @@ export default function BulkImportModal({
                               <tr key={i} className="hover:bg-white/[0.02]">
                                 <td className="px-3 py-2 text-white/30">{i + 1}</td>
                                 <td className="px-3 py-2 text-white font-medium max-w-[160px]">
-                                  <p className="truncate">{ev.title}</p>
+                                  <p className={`truncate ${ev.moduleMatched === false ? 'text-red-400' : 'text-white'}`}>{ev.title}</p>
+                                  {ev.moduleMatched === false && (
+                                    <p className="text-[9px] text-red-400/80 mt-0.5">⚠ No matching module — will fail to import</p>
+                                  )}
                                 </td>
                                 <td className="px-3 py-2 text-white/60 whitespace-nowrap">{fmtDate(ev.startAt)}</td>
                                 <td className="px-3 py-2 text-white/60 whitespace-nowrap">{fmtTime(ev.startAt)}</td>
@@ -540,8 +557,9 @@ export default function BulkImportModal({
                       <ArrowLeft className="w-4 h-4" /> Back
                     </button>
                     <button
-                      disabled={!confirmed || bulkImporting}
+                      disabled={!confirmed || bulkImporting || hasModuleMismatch}
                       onClick={() => setShowConfirmDialog(true)}
+                      title={hasModuleMismatch ? 'Fix the unmatched workshop name(s) above before importing' : undefined}
                       className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {bulkImporting
