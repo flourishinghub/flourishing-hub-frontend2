@@ -51,13 +51,18 @@ export function isEventLiveOrGrace(eventStartAt: string, eventEndAt?: string | n
   return now >= eventStart && now <= graceEnd;
 }
 
-// Locks the quiz link until the last stretch of a session — true starting
-// `minsBeforeEnd` before eventEndAt. Returns true (i.e. does not lock) when
-// eventEndAt is unknown, since there's no end time to gate against.
-export function isWithinMinsBeforeEnd(eventEndAt?: string | null, minsBeforeEnd = 30): boolean {
-  if (!eventEndAt) return true;
-  const windowStart = new Date(new Date(eventEndAt).getTime() - minsBeforeEnd * 60 * 1000);
-  return new Date() >= windowStart;
+// Locks the quiz link until the halfway point of the session — true starting
+// at eventStartAt + (eventEndAt - eventStartAt) / 2. A fixed "N minutes
+// before end" gate breaks for short sessions (e.g. a 10-min session would
+// unlock before it even started), so the gate is a fraction of the actual
+// duration instead. Returns true (i.e. does not lock) when either end is
+// unknown, since there's no window to gate against.
+export function isPastEventMidpoint(eventStartAt?: string | null, eventEndAt?: string | null): boolean {
+  if (!eventStartAt || !eventEndAt) return true;
+  const start = new Date(eventStartAt).getTime();
+  const end = new Date(eventEndAt).getTime();
+  const midpoint = start + (end - start) / 2;
+  return Date.now() >= midpoint;
 }
 
 // Returns true only during the 5-min window after endAt

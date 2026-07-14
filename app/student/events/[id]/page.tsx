@@ -12,7 +12,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import { isEventLive, isEventLiveOrGrace, isGracePeriodActive, getGraceSecondsRemaining, isEventUpcoming, isRegistrationOpen, isWithinMinsBeforeEnd } from '@/lib/dateUtils';
+import { isEventLive, isEventLiveOrGrace, isGracePeriodActive, getGraceSecondsRemaining, isEventUpcoming, isRegistrationOpen, isPastEventMidpoint } from '@/lib/dateUtils';
 import { getRegisteredEventIds } from '@/lib/registrationUtils';
 import type { AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
@@ -284,12 +284,14 @@ export default function EventDetailPage() {
   const isLive = isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt);
   const isLiveOrGrace = isEventLiveOrGrace(event.startAt || (event.date + 'T' + event.time), event.endAt);
   const graceActive = isGracePeriodActive(event.endAt);
-  // Quiz link stays locked until the last 30 minutes of the session (or the
-  // post-session grace window) — previously it unlocked the moment the
-  // session went live.
-  const quizWindowOpen = (isLive && isWithinMinsBeforeEnd(event.endAt, 30)) || graceActive;
-  const quizOpensInSecs = event.endAt
-    ? Math.max(0, Math.floor((new Date(event.endAt).getTime() - 30 * 60 * 1000 - Date.now()) / 1000))
+  // Quiz link stays locked until the halfway point of the session (or the
+  // post-session grace window) — a fixed "30 min before end" gate broke for
+  // short sessions, since that point could fall before the session even
+  // started.
+  const eventStartRaw = event.startAt || (event.date + 'T' + event.time);
+  const quizWindowOpen = (isLive && isPastEventMidpoint(eventStartRaw, event.endAt)) || graceActive;
+  const quizOpensInSecs = (eventStartRaw && event.endAt)
+    ? Math.max(0, Math.floor((new Date(eventStartRaw).getTime() + (new Date(event.endAt).getTime() - new Date(eventStartRaw).getTime()) / 2 - Date.now()) / 1000))
     : 0;
   const isUpcoming = isEventUpcoming(event.startAt || (event.date + 'T' + event.time));
   // Registration allowed until 15 minutes after the event starts
@@ -637,7 +639,7 @@ export default function EventDetailPage() {
                   ) : (
                     <p className="text-white/30 text-sm mt-2 flex items-center gap-1.5">
                       <Lock className="w-3 h-3 shrink-0" />
-                      Quiz unlocks 30 minutes before the session ends
+                      Quiz unlocks halfway through the session
                       {quizOpensInSecs > 0 && ` — opens in ${Math.floor(quizOpensInSecs / 60)}m ${quizOpensInSecs % 60}s`}
                     </p>
                   )}
