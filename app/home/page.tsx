@@ -12,10 +12,12 @@ import Link from 'next/link';
 import { getRolePath, formatDate, formatTime } from '@/lib/utils';
 import { getCurrentUser, apiCall } from '@/lib/api';
 import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
+import { useNowTick } from '@/lib/useNowTick';
 import { mockEvents } from '@/lib/mockData';
 import DashboardLayout from '@/components/DashboardLayout';
 import EventCard from '@/components/EventCard';
 import FlourishingTagline from '@/components/FlourishingTagline';
+import Logo from '@/components/Logo';
 import type { AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -28,6 +30,7 @@ export default function HomePage() {
   const [volunteerStates, setVolunteerStates] = useState<Record<string, boolean>>({});
   const [registeringIds, setRegisteringIds] = useState<string[]>([]);
   const router = useRouter();
+  useNowTick(); // re-render every 30s so isEventLive() flips to "live" without a manual refresh
 
   // Fetch user data and events from backend API
   useEffect(() => {
@@ -162,7 +165,9 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent animate-pulse" />
+        <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 1.2 }}>
+          <Logo className="w-12 h-12 rounded-2xl" />
+        </motion.div>
       </div>
     );
   }

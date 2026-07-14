@@ -7,6 +7,7 @@ import {
   ChevronRight, Loader2, Star, Layers,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
+import Logo from '@/components/Logo';
 import { apiCall } from '@/lib/api';
 import type { AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
@@ -96,7 +97,9 @@ export default function ExplorePage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 1.2 }}>
+            <Logo className="w-10 h-10 rounded-xl" />
+          </motion.div>
         </div>
       ) : courses.length === 0 ? (
         <div className="glass-card rounded-2xl p-12 text-center">

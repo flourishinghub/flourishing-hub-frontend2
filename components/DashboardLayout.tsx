@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
+import Logo from '@/components/Logo';
 import { getStoredUser } from '@/lib/auth';
 import { apiCall } from '@/lib/api';
 import type { AuthPayload, Notification } from '@/types';
@@ -71,7 +72,9 @@ export default function DashboardLayout({ children, user: propUser, loading }: D
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent animate-pulse" />
+          <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 1.2 }}>
+            <Logo className="w-12 h-12 rounded-2xl" />
+          </motion.div>
           <p className="text-sm text-white/40 animate-pulse">Loading dashboard...</p>
         </div>
       </div>

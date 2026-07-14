@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
+import Logo from '@/components/Logo';
 import { apiCall, getCurrentUser } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLive, isEventUpcoming, isEventPast, toLocalDateKey } from '@/lib/dateUtils';
@@ -441,7 +442,9 @@ export default function AdminDashboard() {
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent animate-pulse mx-auto mb-4" />
+            <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 1.2 }} className="inline-block mb-4">
+              <Logo className="w-12 h-12 rounded-2xl" />
+            </motion.div>
             <p className="text-white/60">Loading dashboard...</p>
           </div>
         </div>
