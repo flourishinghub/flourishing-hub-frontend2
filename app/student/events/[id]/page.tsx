@@ -504,7 +504,7 @@ export default function EventDetailPage() {
             >
               {/* Verified Hero */}
               <div
-                className="relative rounded-2xl overflow-hidden p-6 lg:p-8"
+                className="dark-surface-card relative rounded-2xl overflow-hidden p-6 lg:p-8"
                 style={{
                   background: 'linear-gradient(135deg, #061a0f 0%, #0a2016 50%, #061820 100%)',
                   border: '1px solid rgba(16,185,129,0.3)',
@@ -586,7 +586,7 @@ export default function EventDetailPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
-                className="relative rounded-2xl overflow-hidden"
+                className="dark-surface-card relative rounded-2xl overflow-hidden"
                 style={{
                   background: quizWindowOpen
                     ? 'linear-gradient(135deg, #1a0e04, #1f1408)'
@@ -687,7 +687,7 @@ export default function EventDetailPage() {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="rounded-2xl p-5"
+                  className="dark-surface-card rounded-2xl p-5"
                   style={{ background: 'linear-gradient(135deg,#0a1628,#0d1f3c)', border: '1px solid rgba(99,102,241,0.35)', boxShadow: '0 0 25px rgba(99,102,241,0.08)' }}
                 >
                   <div className="flex items-center gap-2 mb-4">
@@ -807,7 +807,7 @@ export default function EventDetailPage() {
               <div className="lg:col-span-3 space-y-4">
                 {/* Check-in / Pending card */}
                 <div
-                  className="relative rounded-2xl overflow-hidden"
+                  className="dark-surface-card relative rounded-2xl overflow-hidden"
                   style={{
                     background: isPending
                       ? 'linear-gradient(135deg, #1a1400, #1f1800)'
