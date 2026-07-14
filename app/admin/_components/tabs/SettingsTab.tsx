@@ -35,10 +35,11 @@ export default function SettingsTab() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-white">Delete all events &amp; courses</p>
+              <p className="text-sm font-medium text-white">Delete or archive events &amp; courses</p>
               <p className="text-xs text-white/40 mt-0.5">
-                Permanently deletes every event, workshop, course, and their registrations/attendance/quiz
-                data. Student and staff accounts are not affected. Cannot be undone.
+                Choose Events and/or Courses, then either permanently delete them (with their
+                registrations/attendance/quiz data) or archive them (reversible, just hidden from active
+                lists). Student and staff accounts are never affected.
               </p>
             </div>
           </div>
@@ -46,7 +47,7 @@ export default function SettingsTab() {
             onClick={() => setShowWipeModal(true)}
             className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition-all"
           >
-            <Trash2 className="w-3.5 h-3.5" /> Delete Everything
+            <Trash2 className="w-3.5 h-3.5" /> Manage
           </button>
         </div>
       </div>
