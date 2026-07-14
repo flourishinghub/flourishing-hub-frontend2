@@ -7,7 +7,7 @@ import {
   ArrowLeft, Calendar, Clock, MapPin, Users, ExternalLink,
   Share2, Heart, CheckCircle, AlertCircle, Radio, Loader2,
   BookOpen, GraduationCap, Fingerprint, ShieldCheck, Zap,
-  Wifi, History, Star, Award, Lock, Video, FileText
+  Wifi, Star, Award, Lock, Video, FileText
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { apiCall } from '@/lib/api';
@@ -25,7 +25,7 @@ export default function EventDetailPage() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [checkIn, setCheckIn] = useState<any>(null);
   const [checkingIn, setCheckingIn] = useState(false);
-  const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
+  const [bannerError, setBannerError] = useState(false);
   const [myAttendanceRec, setMyAttendanceRec] = useState<any>(null);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackHover, setFeedbackHover] = useState(0);
@@ -204,19 +204,6 @@ export default function EventDetailPage() {
           setFeedbackRating(myFeedbackResponse.data.eventRating);
           setFeedbackSubmitted(true);
         }
-
-        const history = allAttendance
-          .filter((a: any) => a.status === 'PRESENT' && a.eventId !== eventId)
-          .slice(0, 5)
-          .map((a: any) => ({
-            eventTitle: a.eventTitle || 'Workshop',
-            date: a.date,
-            marks: a.marks,
-            maxMarks: a.maxMarks,
-            starRating: a.starRating,
-            courseName: a.courseName,
-          }));
-        setAttendanceHistory(history);
       } catch (error) {
         console.error('Failed to fetch event details:', error);
         toast.error('Failed to load event details');
@@ -504,7 +491,7 @@ export default function EventDetailPage() {
           {/* ══════════════════════════════════════════════════════
               PHASE 2 — VERIFIED: Session Active
           ══════════════════════════════════════════════════════ */}
-          {isVerified ? (
+          {(hasCheckedIn && !isRejected) ? (
             <motion.div
               key="phase2"
               initial={{ opacity: 0, y: 20 }}
@@ -532,13 +519,20 @@ export default function EventDetailPage() {
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                      className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center"
+                      className={`w-12 h-12 rounded-full flex items-center justify-center ${isVerified ? 'bg-emerald-500/20 border border-emerald-500/40' : 'bg-amber-500/20 border border-amber-500/40'}`}
                     >
-                      <ShieldCheck className="w-6 h-6 text-emerald-400" />
+                      {isVerified
+                        ? <ShieldCheck className="w-6 h-6 text-emerald-400" />
+                        : <Zap className="w-6 h-6 text-amber-400" />
+                      }
                     </motion.div>
                     <div>
-                      <p className="text-emerald-400 font-bold text-base">Attendance Confirmed</p>
-                      <p className="text-white/40 text-xs">Your presence has been verified by the instructor</p>
+                      <p className={`font-bold text-base ${isVerified ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {isVerified ? 'Attendance Confirmed' : 'Checked In'}
+                      </p>
+                      <p className="text-white/40 text-xs">
+                        {isVerified ? 'Your presence has been verified by the instructor' : 'Verification pending — you can attempt the quiz now'}
+                      </p>
                     </div>
                   </div>
 
@@ -1006,11 +1000,16 @@ export default function EventDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative h-64 rounded-2xl overflow-hidden">
-            <img
-              src={`https://source.unsplash.com/800x400/?workshop,meditation,wellness,${encodeURIComponent(event.title.split(' ').slice(0, 2).join(' '))}`}
-              alt={event.title}
-              className="w-full h-full object-cover"
-            />
+            {bannerError ? (
+              <div className="w-full h-full bg-gradient-to-br from-primary/30 to-accent/30" />
+            ) : (
+              <img
+                src={`https://source.unsplash.com/800x400/?workshop,meditation,wellness,${encodeURIComponent(event.title.split(' ').slice(0, 2).join(' '))}`}
+                alt={event.title}
+                className="w-full h-full object-cover"
+                onError={() => setBannerError(true)}
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             {isLive && (
               <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-emerald-500/90 text-white text-sm font-semibold flex items-center gap-2">
@@ -1114,49 +1113,6 @@ export default function EventDetailPage() {
               )}
             </motion.div>
           )}
-
-          {/* History */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <History className="w-4 h-4 text-primary" />
-              <h3 className="text-lg font-semibold text-white">My History</h3>
-            </div>
-            {attendanceHistory.length === 0 ? (
-              <div className="text-center py-6">
-                <Award className="w-8 h-8 text-white/20 mx-auto mb-2" />
-                <p className="text-white/40 text-sm">No attended workshops yet</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {attendanceHistory.map((item, idx) => (
-                  <div key={idx} className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
-                    <p className="text-white text-sm font-medium leading-tight mb-1">{item.eventTitle}</p>
-                    {item.courseName && <p className="text-primary/80 text-xs mb-1">{item.courseName}</p>}
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-white/40 text-xs">
-                        {item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {item.marks != null && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">
-                            {item.marks}/{item.maxMarks ?? 100}
-                          </span>
-                        )}
-                        {item.starRating != null && (
-                          <div className="flex gap-0.5">
-                            {[1,2,3,4,5].map(s => <Star key={s} className={`w-2.5 h-2.5 ${s <= item.starRating ? 'text-yellow-400 fill-yellow-400' : 'text-white/15'}`} />)}
-                          </div>
-                        )}
-                        {item.marks == null && item.starRating == null && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Present</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
         </div>
       </div>
     </DashboardLayout>
