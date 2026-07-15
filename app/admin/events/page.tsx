@@ -449,8 +449,8 @@ export default function AdminEventsPage() {
             >
               {/* Event Header */}
               <div className="p-6 border-b border-white/5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-4 flex-1">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleSelectEvent(event.id); }}
                       className="shrink-0 mt-0.5"

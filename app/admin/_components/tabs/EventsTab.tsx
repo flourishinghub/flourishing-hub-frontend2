@@ -169,8 +169,8 @@ export default function EventsTab({
           >
             {/* Event Header */}
             <div className="p-6 border-b border-white/5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-start gap-4 flex-1 min-w-0">
                   <div className={`w-3 h-3 rounded-full mt-1 shrink-0 ${
                     event.status === 'published' ? 'bg-emerald-400' :
                     event.status === 'draft' ? 'bg-yellow-400' : 'bg-gray-500'

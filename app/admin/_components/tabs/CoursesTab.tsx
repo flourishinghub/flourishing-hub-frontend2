@@ -190,8 +190,8 @@ export default function CoursesTab({
             </motion.button>
           </div>
 
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-start gap-4 flex-1 min-w-0">
               {selectedCourse.posterUrl ? (
                 <img src={selectedCourse.posterUrl} alt={selectedCourse.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
               ) : (
