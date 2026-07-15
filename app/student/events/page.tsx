@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getCurrentUser, apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
+import { isEventLiveOrGrace, isEventUpcoming } from '@/lib/dateUtils';
 import { getRegisteredEventIds } from '@/lib/registrationUtils';
 import type { AuthPayload } from '@/types';
 
@@ -30,8 +30,16 @@ export default function StudentEventsPage() {
         const cachedUser = localStorage.getItem('user');
         if (cachedUser) setUser(JSON.parse(cachedUser));
 
+        // activeOnly=false + from=24h-ago: without this, the backend's default
+        // filter drops any event whose endAt has already passed — so a
+        // workshop a student needed to check into (grace window now 45 min,
+        // check-in window up to 6h same-day) simply vanished from this list
+        // the moment its scheduled end time hit. Bounded to the last 24h
+        // (not fully unbounded) so "All Events" doesn't fill up with the
+        // entire historical archive.
+        const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const [eventsResponse, registrationsResponse] = await Promise.all([
-          apiCall('/events?limit=200'),
+          apiCall(`/events?limit=200&activeOnly=false&from=${encodeURIComponent(from)}`),
           apiCall('/registrations/me'),
         ]);
 
@@ -71,7 +79,7 @@ export default function StudentEventsPage() {
 
   const filteredEvents = events
     .filter((event) => {
-      const isLive = isEventLive(event.startAt || `${event.date}T${event.time}`, event.endAt);
+      const isLive = isEventLiveOrGrace(event.startAt || `${event.date}T${event.time}`, event.endAt);
       const isUpcoming = isEventUpcoming(event.startAt || `${event.date}T${event.time}`);
 
       if (filter === 'live') return isLive;
@@ -79,8 +87,8 @@ export default function StudentEventsPage() {
       return isLive || isUpcoming; // 'all'
     })
     .sort((a, b) => {
-      const aLive = isEventLive(a.startAt || `${a.date}T${a.time}`, a.endAt);
-      const bLive = isEventLive(b.startAt || `${b.date}T${b.time}`, b.endAt);
+      const aLive = isEventLiveOrGrace(a.startAt || `${a.date}T${a.time}`, a.endAt);
+      const bLive = isEventLiveOrGrace(b.startAt || `${b.date}T${b.time}`, b.endAt);
       if (aLive && !bLive) return -1;
       if (!aLive && bLive) return 1;
       return new Date(a.startAt || `${a.date}T${a.time}`).getTime() - new Date(b.startAt || `${b.date}T${b.time}`).getTime();
@@ -136,7 +144,7 @@ export default function StudentEventsPage() {
           </div>
         ) : (
           filteredEvents.map((event, i) => {
-            const isLive = isEventLive(event.startAt || `${event.date}T${event.time}`, event.endAt);
+            const isLive = isEventLiveOrGrace(event.startAt || `${event.date}T${event.time}`, event.endAt);
             const isRegistered = registeredEvents.includes(event.id);
             const isFull = event.registeredCount >= event.capacity && event.capacity > 0;
 

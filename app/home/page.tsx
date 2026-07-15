@@ -11,7 +11,7 @@ import {
 import Link from 'next/link';
 import { getRolePath, formatDate, formatTime } from '@/lib/utils';
 import { getCurrentUser, apiCall } from '@/lib/api';
-import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
+import { isEventLiveOrGrace, isEventUpcoming } from '@/lib/dateUtils';
 import { useNowTick } from '@/lib/useNowTick';
 import { mockEvents } from '@/lib/mockData';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -30,7 +30,7 @@ export default function HomePage() {
   const [volunteerStates, setVolunteerStates] = useState<Record<string, boolean>>({});
   const [registeringIds, setRegisteringIds] = useState<string[]>([]);
   const router = useRouter();
-  useNowTick(); // re-render every 30s so isEventLive() flips to "live" without a manual refresh
+  useNowTick(); // re-render every 30s so isEventLiveOrGrace() flips to "live" without a manual refresh
 
   // Fetch user data and events from backend API
   useEffect(() => {
@@ -196,7 +196,7 @@ export default function HomePage() {
   // Active event: currently happening (uses real endAt when available)
   const activeEvent = events.find(event => {
     const start = event.startAt || `${event.date}T${event.time}`;
-    return isEventLive(start, event.endAt);
+    return isEventLiveOrGrace(start, event.endAt);
   });
 
   // Upcoming events: future events (starting after now)
@@ -234,7 +234,7 @@ export default function HomePage() {
   );
   const workshopStatus = (e: any): 'live' | 'upcoming' | 'completed' => {
     const start = e.startAt || `${e.date}T${e.time}`;
-    if (isEventLive(start, e.endAt)) return 'live';
+    if (isEventLiveOrGrace(start, e.endAt)) return 'live';
     if (isEventUpcoming(start)) return 'upcoming';
     return 'completed';
   };

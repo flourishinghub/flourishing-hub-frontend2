@@ -10,7 +10,7 @@ import MiniCalendar from '@/components/MiniCalendar';
 import DataTable from '@/components/DataTable';
 import { getCurrentUser, apiCall, transformUserData } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
-import { isEventLive, isEventUpcoming } from '@/lib/dateUtils';
+import { isEventLiveOrGrace, isEventUpcoming } from '@/lib/dateUtils';
 import { useNowTick } from '@/lib/useNowTick';
 import { getRegistrationMetrics, getRegisteredEventIds } from '@/lib/registrationUtils';
 import type { CompletedEvent, AuthPayload } from '@/types';
@@ -142,9 +142,16 @@ export default function StudentDashboard() {
         const studentBatch = freshUserData.studentProfile?.cohort;
         const batchParam = studentBatch !== undefined ? `&batch=${studentBatch || ''}` : '';
 
+        // activeOnly=false + from=24h-ago: without this, the backend drops
+        // any event whose endAt already passed — a workshop a student still
+        // needed to check into (grace window 45 min, check-in up to 6h
+        // same-day) vanished from this dashboard the moment it ended.
+        // Bounded to the last 24h so this doesn't pull the entire history.
+        const eventsFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
         // Fetch events, registrations, attendance, and bundle progress in parallel
         const [eventsResponse, registrationsResponse, attendanceResponse, bundleResponse] = await Promise.all([
-          apiCall(`/events?limit=200${batchParam}`),
+          apiCall(`/events?limit=200&activeOnly=false&from=${encodeURIComponent(eventsFrom)}${batchParam}`),
           apiCall('/registrations/me'),
           apiCall('/event-operations/attendance/me').catch(() => ({ data: [] })),
           apiCall('/student/bundle-progress').catch(() => ({ data: [] })),
@@ -230,7 +237,7 @@ export default function StudentDashboard() {
 
   // Active event: currently happening (uses real endAt from backend)
   const activeEvent = events.find(event => {
-    return isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt);
+    return isEventLiveOrGrace(event.startAt || (event.date + 'T' + event.time), event.endAt);
   });
 
   // Upcoming events: future events
@@ -308,7 +315,7 @@ export default function StudentDashboard() {
   // Transform completed registrations to CompletedEvent format with real marks/ratings
   // Exclude events that are currently live (endAt not yet passed)
   const completedEvents: CompletedEvent[] = completedRegistrations
-    .filter(registration => !isEventLive(registration.event.startAt, registration.event.endAt))
+    .filter(registration => !isEventLiveOrGrace(registration.event.startAt, registration.event.endAt))
     .map(registration => {
     const attRec = attendanceLookup[registration.eventId];
     return {
@@ -540,14 +547,14 @@ export default function StudentDashboard() {
             <h2 className="text-base font-semibold text-white mb-4">Event Status</h2>
 
             {/* Live Events - NEW SECTION */}
-            {events.filter(event => isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt)).length > 0 && (
+            {events.filter(event => isEventLiveOrGrace(event.startAt || (event.date + 'T' + event.time), event.endAt)).length > 0 && (
               <>
                 <h3 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                   <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
                   Live Events
                 </h3>
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide mb-6">
-                  {events.filter(event => isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt)).map((event) => (
+                  {events.filter(event => isEventLiveOrGrace(event.startAt || (event.date + 'T' + event.time), event.endAt)).map((event) => (
                     <div 
                       key={event.id} 
                       className="flex-shrink-0 w-72 p-3 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/15 transition-all cursor-pointer"
@@ -676,7 +683,7 @@ export default function StudentDashboard() {
                 <div ref={sliderRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide scroll-smooth">
                   {filteredSliderEvents.map((event) => {
                     const isReg = registeredEvents.includes(event.id);
-                    const isLive = isEventLive(event.startAt || (event.date + 'T' + event.time), event.endAt);
+                    const isLive = isEventLiveOrGrace(event.startAt || (event.date + 'T' + event.time), event.endAt);
                     const isFull = !isReg && event.capacity > 0 && event.registeredCount >= event.capacity;
                     const isRegistering = registeringEventIds.includes(event.id);
                     return (
