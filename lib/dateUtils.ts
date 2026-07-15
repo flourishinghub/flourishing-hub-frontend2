@@ -40,8 +40,8 @@ export function isEventPast(eventStartAt: string, eventEndAt?: string | null): b
   return new Date() > endTime;
 }
 
-// Returns true from startAt until endAt + 5-min grace window
-export function isEventLiveOrGrace(eventStartAt: string, eventEndAt?: string | null, graceMins = 5, durationHours = 2): boolean {
+// Returns true from startAt until endAt + 45-min grace window
+export function isEventLiveOrGrace(eventStartAt: string, eventEndAt?: string | null, graceMins = 45, durationHours = 2): boolean {
   const eventStart = new Date(eventStartAt);
   const eventEnd = eventEndAt
     ? new Date(eventEndAt)
@@ -65,8 +65,8 @@ export function isPastEventMidpoint(eventStartAt?: string | null, eventEndAt?: s
   return Date.now() >= midpoint;
 }
 
-// Returns true only during the 5-min window after endAt
-export function isGracePeriodActive(eventEndAt?: string | null, graceMins = 5): boolean {
+// Returns true only during the 45-min window after endAt
+export function isGracePeriodActive(eventEndAt?: string | null, graceMins = 45): boolean {
   if (!eventEndAt) return false;
   const eventEnd = new Date(eventEndAt);
   const graceEnd = new Date(eventEnd.getTime() + graceMins * 60 * 1000);
@@ -75,7 +75,7 @@ export function isGracePeriodActive(eventEndAt?: string | null, graceMins = 5): 
 }
 
 // Seconds remaining in the grace window (0 if expired)
-export function getGraceSecondsRemaining(eventEndAt?: string | null, graceMins = 5): number {
+export function getGraceSecondsRemaining(eventEndAt?: string | null, graceMins = 45): number {
   if (!eventEndAt) return 0;
   const graceEnd = new Date(new Date(eventEndAt).getTime() + graceMins * 60 * 1000);
   return Math.max(0, Math.floor((graceEnd.getTime() - Date.now()) / 1000));
