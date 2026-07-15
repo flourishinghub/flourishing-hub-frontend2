@@ -74,9 +74,16 @@ export default function HomePage() {
         setUser(transformedUser);
         localStorage.setItem('user', JSON.stringify(transformedUser));
 
-        // Fetch real events from backend
+        // Fetch real events from backend. activeOnly=false so past/completed
+        // workshops are included too — without it, the backend excludes
+        // anything whose endAt is in the past, so a course whose workshops
+        // had all already happened (or a student's already-attended
+        // workshops within an ongoing course) never showed up under
+        // "Registered Courses" below. upcomingEvents/activeEvent further
+        // down already do their own client-side date filtering, so
+        // widening this fetch doesn't change what shows in those sections.
         console.log("🔄 Fetching events from backend...");
-        const eventsResponse = await apiCall('/events?limit=200');
+        const eventsResponse = await apiCall('/events?limit=200&activeOnly=false');
         console.log("📦 Events received:", eventsResponse);
         
         // Transform events to match frontend format
