@@ -415,6 +415,7 @@ export default function StudentDashboard() {
                 const eventDate = new Date(record.date);
                 const isPresent = record.status === 'PRESENT';
                 const isExcused = record.status === 'EXCUSED';
+                const isPending = record.status === 'PENDING';
                 return (
                   <div key={record.eventId + i} className="grid grid-cols-2 sm:grid-cols-4 gap-y-2 gap-x-3 items-center p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
                     <div className="flex items-center gap-2 min-w-0">
@@ -431,10 +432,12 @@ export default function StudentDashboard() {
                         ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                         : isExcused
                         ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'
+                        : isPending
+                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                         : 'bg-red-500/15 text-red-400 border border-red-500/30'
                     }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${isPresent ? 'bg-emerald-400' : isExcused ? 'bg-yellow-400' : 'bg-red-400'}`} />
-                      {isPresent ? 'Present' : isExcused ? 'Excused' : 'Absent'}
+                      <div className={`w-1.5 h-1.5 rounded-full ${isPresent ? 'bg-emerald-400' : isExcused ? 'bg-yellow-400' : isPending ? 'bg-amber-400' : 'bg-red-400'}`} />
+                      {isPresent ? 'Present' : isExcused ? 'Excused' : isPending ? 'Pending Verification' : 'Absent'}
                     </span>
                   </div>
                 );

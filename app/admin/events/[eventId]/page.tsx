@@ -137,6 +137,7 @@ export default function AdminEventDetailPage() {
     quizScore: r.quizScore,
     quizSubmitted: r.quizScore !== null && r.quizScore !== undefined,
     eventRating: r.eventRating,
+    checkInStatus: r.checkInStatus,
   }));
 
   const volunteersData = event.volunteers.map(v => ({
@@ -301,6 +302,26 @@ export default function AdminEventDetailPage() {
                   'bg-gray-500/20 text-gray-400'
                 }`}>
                   {value}
+                </span>
+              )
+            },
+            {
+              key: 'checkInStatus',
+              label: 'Check-In',
+              sortable: true,
+              // PENDING = the student checked in but no instructor has
+              // reviewed it yet — distinct from null (never checked in at
+              // all), which previously looked identical in the attendance
+              // list and could sit unverified indefinitely unnoticed.
+              render: (value: string | null) => (
+                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                  value === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-400' :
+                  value === 'PENDING' ? 'bg-amber-500/20 text-amber-400' :
+                  value === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  {value === 'VERIFIED' ? <CheckCircle className="w-3 h-3" /> : value === 'PENDING' ? <Clock className="w-3 h-3" /> : value === 'REJECTED' ? <XCircle className="w-3 h-3" /> : null}
+                  {value === 'PENDING' ? 'Needs Review' : value || 'Not checked in'}
                 </span>
               )
             },
