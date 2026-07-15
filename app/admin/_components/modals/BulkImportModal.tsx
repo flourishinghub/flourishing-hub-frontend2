@@ -93,6 +93,15 @@ export default function BulkImportModal({
 
   const handlePreview = async () => {
     if (!bulkImportFile) return;
+    // Course selection isn't marked required on the <select>, so a
+    // compulsory-workshop import used to silently proceed with courseId
+    // never sent — the created events had no course link, weren't findable
+    // by module, and registerCourseBatchForEvent (which needs courseId) was
+    // a no-op, so no student ever got auto-registered. Block it here instead.
+    if (workshopType === 'compulsory' && !selectedCourseId) {
+      toast.error('Select a course first — compulsory workshops need a course to auto-register students.');
+      return;
+    }
     setPreviewing(true);
     try {
       const formData = new FormData();
@@ -122,6 +131,12 @@ export default function BulkImportModal({
 
   const handleImport = async () => {
     if (!bulkImportFile) return;
+    // Same guard as handlePreview — belt-and-suspenders in case this ever
+    // gets reached without going through preview first.
+    if (workshopType === 'compulsory' && !selectedCourseId) {
+      toast.error('Select a course first — compulsory workshops need a course to auto-register students.');
+      return;
+    }
     setBulkImporting(true);
     setShowConfirmDialog(false);
     try {
@@ -269,7 +284,10 @@ export default function BulkImportModal({
                     <div className="space-y-3">
                       <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Course</p>
                       <div>
-                        <label className="text-xs font-medium text-white/60 mb-1.5 block">Course Name</label>
+                        <label className="text-xs font-medium text-white/60 mb-1.5 block">
+                          Course Name
+                          {workshopType === 'compulsory' && <span className="text-red-400"> *required</span>}
+                        </label>
                         <div className="relative">
                           <select
                             value={selectedCourseId}
