@@ -454,25 +454,36 @@ export default function StudentDashboard() {
         </div>
       ) : (
       <>
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between gap-4">
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-white tracking-tight">
             Welcome back, <span className="gradient-text">{user?.name?.split(' ')[0] || 'User'}</span>
           </h1>
-          <p className="text-sm text-white/50 mt-1">
-            {user?.programme || 'N/A'} · {user?.department || 'N/A'} · Year {user?.year || 'N/A'}
-          </p>
-          {(user as any)?.rollNo && (
-            <p className="text-xs text-white/30 mt-0.5 font-mono">{(user as any).rollNo}</p>
-          )}
+          <div className="flex items-center flex-wrap gap-2 mt-2">
+            <span className="text-sm text-white/50">
+              {user?.programme || 'N/A'} · {user?.department || 'N/A'} · Year {user?.year || 'N/A'}
+            </span>
+            {(user as any)?.rollNo && (
+              <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/40 text-[11px] font-mono">{(user as any).rollNo}</span>
+            )}
+          </div>
         </div>
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard title="Active Registrations" value={activeRegistrations.length} icon={Calendar} color="purple" />
-        <StatCard title="Completed Events" value={completedRegistrations.length} icon={CheckCircle} color="teal" />
-      </div>
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
+        className="grid grid-cols-2 gap-4"
+      >
+        <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
+          <StatCard title="Active Registrations" value={activeRegistrations.length} icon={Calendar} color="purple" />
+        </motion.div>
+        <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
+          <StatCard title="Completed Events" value={completedRegistrations.length} icon={CheckCircle} color="teal" />
+        </motion.div>
+      </motion.div>
 
       {/* 1-Hour Reminder Banner */}
       {(() => {
@@ -689,24 +700,29 @@ export default function StudentDashboard() {
                     return (
                       <motion.div
                         key={event.id}
-                        whileHover={{ y: -3, scale: 1.02 }}
-                        className="flex-shrink-0 w-52 rounded-xl overflow-hidden bg-white/[0.03] border border-white/8 hover:border-primary/30 transition-all cursor-pointer group"
+                        whileHover={{ y: -4, scale: 1.02 }}
+                        transition={{ duration: 0.2 }}
+                        className={`flex-shrink-0 w-52 rounded-xl overflow-hidden bg-white/[0.03] border transition-all cursor-pointer group ${
+                          isLive ? 'border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.1)]' : 'border-white/8 hover:border-primary/30 hover:shadow-card-hover'
+                        }`}
                         onClick={() => router.push(`/student/events/${event.id}`)}
                       >
                         {/* Compact image */}
-                        <div className="relative h-24 bg-gradient-to-br from-primary/20 to-accent/20 overflow-hidden">
+                        <div className="relative h-24 overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/25 via-primary/10 to-accent/25" />
+                          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.15) 0%, transparent 45%)' }} />
                           {isLive && (
                             <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-full bg-emerald-500/90 text-white text-[9px] font-bold flex items-center gap-1 z-10">
                               <div className="w-1.5 h-1.5 bg-[#ffffff] rounded-full animate-pulse" />LIVE
                             </div>
                           )}
                           {isReg && (
-                            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary/80 text-white text-[9px] font-bold z-10">✓ Reg</div>
+                            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary/80 text-white text-[9px] font-bold z-10 backdrop-blur-sm">✓ Reg</div>
                           )}
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <Calendar className="w-8 h-8 text-white/10" />
+                            <Calendar className="w-8 h-8 text-white/15 group-hover:scale-110 transition-transform duration-300" />
                           </div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
 
                         {/* Card body */}
@@ -724,6 +740,14 @@ export default function StudentDashboard() {
                             <div className="flex items-center gap-1.5 text-[10px] text-white/45">
                               <Users className="w-2.5 h-2.5 shrink-0" />
                               <span>{event.registeredCount}/{event.capacity || '∞'}</span>
+                              {event.capacity > 0 && (
+                                <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden ml-1">
+                                  <div
+                                    className={`h-full rounded-full ${isFull ? 'bg-red-400' : 'bg-gradient-to-r from-primary to-accent'}`}
+                                    style={{ width: `${Math.min(100, Math.round((event.registeredCount / event.capacity) * 100))}%` }}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                           <motion.button

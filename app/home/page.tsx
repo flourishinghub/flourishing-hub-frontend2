@@ -375,40 +375,53 @@ export default function HomePage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card rounded-3xl p-8 relative overflow-hidden"
+          className="glass-card rounded-3xl p-8 md:p-10 relative overflow-hidden"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/12 via-transparent to-accent/12 pointer-events-none" />
+          <motion.div
+            className="absolute -top-24 -right-16 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none"
+            animate={{ opacity: [0.6, 1, 0.6] }}
+            transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute -bottom-20 -left-10 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none"
+            animate={{ opacity: [1, 0.5, 1] }}
+            transition={{ repeat: Infinity, duration: 7, ease: 'easeInOut' }}
+          />
           <div className="relative z-10 flex items-start justify-between gap-6 flex-wrap">
             <div>
-              <p className="text-white/50 text-sm mb-1">
-                {user.role === 'instructor' 
-                  ? (() => {
-                      const date = new Date();
-                      const month = date.toLocaleDateString('en-US', { month: 'short' });
-                      const day = date.getDate();
-                      const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
-                      const year = date.getFullYear();
-                      return `${month} ${day}, ${weekday}, ${year}`;
-                    })()
-                  : format(new Date(), 'EEEE, MMMM d, yyyy')
-                }
-              </p>
-              <h1 className="text-3xl font-black text-white mb-2">
-                Welcome back, <span className="gradient-text">{user.name.split(' ')[0]}</span>! 👋
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-white/50 text-[11px] font-medium tracking-wide">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                  {user.role === 'instructor'
+                    ? (() => {
+                        const date = new Date();
+                        const month = date.toLocaleDateString('en-US', { month: 'short' });
+                        const day = date.getDate();
+                        const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+                        const year = date.getFullYear();
+                        return `${month} ${day}, ${weekday}, ${year}`;
+                      })()
+                    : format(new Date(), 'EEEE, MMMM d, yyyy')
+                  }
+                </span>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tight">
+                Welcome back, <span className="gradient-text">{user.name.split(' ')[0]}</span> <span className="inline-block animate-[float_3s_ease-in-out_infinite]">👋</span>
               </h1>
-              <p className="text-white/50 text-sm">
+              <p className="text-white/50 text-sm flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent" />
                 {roleLabel}
-                {user.department && 
-                 user.role === 'instructor' && 
-                 (user.department === 'Humanities and Social Sciences' || 
-                  user.department === 'Humanities & Social Sciences') 
-                  ? '' 
+                {user.department &&
+                 user.role === 'instructor' &&
+                 (user.department === 'Humanities and Social Sciences' ||
+                  user.department === 'Humanities & Social Sciences')
+                  ? ''
                   : user.department ? ` · ${user.department}` : ' · IIT Bombay'}
               </p>
             </div>
             <motion.button
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(108,99,255,0.4)' }}
               whileTap={{ scale: 0.97 }}
               onClick={() => {
                 router.push(dashboardPath);
@@ -426,36 +439,45 @@ export default function HomePage() {
             {/* Portfolio */}
             <div>
               <h2 className="text-sm font-semibold text-white/70 uppercase tracking-wider mb-4">Portfolio</h2>
-              <div className="glass-card rounded-2xl p-6 relative overflow-hidden">
+              <motion.div
+                whileHover={{ y: -2 }}
+                className="glass-card rounded-2xl p-6 relative overflow-hidden transition-shadow hover:shadow-card-hover"
+              >
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
-                <div className="relative flex items-center gap-5 flex-wrap sm:flex-nowrap">
-                  <div className="relative shrink-0">
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[#ffffff] text-3xl font-bold shadow-glow-sm">
-                      {user.name?.charAt(0)?.toUpperCase() || 'S'}
+                <div className="relative flex flex-col sm:flex-row sm:items-center gap-5">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="relative shrink-0">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[#ffffff] text-2xl sm:text-3xl font-bold shadow-glow-sm ring-2 ring-white/10">
+                        {user.name?.charAt(0)?.toUpperCase() || 'S'}
+                      </div>
+                      <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-400 border-2 border-[rgb(var(--color-card))] flex items-center justify-center shadow-[0_0_10px_rgba(16,185,129,0.5)]">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                      </span>
                     </div>
-                    <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-400 border-2 border-[rgb(var(--color-card))] flex items-center justify-center">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                    </span>
+                    <div className="min-w-0 sm:hidden">
+                      <p className="text-lg font-bold text-white truncate">{user.name}</p>
+                      <p className="text-xs text-white/40 mt-0.5 truncate">{user.email}</p>
+                    </div>
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-lg font-bold text-white truncate">{user.name}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{user.email}</p>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
+                    <p className="hidden sm:block text-lg font-bold text-white truncate">{user.name}</p>
+                    <p className="hidden sm:block text-xs text-white/40 mt-0.5">{user.email}</p>
+                    <div className="flex flex-wrap gap-2 sm:mt-3">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 hover:border-primary/30 transition-colors">
                         <Hash className="w-3 h-3 text-primary" /> {user.rollNo || '—'}
                       </span>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 hover:border-primary/30 transition-colors">
                         <GraduationCap className="w-3 h-3 text-primary" />
                         {user.programme || '—'}{user.year ? ` · Yr ${user.year}` : ''}
                       </span>
                       {user.department && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 hover:border-primary/30 transition-colors">
                           <Building2 className="w-3 h-3 text-primary" /> {user.department}
                         </span>
                       )}
                       {user.batch && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 font-mono">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent/10 border border-accent/20 text-xs text-accent font-mono">
                           {user.batch}
                         </span>
                       )}
@@ -464,12 +486,12 @@ export default function HomePage() {
 
                   <Link
                     href="/student/profile"
-                    className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/25 text-xs font-semibold hover:bg-primary/20 transition-colors"
+                    className="shrink-0 flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/25 text-xs font-semibold hover:bg-primary/20 hover:border-primary/40 transition-all w-full sm:w-auto"
                   >
                     View Profile <ExternalLink className="w-3 h-3" />
                   </Link>
                 </div>
-              </div>
+              </motion.div>
             </div>
 
             {/* Registered Courses */}
@@ -481,11 +503,15 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {registeredCourses.map((c: any) => (
-                    <div key={c.id} className="glass-card rounded-2xl p-6">
-                      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                  {registeredCourses.map((c: any) => {
+                    const totalW = c.workshops.length;
+                    const attendedW = c.workshops.filter((w: any) => w.attended).length;
+                    const pct = totalW > 0 ? Math.round((attendedW / totalW) * 100) : 0;
+                    return (
+                    <motion.div key={c.id} whileHover={{ y: -2 }} className="glass-card rounded-2xl p-6 transition-shadow hover:shadow-card-hover">
+                      <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/25 to-accent/15 text-primary flex items-center justify-center shrink-0 ring-1 ring-primary/20">
                             <BookOpen className="w-5 h-5" />
                           </div>
                           <div>
@@ -493,15 +519,30 @@ export default function HomePage() {
                             <p className="text-white/40 text-xs font-mono">{courseCode(c)}</p>
                           </div>
                         </div>
-                        <span className="text-xs text-white/50">
-                          {c.workshops.length} workshop{c.workshops.length !== 1 ? 's' : ''}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <div className="hidden sm:flex items-center gap-2 w-32">
+                            <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.7, ease: 'easeOut' }}
+                                className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
+                              />
+                            </div>
+                            <span className="text-[11px] text-white/40 font-medium tabular-nums shrink-0">{pct}%</span>
+                          </div>
+                          <span className="text-xs text-white/50 shrink-0">
+                            {totalW} workshop{totalW !== 1 ? 's' : ''}
+                          </span>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         {c.workshops.map((w: any, i: number) => (
-                          <div key={w.id} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/8">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-white/30 text-xs w-5 shrink-0">{i + 1}.</span>
+                          <div key={w.id} className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.05] hover:border-white/15 transition-colors">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold shrink-0 ${
+                                w.attended ? 'bg-emerald-500/20 text-emerald-400' : w.pending ? 'bg-white/10 text-white/40' : 'bg-primary/15 text-primary'
+                              }`}>{i + 1}</span>
                               <div className="min-w-0">
                                 <span className="text-white/80 text-sm truncate block">{w.title}</span>
                                 {!w.pending && w.date && (
@@ -545,8 +586,9 @@ export default function HomePage() {
                           </div>
                         ))}
                       </div>
-                    </div>
-                  ))}
+                    </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -563,16 +605,27 @@ export default function HomePage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="relative rounded-3xl overflow-hidden border border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.12)]"
+              className="relative rounded-3xl overflow-hidden border border-emerald-500/30"
               style={{ background: 'rgb(var(--color-card))' }}
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 to-transparent pointer-events-none" />
+              <motion.div
+                className="absolute inset-0 pointer-events-none"
+                animate={{ boxShadow: ['0 0 30px rgba(16,185,129,0.10) inset', '0 0 55px rgba(16,185,129,0.22) inset', '0 0 30px rgba(16,185,129,0.10) inset'] }}
+                transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-emerald-500/5 pointer-events-none" />
+              <div className="absolute -top-10 -right-10 w-56 h-56 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
               <div className="relative z-10 p-8">
                 <div className="flex items-start justify-between gap-6 flex-wrap">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
-                        ● Live Now
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
+                        <motion.span
+                          className="w-1.5 h-1.5 rounded-full bg-emerald-400"
+                          animate={{ opacity: [1, 0.3, 1] }}
+                          transition={{ repeat: Infinity, duration: 1.4 }}
+                        />
+                        Live Now
                       </span>
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
                         activeEvent.mode === 'Online'
@@ -584,21 +637,21 @@ export default function HomePage() {
                     </div>
                     <h3 className="text-2xl font-bold text-white mb-2">{activeEvent.title}</h3>
                     <p className="text-white/50 text-sm mb-4 max-w-xl">{activeEvent.description}</p>
-                    <div className="flex flex-wrap gap-4 text-sm text-white/60">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-primary" />
+                    <div className="flex flex-wrap gap-2 text-sm text-white/60">
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8">
+                        <Calendar className="w-3.5 h-3.5 text-primary" />
                         {formatDate(activeEvent.date)}
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-4 h-4 text-primary" />
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8">
+                        <Clock className="w-3.5 h-3.5 text-primary" />
                         {formatTime(activeEvent.time)}
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="w-4 h-4 text-accent" />
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8">
+                        <MapPin className="w-3.5 h-3.5 text-accent" />
                         {activeEvent.venue}
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Users className="w-4 h-4 text-primary" />
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8">
+                        <Users className="w-3.5 h-3.5 text-primary" />
                         {activeEvent.registeredCount} / {activeEvent.capacity}
                       </div>
                     </div>
@@ -709,21 +762,31 @@ export default function HomePage() {
               { label: 'All Events', href: `${dashboardPath}#events`, icon: Calendar, color: 'teal' },
               { label: 'Schedule', href: `${dashboardPath}#schedule`, icon: Clock, color: 'yellow' },
               { label: 'History', href: `${dashboardPath}#history`, icon: Star, color: 'purple' },
-            ]).map(({ label, href, icon: Icon, color }) => (
+            ]).map(({ label, href, icon: Icon, color }, i) => (
               <Link key={label} href={href}>
                 <motion.div
-                  whileHover={{ y: -3 }}
-                  className="glass-card rounded-2xl p-4 text-center cursor-pointer group transition-all hover:border-primary/30"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="glass-card rounded-2xl p-4 text-center cursor-pointer group relative overflow-hidden transition-all hover:border-primary/30 hover:shadow-card-hover"
                 >
-                  <div className={`w-10 h-10 rounded-xl mx-auto mb-3 flex items-center justify-center ${
+                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br ${
+                    color === 'primary' ? 'from-primary/10 to-transparent' :
+                    color === 'teal' ? 'from-accent/10 to-transparent' :
+                    color === 'yellow' ? 'from-yellow-500/10 to-transparent' :
+                    'from-violet-500/10 to-transparent'
+                  }`} />
+                  <div className={`relative w-11 h-11 rounded-xl mx-auto mb-3 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${
                     color === 'primary' ? 'bg-primary/15 text-primary' :
                     color === 'teal' ? 'bg-accent/15 text-accent' :
                     color === 'yellow' ? 'bg-yellow-500/15 text-yellow-400' :
-                    'bg-primary/15 text-primary'
+                    'bg-violet-500/15 text-violet-400'
                   }`}>
                     <Icon className="w-5 h-5" />
                   </div>
-                  <p className="text-xs font-semibold text-white/70 group-hover:text-white transition-colors">{label}</p>
+                  <p className="relative text-xs font-semibold text-white/70 group-hover:text-white transition-colors">{label}</p>
                 </motion.div>
               </Link>
             ))}

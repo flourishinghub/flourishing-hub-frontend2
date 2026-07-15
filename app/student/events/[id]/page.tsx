@@ -759,9 +759,13 @@ export default function EventDetailPage() {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="glass-card rounded-2xl p-5"
+                  whileHover={{ y: -2 }}
+                  className="glass-card rounded-2xl p-5 transition-shadow hover:shadow-card-hover"
                 >
-                  <h3 className="text-sm font-semibold text-white mb-3">About This Session</h3>
+                  <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                    <span className="w-1 h-4 rounded-full bg-gradient-to-b from-primary to-accent" />
+                    About This Session
+                  </h3>
                   <p className="text-white/55 text-sm leading-relaxed">
                     {event.description || 'An interactive session designed to enhance your wellbeing and personal growth.'}
                   </p>
@@ -770,18 +774,24 @@ export default function EventDetailPage() {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.45 }}
-                  className="glass-card rounded-2xl p-5"
+                  whileHover={{ y: -2 }}
+                  className="glass-card rounded-2xl p-5 transition-shadow hover:shadow-card-hover"
                 >
-                  <h3 className="text-sm font-semibold text-white mb-3">Session Details</h3>
-                  <div className="space-y-2.5">
+                  <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                    <span className="w-1 h-4 rounded-full bg-gradient-to-b from-primary to-accent" />
+                    Session Details
+                  </h3>
+                  <div className="space-y-3">
                     {[
                       { icon: Calendar, label: formatDate(event.date) },
                       { icon: Clock, label: formatTime(event.time) },
                       { icon: MapPin, label: event.venue },
                       { icon: Users, label: `${event.registeredCount}${event.capacity > 0 ? `/${event.capacity}` : ''} participants` },
                     ].map(({ icon: Icon, label }, i) => (
-                      <div key={i} className="flex items-center gap-2.5 text-sm">
-                        <Icon className="w-4 h-4 text-primary shrink-0" />
+                      <div key={i} className="flex items-center gap-3 text-sm">
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Icon className="w-3.5 h-3.5 text-primary" />
+                        </div>
                         <span className="text-white/60">{label}</span>
                       </div>
                     ))}
