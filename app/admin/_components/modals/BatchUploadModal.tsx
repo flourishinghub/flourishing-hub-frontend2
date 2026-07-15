@@ -375,8 +375,13 @@ export default function BatchUploadModal({ show, onClose, courses }: BatchUpload
               {/* Column hint */}
               <div className="px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5">
                 <p className="text-xs font-semibold text-white mb-1">Supported columns</p>
-                <p className="text-[10px] text-white/40 font-mono">email · roll_no · batch_code · name · department · programme · year · section</p>
+                <p className="text-[10px] text-white/40 font-mono">email · roll_no · batch_code · name · department · programme · year · section · module</p>
                 <p className="text-[10px] text-white/30 mt-1.5">Required: <span className="text-white/50">batch_code</span> + at least one of <span className="text-white/50">email</span> or <span className="text-white/50">roll_no</span></p>
+                <p className="text-[10px] text-white/30 mt-1">
+                  <span className="text-white/50">module</span> is optional — only needed if the same student has a
+                  different batch per module of this course (e.g. Module A batch M1B1, Module B batch M2B3). Leave it
+                  blank for the usual one-batch-for-the-whole-course case.
+                </p>
               </div>
 
               {/* Duplicate resolution panel */}

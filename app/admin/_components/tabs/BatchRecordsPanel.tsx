@@ -198,6 +198,14 @@ export default function BatchRecordsPanel({ onBack }: BatchRecordsPanelProps) {
               render: (value: any) => value?.name || '—',
             },
             { key: 'batchCode', label: 'Batch', sortable: true },
+            {
+              key: 'courseModule', label: 'Module', sortable: true,
+              sortValue: (row: any) => row.courseModule?.title || '',
+              // Blank for the usual one-batch-for-the-whole-course rows —
+              // only set when a course needed a different batch per module
+              // for the same student, so this is what tells those rows apart.
+              render: (value: any) => value?.title || <span className="text-white/25">—</span>,
+            },
             { key: 'department', label: 'Department', sortable: true },
             {
               key: 'isMatched', label: 'Signup Status', sortable: true,
