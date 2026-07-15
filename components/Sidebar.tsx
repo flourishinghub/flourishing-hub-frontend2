@@ -25,7 +25,6 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Attendance', href: '/student#attendance', icon: CheckCircle },
     { label: 'Videos', href: '/student/videos', icon: Video },
     { label: 'Profile', href: '/student/profile', icon: User },
-    { label: 'History', href: '/student#history', icon: History },
   ],
   instructor: [
     { label: 'Home', href: '/home', icon: Sparkles },

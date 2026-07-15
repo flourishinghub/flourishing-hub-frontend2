@@ -71,6 +71,16 @@ function CompletedEventCard({ event }: { event: CompletedEvent }) {
 
 export default function StudentDashboard() {
   useNowTick();
+  // Past Records is hidden by default — only shown when the sidebar's
+  // "Attendance" link (`/student#attendance`) is active, so it doesn't
+  // clutter the main dashboard view.
+  const [showPastRecords, setShowPastRecords] = useState(false);
+  useEffect(() => {
+    const checkHash = () => setShowPastRecords(window.location.hash === '#attendance');
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, []);
   const [user, setUser] = useState<AuthPayload | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);
@@ -687,8 +697,9 @@ export default function StudentDashboard() {
             );
           })()}
 
-          {/* Past Records */}
-          <div className="glass-card rounded-2xl p-6" id="past-records">
+          {/* Past Records — only visible after clicking "Attendance" in the sidebar */}
+          {showPastRecords && (
+          <div className="glass-card rounded-2xl p-6" id="attendance">
             <h2 className="text-base font-semibold text-white mb-4">Past Records</h2>
             {attendanceRecords.length === 0 ? (
               <div className="text-center py-8">
@@ -736,6 +747,7 @@ export default function StudentDashboard() {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Sidebar */}

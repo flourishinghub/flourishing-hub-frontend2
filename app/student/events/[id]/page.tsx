@@ -383,7 +383,7 @@ export default function EventDetailPage() {
               <div>
                 <p className="text-sm font-semibold text-white">Session has ended</p>
                 <p className="text-xs text-white/50 mt-0.5">
-                  Before you go, make sure you&apos;ve checked in, attempted the quiz, and rated this session.
+                  Before you go, make sure you&apos;ve checked in and rated this session.
                 </p>
               </div>
             </div>
@@ -391,7 +391,6 @@ export default function EventDetailPage() {
             <div className="space-y-2 mb-4">
               {[
                 { label: 'Checked in', done: hasCheckedIn },
-                { label: 'Quiz attempted', done: !!quizScore?.totalMarks },
                 { label: 'Rating given', done: feedbackSubmitted },
               ].map((item) => (
                 <div key={item.label} className="flex items-center gap-2 text-xs">
@@ -581,6 +580,48 @@ export default function EventDetailPage() {
                 </div>
               </div>
 
+              {/* Feedback — moved before Quiz/Feedback so rating happens first */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="glass-card rounded-2xl p-5"
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <Star className="w-4 h-4 text-yellow-400" />
+                  <h3 className="text-base font-bold text-white">Rate This Session</h3>
+                </div>
+                {feedbackSubmitted ? (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    <div className="flex gap-1">
+                      {[1,2,3,4,5].map(s => (
+                        <Star key={s} className={`w-7 h-7 ${s <= feedbackRating ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`} />
+                      ))}
+                    </div>
+                    <p className="text-white/50 text-sm">Thanks for your feedback!</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <p className="text-white/40 text-sm">How was this session?</p>
+                    <div className="flex gap-2">
+                      {[1,2,3,4,5].map(s => (
+                        <motion.button
+                          key={s}
+                          whileHover={{ scale: 1.2 }}
+                          whileTap={{ scale: 0.9 }}
+                          onMouseEnter={() => setFeedbackHover(s)}
+                          onMouseLeave={() => setFeedbackHover(0)}
+                          onClick={() => handleFeedback(s)}
+                          disabled={feedbackSubmitting}
+                        >
+                          <Star className={`w-8 h-8 transition-all ${s <= (feedbackHover || feedbackRating) ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`} />
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+
               {/* Quiz — UNLOCKED / Grace / Closed */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
@@ -601,7 +642,7 @@ export default function EventDetailPage() {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <FileText className={`w-5 h-5 ${quizWindowOpen ? 'text-orange-400' : 'text-white/30'}`} />
-                      <h2 className="text-white font-bold text-base">Session Quiz</h2>
+                      <h2 className="text-white font-bold text-base">Session Quiz / Feedback</h2>
                     </div>
                     {quizWindowOpen ? (
                       <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[10px] font-bold">
@@ -711,48 +752,6 @@ export default function EventDetailPage() {
                   <p className="text-white/40 text-xs mt-2">{Math.round((quizScore.totalMarks / (quizScore.totalMax || 1)) * 100)}% score</p>
                 </motion.div>
               )}
-
-              {/* Feedback */}
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-                className="glass-card rounded-2xl p-5"
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <Star className="w-4 h-4 text-yellow-400" />
-                  <h3 className="text-base font-bold text-white">Rate This Session</h3>
-                </div>
-                {feedbackSubmitted ? (
-                  <div className="flex flex-col items-center gap-2 py-2">
-                    <div className="flex gap-1">
-                      {[1,2,3,4,5].map(s => (
-                        <Star key={s} className={`w-7 h-7 ${s <= feedbackRating ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`} />
-                      ))}
-                    </div>
-                    <p className="text-white/50 text-sm">Thanks for your feedback!</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-3">
-                    <p className="text-white/40 text-sm">How was this session?</p>
-                    <div className="flex gap-2">
-                      {[1,2,3,4,5].map(s => (
-                        <motion.button
-                          key={s}
-                          whileHover={{ scale: 1.2 }}
-                          whileTap={{ scale: 0.9 }}
-                          onMouseEnter={() => setFeedbackHover(s)}
-                          onMouseLeave={() => setFeedbackHover(0)}
-                          onClick={() => handleFeedback(s)}
-                          disabled={feedbackSubmitting}
-                        >
-                          <Star className={`w-8 h-8 transition-all ${s <= (feedbackHover || feedbackRating) ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'}`} />
-                        </motion.button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </motion.div>
 
               {/* About + Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
