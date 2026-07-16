@@ -677,18 +677,31 @@ export default function HomePage() {
                   </div>
                   <div className="flex flex-col gap-3 shrink-0">
                     {(user.role === 'student') && (
-                      <motion.button
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => handleRegister(activeEvent.id, activeEvent.title)}
-                        disabled={registeringIds.includes(activeEvent.id)}
-                        className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                          isRegisteredForEvent(activeEvent.id)
-                            ? 'bg-primary/20 text-primary border border-primary/30'
-                            : 'btn-primary'
-                        }`}
-                      >
-                        {registeringIds.includes(activeEvent.id) ? 'Registering…' : isRegisteredForEvent(activeEvent.id) ? 'Registered ✓' : 'Register Now'}
-                      </motion.button>
+                      <>
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => handleRegister(activeEvent.id, activeEvent.title)}
+                          disabled={registeringIds.includes(activeEvent.id)}
+                          className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                            isRegisteredForEvent(activeEvent.id)
+                              ? 'bg-primary/20 text-primary border border-primary/30'
+                              : 'btn-primary'
+                          }`}
+                        >
+                          {registeringIds.includes(activeEvent.id) ? 'Registering…' : isRegisteredForEvent(activeEvent.id) ? 'Registered ✓' : 'Register Now'}
+                        </motion.button>
+                        {/* This card had no way at all to open the live session page for
+                            students — only a Register button, which does nothing once
+                            already registered. Added so a live/in-grace workshop is
+                            actually reachable from the home page. */}
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => router.push(`/student/events/${activeEvent.id}`)}
+                          className="px-6 py-3 rounded-xl font-semibold text-sm border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all"
+                        >
+                          Go to Live Session
+                        </motion.button>
+                      </>
                     )}
                     {user.role === 'volunteer' && (
                       <motion.button
