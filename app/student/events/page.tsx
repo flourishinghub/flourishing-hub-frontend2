@@ -23,9 +23,9 @@ export default function StudentEventsPage() {
     const token = localStorage.getItem('token');
     if (!token) { setLoading(false); return; }
 
-    const timeoutId = setTimeout(() => setLoading(false), 8000);
-
-    const fetchData = async () => {
+    const fetchData = async (showSpinner: boolean) => {
+      if (showSpinner) setLoading(true);
+      const timeoutId = showSpinner ? setTimeout(() => setLoading(false), 8000) : undefined;
       try {
         const cachedUser = localStorage.getItem('user');
         if (cachedUser) setUser(JSON.parse(cachedUser));
@@ -67,12 +67,26 @@ export default function StudentEventsPage() {
       } catch (err) {
         console.error('Failed to fetch events:', err);
       } finally {
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchData(true);
+
+    // Browser back/forward (and some tab-switch cases) can restore this page
+    // from Next.js's client-side router cache without re-running this effect,
+    // so a workshop that went live/ended while the student was on its detail
+    // page kept showing whatever was fetched on the ORIGINAL visit here. A
+    // silent refetch (no spinner) whenever the page becomes visible again
+    // keeps the list current without disturbing anything else.
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchData(false); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onVisible);
+    };
   }, []);
 
   const now = new Date();

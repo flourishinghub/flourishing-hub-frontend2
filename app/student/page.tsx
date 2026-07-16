@@ -103,14 +103,15 @@ export default function StudentDashboard() {
       return;
     }
 
-    // ✅ CRITICAL: Add timeout to prevent stuck loading
-    const timeoutId = setTimeout(() => {
-      console.log("⚠️ Student dashboard API timeout - setting loading to false");
-      setLoading(false);
-      toast.error('Loading timeout. Please refresh the page.');
-    }, 10000); // 10 second timeout for better UX
-
-    const fetchData = async () => {
+    const fetchData = async (showSpinner: boolean) => {
+      // ✅ CRITICAL: Add timeout to prevent stuck loading — only warns/spins
+      // on the initial load; a silent background refresh (see visibilitychange
+      // below) shouldn't pop an error toast just because it's mid-flight.
+      const timeoutId = showSpinner ? setTimeout(() => {
+        console.log("⚠️ Student dashboard API timeout - setting loading to false");
+        setLoading(false);
+        toast.error('Loading timeout. Please refresh the page.');
+      }, 10000) : undefined;
       try {
         // 🚀 OPTIMIZATION: Use cached user data if available, but also fetch fresh data
         const cachedUser = localStorage.getItem("user");
@@ -220,16 +221,33 @@ export default function StudentDashboard() {
         
       } catch (err: any) {
         console.error("❌ Data fetch failed:", err);
-        if (err.status !== 401) {
+        // Only surface this on the initial load — a failed silent background
+        // refresh (showSpinner=false) shouldn't pop an error toast while the
+        // student is just switching tabs/going back.
+        if (showSpinner && err.status !== 401) {
           toast.error('Failed to load dashboard data. Please refresh the page.');
         }
       } finally {
-        clearTimeout(timeoutId); // Clear the timeout
+        if (timeoutId) clearTimeout(timeoutId); // Clear the timeout
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchData(true);
+
+    // Browser back/forward (and some tab-switch cases) can restore this page
+    // from Next.js's client-side router cache without re-running this effect,
+    // so a workshop that went live/ended while the student was on its detail
+    // page kept showing whatever was fetched on the ORIGINAL visit here. A
+    // silent refetch (no spinner/timeout-toast) whenever the page becomes
+    // visible again keeps the dashboard current without disturbing anything else.
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchData(false); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onVisible);
+    };
   }, []);
 
   // Calculate active and upcoming events using actual startAt/endAt

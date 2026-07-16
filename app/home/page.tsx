@@ -42,13 +42,14 @@ export default function HomePage() {
       return;
     }
     
-    // ✅ CRITICAL: Add timeout to prevent stuck loading
-    const timeoutId = setTimeout(() => {
-      console.log("⚠️ API call timeout - setting loading to false");
-      setLoading(false);
-    }, 10000); // 10 second timeout
-    
-    const fetchData = async () => {
+    const fetchData = async (showSpinner: boolean) => {
+      // ✅ CRITICAL: Add timeout to prevent stuck loading — only for the
+      // initial load; a silent background refresh (see visibilitychange
+      // below) shouldn't flip the full-page spinner back on mid-flight.
+      const timeoutId = showSpinner ? setTimeout(() => {
+        console.log("⚠️ API call timeout - setting loading to false");
+        setLoading(false);
+      }, 10000) : undefined;
       try {
         // Fetch user data
         const userData = await getCurrentUser();
@@ -149,11 +150,15 @@ export default function HomePage() {
 
       } catch (error) {
         console.error('Error fetching data:', error);
-        // Fallback to mock data if API fails
-        console.log("⚠️ Using fallback mock data");
-        const { mockEvents } = await import('@/lib/mockData');
-        setEvents(mockEvents);
-        
+        // Fallback to mock data only on the initial load — a failed silent
+        // background refresh (showSpinner=false, see visibilitychange below)
+        // must NOT replace already-loaded real events with mock placeholders.
+        if (showSpinner) {
+          console.log("⚠️ Using fallback mock data");
+          const { mockEvents } = await import('@/lib/mockData');
+          setEvents(mockEvents);
+        }
+
         // Only redirect to login if it's an auth error
         if ((error as any)?.status === 401) {
           localStorage.removeItem("token");
@@ -161,12 +166,26 @@ export default function HomePage() {
           router.push("/login");
         }
       } finally {
-        clearTimeout(timeoutId); // Clear the timeout
+        if (timeoutId) clearTimeout(timeoutId); // Clear the timeout
         setLoading(false); // ✅ CRITICAL: Always set loading to false
       }
     };
-    
-    fetchData();
+
+    fetchData(true);
+
+    // Browser back/forward (and some tab-switch cases) can restore this page
+    // from Next.js's client-side router cache without re-running this effect,
+    // so a workshop that went live/ended while the student was on its detail
+    // page kept showing whatever was fetched on the ORIGINAL visit here. A
+    // silent refetch (no spinner) whenever the page becomes visible again
+    // keeps "Currently Active Event" current without disturbing anything else.
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchData(false); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onVisible);
+    };
   }, [router]);
 
   if (loading) {
