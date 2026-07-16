@@ -185,7 +185,13 @@ export default function EventDetailPage() {
         );
         setIsRegistered(registered);
 
-        if (isEventLive(eventData.startAt, eventData.endAt)) {
+        // Must match the grace-inclusive check used to decide whether the
+        // check-in UI renders below (isLiveOrGrace) — using the stricter
+        // isEventLive here left `checkIn` stuck at its initial null on any
+        // mount/remount during the 45-min grace window (e.g. back then back
+        // in), so an already-PENDING check-in rendered as "not checked in"
+        // and re-submitting hit "You have already checked in".
+        if (isEventLiveOrGrace(eventData.startAt, eventData.endAt)) {
           await fetchCheckInStatus();
         }
 
