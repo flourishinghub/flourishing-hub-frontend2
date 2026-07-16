@@ -328,6 +328,12 @@ export default function AssociateInstructorDashboard() {
 
       {/* Tabs */}
       <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="relative">
+          {/* Right-edge fade — on mobile the tab row scrolls horizontally
+              (no-scrollbar hides the native scrollbar entirely), so without
+              this hint the last tab looked simply cut off ("Vol...") with
+              no indication there was more to swipe to. */}
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[rgb(var(--color-card))] to-transparent z-10 sm:hidden" />
         <div className="flex border-b border-white/5 overflow-x-auto no-scrollbar">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
@@ -343,6 +349,7 @@ export default function AssociateInstructorDashboard() {
               {label}
             </button>
           ))}
+        </div>
         </div>
 
         <div className="p-6">
