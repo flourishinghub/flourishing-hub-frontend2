@@ -635,7 +635,13 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-emerald-500/5 pointer-events-none" />
               <div className="absolute -top-10 -right-10 w-56 h-56 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
               <div className="relative z-10 p-8">
-                <div className="flex items-start justify-between gap-6 flex-wrap">
+                {/* flex-wrap alone doesn't reliably wrap this on mobile — the
+                    left block's flex-1 (flex-basis: 0) makes the browser's
+                    wrap-threshold calculation ignore its real content width,
+                    so the button column stayed on the same line as the badge
+                    row and visually overlapped it. Force a real stack below
+                    sm instead of relying on wrap. */}
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
