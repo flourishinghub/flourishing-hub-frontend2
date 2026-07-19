@@ -29,7 +29,7 @@ interface PendingResolution {
   totalRows: number;
   newCount: number;
   duplicateCount: number;
-  duplicates: { row: number; name: string | null; email: string | null; rollNumber: string | null; batchCode: string }[];
+  duplicates: { row: number; name: string | null; email: string | null; rollNumber: string | null; batchCode: string; reason?: string }[];
 }
 
 export default function BatchUploadModal({ show, onClose, courses }: BatchUploadModalProps) {
@@ -394,7 +394,7 @@ export default function BatchUploadModal({ show, onClose, courses }: BatchUpload
                         {pendingResolution.duplicateCount} duplicate student{pendingResolution.duplicateCount !== 1 ? 's' : ''} found in {pendingResolution.courseName}
                       </p>
                       <p className="text-xs text-amber-400/70 mt-0.5">
-                        {pendingResolution.newCount} new · {pendingResolution.duplicateCount} already uploaded for this course
+                        {pendingResolution.newCount} new · {pendingResolution.duplicateCount} already uploaded for this course or repeated within this file — see &quot;Why&quot; below
                       </p>
                     </div>
                   </div>
@@ -406,6 +406,7 @@ export default function BatchUploadModal({ show, onClose, courses }: BatchUpload
                           <th className="px-3 py-2 text-left text-white/40 font-semibold">Name</th>
                           <th className="px-3 py-2 text-left text-white/40 font-semibold">Email / Roll No</th>
                           <th className="px-3 py-2 text-left text-white/40 font-semibold">Batch</th>
+                          <th className="px-3 py-2 text-left text-white/40 font-semibold">Why</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -415,6 +416,7 @@ export default function BatchUploadModal({ show, onClose, courses }: BatchUpload
                             <td className="px-3 py-2 text-white">{d.name || '—'}</td>
                             <td className="px-3 py-2 text-white/60 font-mono">{d.email || d.rollNumber || '—'}</td>
                             <td className="px-3 py-2 text-white/60 font-mono">{d.batchCode}</td>
+                            <td className="px-3 py-2 text-white/50">{d.reason || '—'}</td>
                           </tr>
                         ))}
                       </tbody>
