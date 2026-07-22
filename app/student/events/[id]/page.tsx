@@ -14,8 +14,13 @@ import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLive, isEventLiveOrGrace, isGracePeriodActive, getGraceSecondsRemaining, isEventUpcoming, isRegistrationOpen, isPastEventMidpoint } from '@/lib/dateUtils';
 import { getRegisteredEventIds } from '@/lib/registrationUtils';
-import type { AuthPayload } from '@/types';
+import type { AuthPayload, QuizStudentView, QuizOptionKey } from '@/types';
 import toast from 'react-hot-toast';
+
+const QUIZ_OPTION_KEYS: QuizOptionKey[] = ['A', 'B', 'C', 'D'];
+const QUIZ_OPTION_FIELD: Record<QuizOptionKey, 'optionA' | 'optionB' | 'optionC' | 'optionD'> = {
+  A: 'optionA', B: 'optionB', C: 'optionC', D: 'optionD',
+};
 
 export default function EventDetailPage() {
   const [user, setUser] = useState<AuthPayload | null>(null);
@@ -32,6 +37,9 @@ export default function EventDetailPage() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState<{ totalMarks: number | null; totalMax: number | null; scores: any[] } | null>(null);
+  const [myQuiz, setMyQuiz] = useState<QuizStudentView | null>(null);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, QuizOptionKey>>({});
+  const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [graceSecsLeft, setGraceSecsLeft] = useState(0);
   const [showExitChecklist, setShowExitChecklist] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -62,6 +70,18 @@ export default function EventDetailPage() {
     }
   };
 
+  // Server is the source of truth for whether the in-built quiz is unlocked
+  // — it checks AttendanceRecord.status === 'PRESENT' itself, so this never
+  // has to (and shouldn't) be re-derived from time windows on the client.
+  const fetchMyQuiz = async () => {
+    try {
+      const res = await apiCall('/event-operations/' + eventId + '/quiz');
+      setMyQuiz(res.data || null);
+    } catch {
+      // silent
+    }
+  };
+
   // Poll every 2s while PENDING so page transitions immediately when instructor verifies
   useEffect(() => {
     if (checkIn?.status === 'PENDING') {
@@ -73,10 +93,13 @@ export default function EventDetailPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkIn?.status]);
 
-  // Poll quiz score every 15s once verified
+  // Poll quiz score every 15s once verified; fetch the in-built quiz's
+  // unlock/question state once at the same time (re-fetched again right
+  // after a successful submission, no need to poll it separately).
   useEffect(() => {
     if (checkIn?.status === 'VERIFIED') {
       fetchMyProgress();
+      fetchMyQuiz();
       scorePollerRef.current = setInterval(() => fetchMyProgress(), 15000);
     } else {
       if (scorePollerRef.current) clearInterval(scorePollerRef.current);
@@ -277,6 +300,29 @@ export default function EventDetailPage() {
     }
   };
 
+  const handleSubmitQuiz = async () => {
+    if (!myQuiz?.questions || submittingQuiz) return;
+    const unanswered = myQuiz.questions.filter((q) => !quizAnswers[q.id]);
+    if (unanswered.length > 0) {
+      toast.error('Please answer all questions before submitting.');
+      return;
+    }
+    setSubmittingQuiz(true);
+    try {
+      const answers = myQuiz.questions.map((q) => ({ questionId: q.id, selectedOption: quizAnswers[q.id] }));
+      const res = await apiCall('/event-operations/' + eventId + '/quiz/submit', {
+        method: 'POST',
+        body: JSON.stringify({ answers }),
+      });
+      toast.success(`Quiz submitted — you scored ${res.data.score}/${res.data.maxScore}!`);
+      await fetchMyQuiz();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to submit quiz.');
+    } finally {
+      setSubmittingQuiz(false);
+    }
+  };
+
   if (loading || !event) {
     return (
       <DashboardLayout user={user} loading={loading}>
@@ -299,6 +345,13 @@ export default function EventDetailPage() {
   const quizOpensInSecs = (eventStartRaw && event.endAt)
     ? Math.max(0, Math.floor((new Date(eventStartRaw).getTime() + (new Date(event.endAt).getTime() - new Date(eventStartRaw).getTime()) / 2 - Date.now()) / 1000))
     : 0;
+  // The in-built quiz (when one is configured) unlocks purely on the
+  // server's attendance-verified signal — myQuiz is only ever fetched once
+  // checkIn is VERIFIED, so myQuiz === null here means "not verified yet".
+  // A module/event with no in-built quiz configured falls back to the
+  // legacy time-window-gated external Google-Form link, unchanged.
+  const hasInBuiltQuiz = myQuiz?.available === true;
+  const quizCardUnlocked = hasInBuiltQuiz ? !myQuiz!.locked : quizWindowOpen;
   const isUpcoming = isEventUpcoming(event.startAt || (event.date + 'T' + event.time));
   // Registration allowed until 15 minutes after the event starts
   const regOpen = isRegistrationOpen(event.startAt || (event.date + 'T' + event.time));
@@ -635,32 +688,95 @@ export default function EventDetailPage() {
                 transition={{ delay: 0.15 }}
                 className="dark-surface-card relative rounded-2xl overflow-hidden"
                 style={{
-                  background: quizWindowOpen
+                  background: quizCardUnlocked
                     ? 'linear-gradient(135deg, #1a0e04, #1f1408)'
                     : 'linear-gradient(135deg, #111, #1a1a1a)',
-                  border: quizWindowOpen
+                  border: quizCardUnlocked
                     ? '1px solid rgba(249,115,22,0.4)'
                     : '1px solid rgba(255,255,255,0.07)',
-                  boxShadow: quizWindowOpen ? '0 0 30px rgba(249,115,22,0.08)' : 'none',
+                  boxShadow: quizCardUnlocked ? '0 0 30px rgba(249,115,22,0.08)' : 'none',
                 }}
               >
                 <div className="p-5 lg:p-6">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <FileText className={`w-5 h-5 ${quizWindowOpen ? 'text-orange-400' : 'text-white/30'}`} />
+                      <FileText className={`w-5 h-5 ${quizCardUnlocked ? 'text-orange-400' : 'text-white/30'}`} />
                       <h2 className="text-white font-bold text-base">Session Quiz / Feedback</h2>
                     </div>
-                    {quizWindowOpen ? (
+                    {quizCardUnlocked ? (
                       <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[10px] font-bold">
                         <CheckCircle className="w-3 h-3" /> UNLOCKED
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/30 text-[10px] font-bold">
-                        <Lock className="w-2.5 h-2.5" /> CLOSED
+                        <Lock className="w-2.5 h-2.5" /> LOCKED
                       </span>
                     )}
                   </div>
-                  {quizWindowOpen ? (
+
+                  {hasInBuiltQuiz ? (
+                    /* ── In-built quiz ── */
+                    myQuiz!.locked ? (
+                      <p className="text-white/30 text-sm mt-2 flex items-center gap-1.5">
+                        <Lock className="w-3 h-3 shrink-0" />
+                        The quiz unlocks once your attendance is verified.
+                      </p>
+                    ) : myQuiz!.alreadySubmitted ? (
+                      <div className="mt-2">
+                        <p className="text-white/60 text-sm mb-2">Quiz submitted — you scored:</p>
+                        <div className="flex items-end gap-2">
+                          <span className="text-3xl font-bold text-white">{myQuiz!.score}</span>
+                          <span className="text-white/40 text-base mb-0.5">/ {myQuiz!.maxScore}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-2 space-y-4">
+                        <p className="text-white/40 text-sm">Attendance verified — answer all {myQuiz!.questions?.length} questions and submit.</p>
+                        {graceActive && (
+                          <p className="text-orange-400/80 text-xs -mt-2 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Quiz window closes in {Math.floor(graceSecsLeft / 60)}:{String(graceSecsLeft % 60).padStart(2, '0')}
+                          </p>
+                        )}
+                        {myQuiz!.questions?.map((q, qi) => (
+                          <div key={q.id} className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10">
+                            <p className="text-white/85 text-sm font-medium mb-2.5">{qi + 1}. {q.questionText}</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {QUIZ_OPTION_KEYS.map((key) => {
+                                const optionText = q[QUIZ_OPTION_FIELD[key]];
+                                const selected = quizAnswers[q.id] === key;
+                                return (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setQuizAnswers((prev) => ({ ...prev, [q.id]: key }))}
+                                    className={`text-left px-3 py-2 rounded-lg text-sm border transition-all ${
+                                      selected
+                                        ? 'bg-orange-500/15 border-orange-500/50 text-orange-300'
+                                        : 'bg-white/[0.02] border-white/10 text-white/60 hover:bg-white/5'
+                                    }`}
+                                  >
+                                    <span className="font-semibold mr-1.5">{key}.</span>{optionText}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                        <motion.button
+                          whileHover={{ scale: submittingQuiz ? 1 : 1.02 }}
+                          whileTap={{ scale: submittingQuiz ? 1 : 0.98 }}
+                          onClick={handleSubmitQuiz}
+                          disabled={submittingQuiz}
+                          className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-60"
+                          style={{ background: 'linear-gradient(135deg,#ea580c,#f97316)', color: '#fff', boxShadow: '0 0 20px rgba(249,115,22,0.3)' }}
+                        >
+                          {submittingQuiz ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : 'Submit Quiz'}
+                        </motion.button>
+                      </div>
+                    )
+                  ) : quizWindowOpen ? (
+                    /* ── Legacy Google-Form quiz link (no in-built quiz configured) ── */
                     <>
                       <p className="text-white/40 text-sm mb-1">Attendance verified — complete the quiz to earn your score.</p>
                       {graceActive && (
@@ -680,7 +796,7 @@ export default function EventDetailPage() {
                           <ExternalLink className="w-4 h-4" /> Open Quiz
                         </a>
                       ) : (
-                        <p className="text-white/30 text-sm italic">No quiz link configured for this session</p>
+                        <p className="text-white/30 text-sm italic">No quiz configured for this session</p>
                       )}
                     </>
                   ) : (

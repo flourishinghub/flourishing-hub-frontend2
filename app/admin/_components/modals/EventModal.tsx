@@ -3,7 +3,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Wifi, WifiOff, X } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
-import type { Event } from '@/types';
+import type { Event, QuizQuestionForm } from '@/types';
+import QuizQuestionBuilder from '@/components/QuizQuestionBuilder';
 
 type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
 type RegistrationMode = 'compulsory' | 'optional' | 'open';
@@ -28,6 +29,7 @@ interface EventFormData {
   associateInstructorId: string;
   maxVolunteers: string;
   registrationMode: RegistrationMode;
+  quizQuestions: QuizQuestionForm[];
 }
 
 const VENUE_PRESETS = [
@@ -355,6 +357,17 @@ export default function EventModal({
                   />
                 </div>
               </div>
+
+              {/* In-built quiz — only a standalone/open workshop (no linked
+                  course) authors its own quiz; a course-linked event's quiz
+                  is inherited from its CourseModule instead (authored once
+                  in the Courses tab's module editor). */}
+              {!form.courseId && (
+                <QuizQuestionBuilder
+                  questions={form.quizQuestions}
+                  onChange={(quizQuestions) => setForm({ ...form, quizQuestions })}
+                />
+              )}
 
               <div>
                 <label className="text-xs font-medium text-white/60 mb-1.5 block">Status</label>

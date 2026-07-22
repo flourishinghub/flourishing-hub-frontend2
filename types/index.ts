@@ -150,6 +150,41 @@ export interface QuizSession {
   registrantCount: number;
 }
 
+export type QuizOptionKey = 'A' | 'B' | 'C' | 'D';
+
+// Admin-authoring shape for one of the fixed 10 in-built quiz questions
+// (on a CourseModule or a standalone Event) — correctOption is only ever
+// sent to/from the admin endpoints, never to the student-facing quiz.
+export interface QuizQuestionForm {
+  questionText: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  optionD: string;
+  correctOption: QuizOptionKey;
+}
+
+// Student-facing question shape — no correctOption, the answer key is
+// stripped server-side before this ever reaches the client.
+export interface QuizStudentQuestion {
+  id: string;
+  order: number;
+  questionText: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  optionD: string;
+}
+
+export interface QuizStudentView {
+  available: boolean;
+  locked?: boolean;
+  alreadySubmitted?: boolean;
+  score?: number | null;
+  maxScore?: number;
+  questions?: QuizStudentQuestion[];
+}
+
 export interface StudentModule {
   id: string;
   title: string;

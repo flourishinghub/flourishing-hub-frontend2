@@ -293,7 +293,7 @@ export default function AnalyticsTab({
                     Batch: s.batch,
                     Attendance: s.attendanceStatus,
                     'Quiz Completed': s.quizCompleted ? 'Yes' : 'No',
-                    Score: s.score ?? '—',
+                    Score: s.score != null ? `${s.score}/${s.maxScore ?? '?'}` : '—',
                     Rating: s.rating ?? '—',
                     'Registration Status': s.registrationStatus,
                   }));
@@ -362,7 +362,9 @@ export default function AnalyticsTab({
                             {s.quizCompleted ? 'Done' : 'Pending'}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 text-white/70 font-semibold">{s.score != null ? s.score : '—'}</td>
+                        <td className="px-3 py-2.5 text-white/70 font-semibold">
+                          {s.score != null ? `${s.score}/${s.maxScore ?? '?'}` : '—'}
+                        </td>
                         <td className="px-3 py-2.5">
                           {s.rating ? (
                             <div className="flex items-center gap-1">

@@ -430,11 +430,12 @@ export default function StudentDashboard() {
           ) : (
             <div className="space-y-2">
               {/* Header */}
-              <div className="hidden sm:grid grid-cols-4 gap-3 px-3 pb-2 border-b border-white/5">
+              <div className="hidden sm:grid grid-cols-5 gap-3 px-3 pb-2 border-b border-white/5">
                 <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Course</p>
                 <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Workshop</p>
                 <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Date & Time</p>
                 <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Status</p>
+                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Score</p>
               </div>
               {attendanceRecords.map((record: any, i: number) => {
                 const eventDate = new Date(record.date);
@@ -442,7 +443,7 @@ export default function StudentDashboard() {
                 const isExcused = record.status === 'EXCUSED';
                 const isPending = record.status === 'PENDING';
                 return (
-                  <div key={record.eventId + i} className="grid grid-cols-2 sm:grid-cols-4 gap-y-2 gap-x-3 items-center p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
+                  <div key={record.eventId + i} className="grid grid-cols-2 sm:grid-cols-5 gap-y-2 gap-x-3 items-center p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
                     <div className="flex items-center gap-2 min-w-0">
                       <BookOpen className="w-3.5 h-3.5 text-primary shrink-0" />
                       <p className="text-xs text-white/70 sm:truncate">{record.courseName || 'Open Workshop'}</p>
@@ -464,6 +465,9 @@ export default function StudentDashboard() {
                       <div className={`w-1.5 h-1.5 rounded-full ${isPresent ? 'bg-emerald-400' : isExcused ? 'bg-yellow-400' : isPending ? 'bg-amber-400' : 'bg-red-400'}`} />
                       {isPresent ? 'Present' : isExcused ? 'Excused' : isPending ? 'Pending Verification' : 'Absent'}
                     </span>
+                    <p className="text-xs text-white/60">
+                      {record.marks != null ? `${record.marks}/${record.maxMarks}` : '—'}
+                    </p>
                   </div>
                 );
               })}

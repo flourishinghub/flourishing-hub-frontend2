@@ -16,7 +16,7 @@ import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLive, isEventUpcoming, isEventPast, toLocalDateKey } from '@/lib/dateUtils';
 import { useNowTick } from '@/lib/useNowTick';
 import { downloadCsv } from '@/lib/csv';
-import type { Event, MemberDirectory, UserRole } from '@/types';
+import type { Event, MemberDirectory, UserRole, QuizQuestionForm } from '@/types';
 import toast from 'react-hot-toast';
 
 // Tab components
@@ -79,10 +79,29 @@ interface ModuleFormData {
   feedbackLink: string;
   duration: string;
   order: string;
+  quizQuestions: QuizQuestionForm[];
 }
+
+// Fixed 10 slots — the in-built quiz is always exactly 10 questions, so the
+// builder UI never needs add/remove controls, just 10 pre-rendered blocks.
+const buildEmptyQuizQuestions = (): QuizQuestionForm[] =>
+  Array.from({ length: 10 }, () => ({
+    questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctOption: 'A' as const,
+  }));
+
+// A question counts as "filled" once every field has content — used to
+// decide whether the admin is trying to save a quiz at all (all filled),
+// still editing one (some filled — blocked, must finish or clear), or
+// skipping it entirely (none filled).
+const isQuizQuestionFilled = (q: QuizQuestionForm) =>
+  Boolean(q.questionText.trim() && q.optionA.trim() && q.optionB.trim() && q.optionC.trim() && q.optionD.trim());
+
+const countFilledQuizQuestions = (questions: QuizQuestionForm[]) =>
+  questions.filter(isQuizQuestionFilled).length;
 
 const emptyModuleForm: ModuleFormData = {
   title: '', description: '', posterUrl: '', quizLink: '', feedbackLink: '', duration: '', order: '0',
+  quizQuestions: buildEmptyQuizQuestions(),
 };
 
 interface FilterState {
@@ -114,6 +133,7 @@ interface EventFormData {
   associateInstructorId: string;
   maxVolunteers: string;
   registrationMode: 'compulsory' | 'optional' | 'open';
+  quizQuestions: QuizQuestionForm[];
 }
 
 const emptyForm: EventFormData = {
@@ -122,6 +142,7 @@ const emptyForm: EventFormData = {
   courseId: '', courseModuleId: '', batch: '', posterUrl: '', quizLink: '', feedbackLink: '',
   endTime: '', instructorId: '', associateInstructorId: '', maxVolunteers: '',
   registrationMode: 'open',
+  quizQuestions: buildEmptyQuizQuestions(),
 };
 
 const ROLES: UserRole[] = ['student', 'instructor', 'admin', 'volunteer', 'associate-instructor'];
@@ -546,6 +567,7 @@ export default function AdminDashboard() {
       instructorId: ev.instructorId || '',
       associateInstructorId: ev.associateInstructorId || '',
       maxVolunteers: ev.volunteersNeeded ? String(ev.volunteersNeeded) : '',
+      quizQuestions: buildEmptyQuizQuestions(),
     });
     if (ev.courseId) {
       const course = courses.find(c => c.id === ev.courseId);
@@ -553,6 +575,23 @@ export default function AdminDashboard() {
       if (ev.courseId) {
         apiCall(`/courses/${ev.courseId}/modules`).then(r => setModulesForEvent(r.data || [])).catch(() => {});
       }
+    } else {
+      // Only a standalone/open-workshop event owns its own in-built quiz —
+      // a course-linked event inherits its quiz from courseModule instead.
+      apiCall(`/admin/events/${ev.id}/quiz`)
+        .then((r) => {
+          const existing = r?.data?.questions;
+          if (Array.isArray(existing) && existing.length === 10) {
+            setForm((prev) => ({
+              ...prev,
+              quizQuestions: existing.map((q: any) => ({
+                questionText: q.questionText, optionA: q.optionA, optionB: q.optionB,
+                optionC: q.optionC, optionD: q.optionD, correctOption: q.correctOption,
+              })),
+            }));
+          }
+        })
+        .catch(() => {});
     }
     setShowModal(true);
   };
@@ -565,6 +604,14 @@ export default function AdminDashboard() {
 
     if (saving) {
       return; // Prevent double submission
+    }
+
+    // Only a standalone/open-workshop event (no courseId) authors its own
+    // quiz — course-linked events inherit theirs from the module instead.
+    const filledQuizCount = !form.courseId ? countFilledQuizQuestions(form.quizQuestions) : 0;
+    if (filledQuizCount > 0 && filledQuizCount < 10) {
+      toast.error('Fill in all 10 in-built quiz questions, or leave all of them blank to skip it.');
+      return;
     }
 
     try {
@@ -599,6 +646,8 @@ export default function AdminDashboard() {
 
       console.log("📤 Sending event data:", eventData);
 
+      let targetEventId: string | null = null;
+
       if (editingEvent) {
         const editData: any = {
           ...eventData,
@@ -610,12 +659,14 @@ export default function AdminDashboard() {
           method: 'PUT',
           body: JSON.stringify(editData)
         });
+        targetEventId = editingEvent.id;
         toast.success('Event updated!');
       } else {
         const createdEvent = await apiCall('/admin/events', {
           method: 'POST',
           body: JSON.stringify(eventData)
         });
+        targetEventId = createdEvent?.data?.id || null;
         if (createdEvent?.data?.id) {
           const staffCalls = [
             form.instructorId && { userId: form.instructorId, role: 'INSTRUCTOR' },
@@ -633,6 +684,21 @@ export default function AdminDashboard() {
           }
         }
         toast.success(form.status === 'published' ? 'Event published!' : 'Event saved as draft');
+      }
+
+      // Save the in-built quiz as a second, sequential call — kept separate
+      // from the event save above so a quiz-save failure never undoes the
+      // event itself (matches how the module save below also treats quiz
+      // saving as a non-transactional follow-up step).
+      if (filledQuizCount === 10 && targetEventId) {
+        try {
+          await apiCall(`/admin/events/${targetEventId}/quiz`, {
+            method: 'PUT',
+            body: JSON.stringify({ questions: form.quizQuestions }),
+          });
+        } catch {
+          toast.error('Event saved, but the quiz failed to save — reopen Edit to retry.');
+        }
       }
 
       // Close modal immediately after success
@@ -975,8 +1041,26 @@ export default function AdminDashboard() {
       feedbackLink: mod.feedbackLink || '',
       duration: mod.duration || '',
       order: String(mod.order ?? 0),
+      quizQuestions: buildEmptyQuizQuestions(),
     });
     setShowModuleModal(true);
+
+    if (selectedCourse) {
+      apiCall(`/courses/${selectedCourse.id}/modules/${mod.id}/quiz`)
+        .then((r) => {
+          const existing = r?.data?.questions;
+          if (Array.isArray(existing) && existing.length === 10) {
+            setModuleForm((prev) => ({
+              ...prev,
+              quizQuestions: existing.map((q: any) => ({
+                questionText: q.questionText, optionA: q.optionA, optionB: q.optionB,
+                optionC: q.optionC, optionD: q.optionD, correctOption: q.correctOption,
+              })),
+            }));
+          }
+        })
+        .catch(() => {});
+    }
   };
 
   const handleSaveModule = async () => {
@@ -985,6 +1069,12 @@ export default function AdminDashboard() {
       return;
     }
     if (!selectedCourse || savingModule) return;
+
+    const filledQuizCount = countFilledQuizQuestions(moduleForm.quizQuestions);
+    if (filledQuizCount > 0 && filledQuizCount < 10) {
+      toast.error('Fill in all 10 in-built quiz questions, or leave all of them blank to skip it.');
+      return;
+    }
 
     try {
       setSavingModule(true);
@@ -998,16 +1088,33 @@ export default function AdminDashboard() {
         order: moduleForm.order ? parseInt(moduleForm.order) : 0,
       };
 
+      let targetModuleId: string | null = editingModule?.id || null;
+
       if (editingModule) {
         await apiCall(`/courses/${selectedCourse.id}/modules/${editingModule.id}`, {
           method: 'PUT', body: JSON.stringify(payload),
         });
         toast.success('Module updated!');
       } else {
-        await apiCall(`/courses/${selectedCourse.id}/modules`, {
+        const created = await apiCall(`/courses/${selectedCourse.id}/modules`, {
           method: 'POST', body: JSON.stringify(payload),
         });
+        targetModuleId = created?.data?.id || null;
         toast.success('Module created!');
+      }
+
+      // Saved once per-module, at module-creation/edit time — this is what
+      // lets every per-batch Event instantiated from this module reuse the
+      // same 10 questions instead of the admin re-entering them each time.
+      if (filledQuizCount === 10 && targetModuleId) {
+        try {
+          await apiCall(`/courses/${selectedCourse.id}/modules/${targetModuleId}/quiz`, {
+            method: 'PUT',
+            body: JSON.stringify({ questions: moduleForm.quizQuestions }),
+          });
+        } catch {
+          toast.error('Module saved, but the quiz failed to save — reopen Edit to retry.');
+        }
       }
 
       setShowModuleModal(false);
@@ -1078,6 +1185,10 @@ export default function AdminDashboard() {
       associateInstructorId: '',
       maxVolunteers: '',
       registrationMode: 'open',
+      // This event inherits its quiz from the module (courseModuleId set
+      // above) — the builder stays hidden in EventModal since form.courseId
+      // is set, so this is just satisfying EventFormData's shape.
+      quizQuestions: buildEmptyQuizQuestions(),
     });
 
     // Open modal after state is set

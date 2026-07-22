@@ -2,6 +2,8 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import type { QuizQuestionForm } from '@/types';
+import QuizQuestionBuilder from '@/components/QuizQuestionBuilder';
 
 interface ModuleFormData {
   title: string;
@@ -11,6 +13,7 @@ interface ModuleFormData {
   feedbackLink: string;
   duration: string;
   order: string;
+  quizQuestions: QuizQuestionForm[];
 }
 
 interface ModuleModalProps {
@@ -139,6 +142,11 @@ export default function ModuleModal({
                   />
                 </div>
               </div>
+
+              <QuizQuestionBuilder
+                questions={moduleForm.quizQuestions}
+                onChange={(quizQuestions) => setModuleForm({ ...moduleForm, quizQuestions })}
+              />
             </div>
 
             <div className="px-6 pb-6 flex gap-3">
