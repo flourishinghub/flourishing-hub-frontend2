@@ -217,3 +217,57 @@ export interface AuthPayload {
   interests?: string;
   iat: number;
 }
+
+export type AnalyticsAttendanceStatus = 'PRESENT' | 'ABSENT' | 'EXCUSED' | 'NOT_MARKED';
+
+// One student's participation in one workshop row — the nested shape returned
+// per-entry inside WorkshopAnalyticsRow.students[].
+export interface AnalyticsStudentEntry {
+  userId: string;
+  name: string;
+  email: string;
+  rollNo: string;
+  batch: string;
+  department: string | null;
+  programme: string | null;
+  attendanceStatus: AnalyticsAttendanceStatus;
+  quizCompleted: boolean;
+  score: number | null;
+  maxScore: number | null;
+  rating: number | null;
+  registrationStatus: string;
+}
+
+// One row from GET /admin/analytics/workshops — one row per completed workshop.
+export interface WorkshopAnalyticsRow {
+  id: string;
+  workshopName: string;
+  courseName: string;
+  moduleName: string;
+  instructorName: string;
+  instructorId: string | null;
+  associateInstructorName: string;
+  associateInstructorId: string | null;
+  volunteerNames: string[];
+  date: string;
+  batch: string;
+  venue: string;
+  totalRegistered: number;
+  totalAttended: number;
+  totalAbsent: number;
+  avgRating: string | null;
+  students: AnalyticsStudentEntry[];
+}
+
+export interface AnalyticsFilterState {
+  course: string;
+  topic: string;
+  instructor: string;
+  batch: string;
+  dateFrom: string;
+  dateTo: string;
+  attendanceStatus: string;
+  department: string;
+  minScorePct: string;
+  maxScorePct: string;
+}
