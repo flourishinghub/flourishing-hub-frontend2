@@ -298,16 +298,42 @@ export default function HomePage() {
       const scheduledTitles = new Set(
         relevantEvents.map((e: any) => (e.title || '').trim().toLowerCase()).filter(Boolean)
       );
+      // A module whose Event already exists for this student's batch but
+      // isn't in `scheduledModuleIds`'s complement (i.e. the student isn't
+      // registered for it yet) used to vanish entirely here - it failed the
+      // `workshops` registration check AND got excluded from
+      // `pendingWorkshops` by the scheduled-module check above, with nothing
+      // to replace it. Surface the real matched event (real date/venue)
+      // instead of the bare "Pending Schedule" placeholder whenever one
+      // exists, so registering for ≥1 workshop is enough to see the rest of
+      // the bundle as it gets scheduled.
+      const relevantEventByModuleId = new Map(
+        relevantEvents.filter((e: any) => e.courseModuleId).map((e: any) => [e.courseModuleId, e])
+      );
       const pendingWorkshops = (c.modules || [])
         .filter((m: any) => !scheduledModuleIds.has(m.id) && !scheduledTitles.has((m.title || '').trim().toLowerCase()))
-        .map((m: any) => ({
-          id: `pending-${m.id}`,
-          title: m.title,
-          wStatus: 'pending',
-          registered: false,
-          attended: false,
-          pending: true,
-        }));
+        .map((m: any) => {
+          const scheduledEvent = relevantEventByModuleId.get(m.id);
+          if (scheduledEvent) {
+            return {
+              ...scheduledEvent,
+              id: scheduledEvent.id,
+              title: scheduledEvent.title || m.title,
+              wStatus: workshopStatus(scheduledEvent),
+              registered: false,
+              attended: false,
+              pending: false,
+            };
+          }
+          return {
+            id: `pending-${m.id}`,
+            title: m.title,
+            wStatus: 'pending',
+            registered: false,
+            attended: false,
+            pending: true,
+          };
+        });
 
       return { ...c, workshops: [...workshops, ...pendingWorkshops], registeredCount: workshops.length };
     })

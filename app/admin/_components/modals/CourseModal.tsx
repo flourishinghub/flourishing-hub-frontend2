@@ -13,6 +13,7 @@ interface CourseFormData {
   duration: string;
   status: CourseStatus;
   isCompulsory: boolean;
+  hasQuiz: boolean;
   workshopCount: string;
   workshopTopics: string[];
 }
@@ -142,7 +143,7 @@ export default function CourseModal({
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <div
                     onClick={() => setCourseForm({ ...courseForm, isCompulsory: !courseForm.isCompulsory })}
@@ -153,6 +154,18 @@ export default function CourseModal({
                   <div>
                     <p className="text-xs font-medium text-white/80">Compulsory Bundle</p>
                     <p className="text-[10px] text-white/40">Students are auto-enrolled to all workshops</p>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div
+                    onClick={() => setCourseForm({ ...courseForm, hasQuiz: !courseForm.hasQuiz })}
+                    className={`w-10 h-5 rounded-full transition-colors relative ${courseForm.hasQuiz ? 'bg-amber-500' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-[#ffffff] shadow transition-transform ${courseForm.hasQuiz ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-white/80">Has Quiz</p>
+                    <p className="text-[10px] text-white/40">Enables quiz-based Pass/Fail (out of 10) in Analytics — only for modules using the in-built quiz</p>
                   </div>
                 </label>
               </div>

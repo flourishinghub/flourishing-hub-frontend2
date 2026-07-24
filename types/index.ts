@@ -234,6 +234,11 @@ export interface AnalyticsStudentEntry {
   quizCompleted: boolean;
   score: number | null;
   maxScore: number | null;
+  // Raw score (always out of 10) from the in-built MCQ quiz specifically —
+  // distinct from score/maxScore above, which sum across ALL of the event's
+  // modules (including the legacy Google-Form quiz webhook's module). Null
+  // if this student has no in-built-quiz submission for this event.
+  quizScore: number | null;
   rating: number | null;
   registrationStatus: string;
 }
@@ -243,6 +248,10 @@ export interface WorkshopAnalyticsRow {
   id: string;
   workshopName: string;
   courseName: string;
+  // Whether this row's course has quiz-based Pass/Fail grading enabled
+  // (Course.hasQuiz) — set by admins on the course template, separate from
+  // isCompulsory. Drives whether a student's quizScore can produce "Fail".
+  courseHasQuiz: boolean;
   moduleName: string;
   instructorName: string;
   instructorId: string | null;

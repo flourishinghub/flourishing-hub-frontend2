@@ -56,13 +56,14 @@ interface CourseFormData {
   duration: string;
   status: CourseStatus;
   isCompulsory: boolean;
+  hasQuiz: boolean;
   workshopCount: string;
   workshopTopics: string[];
 }
 
 const emptyCourseForm: CourseFormData = {
   name: '', code: '', description: '', posterUrl: '', duration: '',
-  status: 'ACTIVE', isCompulsory: false, workshopCount: '', workshopTopics: [],
+  status: 'ACTIVE', isCompulsory: false, hasQuiz: false, workshopCount: '', workshopTopics: [],
 };
 
 const courseStatusColors: Record<CourseStatus, string> = {
@@ -915,6 +916,7 @@ export default function AdminDashboard() {
       duration: course.duration || '',
       status: course.status as CourseStatus,
       isCompulsory: course.isCompulsory === true,
+      hasQuiz: course.hasQuiz === true,
       workshopCount: '',
       workshopTopics: [],
     });
@@ -938,6 +940,7 @@ export default function AdminDashboard() {
         duration: courseForm.duration || null,
         status: courseForm.status,
         isCompulsory: courseForm.isCompulsory,
+        hasQuiz: courseForm.hasQuiz,
       };
 
       if (editingCourse) {

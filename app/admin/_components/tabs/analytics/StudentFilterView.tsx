@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, Download, Eye, Star } from 'lucide-react';
 import { downloadCsv } from '@/lib/csv';
 import { WorkshopAnalyticsRow } from '@/types';
-import { aggregateStudents, StudentAggregateRow } from './filterUtils';
+import { aggregateStudents, ModuleStatus, StudentAggregateRow } from './filterUtils';
 
 function MetricCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -15,10 +15,32 @@ function MetricCard({ label, value }: { label: string; value: string | number })
   );
 }
 
+const MODULE_STATUS_STYLE: Record<ModuleStatus, string> = {
+  PRESENT: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  ABSENT: 'bg-red-500/15 text-red-400 border-red-500/30',
+  FAIL: 'bg-red-500/15 text-red-400 border-red-500/30',
+  'N/A': 'bg-white/5 text-white/30 border-white/10',
+};
+
+function ModuleStatusBadge({ status }: { status: ModuleStatus | undefined }) {
+  if (!status) return <span className="text-white/20">—</span>;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${MODULE_STATUS_STYLE[status]}`}>
+      {status === 'PRESENT' ? 'Present' : status === 'ABSENT' ? 'Absent' : status === 'FAIL' ? 'Fail' : 'N/A'}
+    </span>
+  );
+}
+
 export default function StudentFilterView({ rows }: { rows: WorkshopAnalyticsRow[] }) {
   const [selected, setSelected] = useState<StudentAggregateRow | null>(null);
 
   const students = useMemo(() => aggregateStudents(rows), [rows]);
+
+  // One column per distinct module name present in the currently filtered rows.
+  const moduleNames = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.moduleName).filter((m) => m && m !== '—'))).sort(),
+    [rows],
+  );
 
   const metrics = useMemo(() => {
     const withAttendance = students.filter((s) => s.attendancePct != null);
@@ -49,6 +71,7 @@ export default function StudentFilterView({ rows }: { rows: WorkshopAnalyticsRow
         'Attendance %': s.attendancePct != null ? `${s.attendancePct}%` : '—',
         'Avg Score %': s.avgScorePct != null ? `${s.avgScorePct}%` : '—',
         'Avg Rating': s.avgRating ?? '—',
+        ...Object.fromEntries(moduleNames.map((m) => [m, s.moduleStatus[m] ?? '—'])),
       })),
       'student-analytics',
     );
@@ -156,7 +179,7 @@ export default function StudentFilterView({ rows }: { rows: WorkshopAnalyticsRow
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-white/5">
-                  {['Name', 'Roll No', 'Department', 'Batch', 'Events', 'Attendance', 'Avg Score', 'Avg Rating', ''].map((h) => (
+                  {['Name', 'Roll No', 'Department', 'Batch', 'Events', 'Attendance', 'Avg Score', 'Avg Rating', ...moduleNames, ''].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-white/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -164,7 +187,7 @@ export default function StudentFilterView({ rows }: { rows: WorkshopAnalyticsRow
               <tbody>
                 {students.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-12 text-white/30">No students match the current filter</td>
+                    <td colSpan={9 + moduleNames.length} className="text-center py-12 text-white/30">No students match the current filter</td>
                   </tr>
                 ) : students.map((s) => (
                   <tr
@@ -187,6 +210,11 @@ export default function StudentFilterView({ rows }: { rows: WorkshopAnalyticsRow
                         </div>
                       ) : <span className="text-white/30">—</span>}
                     </td>
+                    {moduleNames.map((m) => (
+                      <td key={m} className="px-4 py-3">
+                        <ModuleStatusBadge status={s.moduleStatus[m]} />
+                      </td>
+                    ))}
                     <td className="px-4 py-3">
                       <button className="flex items-center gap-1 text-primary hover:text-primary/80 text-xs font-medium">
                         <Eye className="w-3.5 h-3.5" /> View

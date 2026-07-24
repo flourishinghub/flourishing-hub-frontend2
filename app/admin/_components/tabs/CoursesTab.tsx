@@ -108,6 +108,11 @@ export default function CoursesTab({
                             <Star className="w-3 h-3 fill-amber-400" /> Required
                           </span>
                         )}
+                        {course.hasQuiz && (
+                          <span className="bg-blue-500/15 text-blue-400 border border-blue-500/30 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                            <FileQuestion className="w-3 h-3" /> Quiz
+                          </span>
+                        )}
                       </div>
                       {course.description && (
                         <p className="text-sm text-white/50 mb-2 line-clamp-2">{course.description}</p>
