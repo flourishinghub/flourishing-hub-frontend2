@@ -338,6 +338,11 @@ export interface WorkshopAnalyticsRow {
   totalRegistered: number;
   totalAttended: number;
   totalAbsent: number;
+  // True once a physical sign-in sheet has been reconciled for this event
+  // (at least one AttendanceRecord with an isPhysicalSheetSource source).
+  // Drives the "Physical Sheet: Uploaded / Pending" column + filter.
+  hasPhysicalSheet: boolean;
+  physicalSheetCount: number;
   avgRating: string | null;
   students: AnalyticsStudentEntry[];
 }
@@ -353,4 +358,6 @@ export interface AnalyticsFilterState {
   department: string;
   minScorePct: string;
   maxScorePct: string;
+  // '' = all · 'uploaded' · 'pending' — physical sign-in sheet reconciliation state
+  physicalSheet: string;
 }

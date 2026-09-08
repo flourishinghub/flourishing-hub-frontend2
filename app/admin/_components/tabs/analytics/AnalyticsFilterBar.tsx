@@ -112,6 +112,12 @@ export default function AnalyticsFilterBar({ courses, analyticsData, filters, on
         <FilterSelect label="Batch" value={filters.batch} options={batchOptions} onChange={(v) => set({ batch: v })} />
         <FilterSelect label="Department" value={filters.department} options={departmentOptions} onChange={(v) => set({ department: v })} />
         <FilterSelect label="Attendance" value={filters.attendanceStatus} options={ATTENDANCE_OPTIONS} onChange={(v) => set({ attendanceStatus: v })} />
+        <FilterSelect
+          label="Physical Sheet"
+          value={filters.physicalSheet ? filters.physicalSheet[0].toUpperCase() + filters.physicalSheet.slice(1) : ''}
+          options={['Uploaded', 'Pending']}
+          onChange={(v) => set({ physicalSheet: v.toLowerCase() })}
+        />
         <div className="flex items-center gap-1.5">
           <input
             type="date"

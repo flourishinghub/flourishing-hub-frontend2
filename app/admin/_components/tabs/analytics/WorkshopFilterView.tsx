@@ -86,9 +86,11 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
       : null;
     const totalPassed = rows.reduce((sum, r) => sum + (r.totalAttended || 0), 0);
     const totalRegistered = rows.reduce((sum, r) => sum + (r.totalRegistered || 0), 0);
+    const sheetsPending = rows.filter((r) => !r.hasPhysicalSheet).length;
     return {
       totalStudents: uniqueStudents.length || totalRegistered,
       totalEvents: rows.length,
+      sheetsPending,
       avgRating: avgRating ? `${avgRating.toFixed(2)} / 5.0` : '—',
       passRate: totalRegistered ? `${Math.round((totalPassed / totalRegistered) * 100)}%` : '—',
     };
@@ -135,7 +137,10 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
       return {
         Workshop: r.workshopName,
         Course: r.courseName || '—',
+        Batch: r.batch || '—',
+        Date: r.date ? new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
         'Assigned Conductor': r.associateInstructorName !== '—' ? r.associateInstructorName : r.instructorName,
+        'Physical Sheet': r.hasPhysicalSheet ? `Uploaded (${r.physicalSheetCount})` : 'Pending',
         'Check-In': passed + failed,
         Passed: passed,
         Failed: failed,
@@ -361,7 +366,11 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
       {/* ── Metric Cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard label="Total Students" value={metrics.totalStudents} />
-        <MetricCard label="Active Events" value={metrics.totalEvents} />
+        <MetricCard
+          label="Active Events"
+          value={metrics.totalEvents}
+          sub={metrics.sheetsPending > 0 ? `${metrics.sheetsPending} physical sheet${metrics.sheetsPending === 1 ? '' : 's'} pending` : 'all physical sheets uploaded'}
+        />
         <MetricCard label="Avg Form Rating" value={metrics.avgRating} />
         <MetricCard label="Avg Pass Rate" value={metrics.passRate} />
       </div>
@@ -374,7 +383,7 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-white/5">
-                  {['Workshop Session', 'Assigned Conductor', 'Batch', 'Date', 'Time', 'Check-In', 'Passed', 'Failed', 'Avg Rating', ''].map((h) => (
+                  {['Workshop Session', 'Assigned Conductor', 'Batch', 'Date', 'Time', 'Physical Sheet', 'Check-In', 'Passed', 'Failed', 'Avg Rating', ''].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-white/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -382,7 +391,7 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-12 text-white/30">No completed workshops match the current filter</td>
+                    <td colSpan={11} className="text-center py-12 text-white/30">No completed workshops match the current filter</td>
                   </tr>
                 ) : rows.map((row, i) => {
                   const passed = row.totalAttended || 0;
@@ -410,6 +419,18 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
                         {row.date && row.endAt
                           ? `${new Date(row.date).toLocaleTimeString('en-IN', timeFmt)} – ${new Date(row.endAt).toLocaleTimeString('en-IN', timeFmt)}`
                           : row.date ? new Date(row.date).toLocaleTimeString('en-IN', timeFmt) : '—'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {row.hasPhysicalSheet ? (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Uploaded
+                            {row.physicalSheetCount ? <span className="text-emerald-400/60">({row.physicalSheetCount})</span> : null}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Pending
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-white/70 font-semibold">{checkIn > 0 ? `${checkIn} Stud` : '—'}</td>
                       <td className="px-4 py-3">

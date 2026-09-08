@@ -11,6 +11,7 @@ export const emptyAnalyticsFilters: AnalyticsFilterState = {
   department: '',
   minScorePct: '',
   maxScorePct: '',
+  physicalSheet: '',
 };
 
 /**
@@ -61,6 +62,8 @@ export function filterAnalyticsRows(
     if (filters.topic && row.workshopName !== filters.topic) continue;
     if (filters.instructor && row.instructorName !== filters.instructor && row.associateInstructorName !== filters.instructor) continue;
     if (filters.batch && row.batch !== filters.batch) continue;
+    if (filters.physicalSheet === 'uploaded' && !row.hasPhysicalSheet) continue;
+    if (filters.physicalSheet === 'pending' && row.hasPhysicalSheet) continue;
     if (dateFromTs !== null || dateToTs !== null) {
       const rowTs = new Date(row.date).getTime();
       if (dateFromTs !== null && rowTs < dateFromTs) continue;
