@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Upload, FileUp, CheckCircle2, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { WorkshopAnalyticsRow } from '@/types';
@@ -33,6 +34,9 @@ export default function UploadQuizScoresModal({
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
+  // Portal target — set only after mount so SSR doesn't touch `document`.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Only quiz-enabled courses can have a Score column, so only offer those.
   const courseOptions = useMemo(
@@ -54,7 +58,7 @@ export default function UploadQuizScoresModal({
     ).sort();
   }, [analyticsData, selectedCourseName]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const reset = () => {
     setCourseId('');
@@ -98,8 +102,8 @@ export default function UploadQuizScoresModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={close}>
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={close}>
       <div
         className="w-full max-w-lg rounded-2xl bg-card border border-white/10 p-6 space-y-5 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
@@ -219,6 +223,7 @@ export default function UploadQuizScoresModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
