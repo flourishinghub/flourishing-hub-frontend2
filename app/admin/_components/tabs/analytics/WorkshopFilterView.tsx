@@ -6,6 +6,26 @@ import { apiCall } from '@/lib/api';
 import { downloadCsv } from '@/lib/csv';
 import toast from 'react-hot-toast';
 import { WorkshopAnalyticsRow } from '@/types';
+import { computeModuleStatus } from './filterUtils';
+
+// Quiz-score-based Pass/Fail per workshop row (via the same computeModuleStatus
+// used by the Student-Level view) — NOT attendance. A student only counts as
+// Passed/Failed once they're PRESENT and (for a quiz-bearing course) have
+// actually submitted the quiz; present-but-quiz-not-yet-taken is 'N/A' and
+// counts as neither. Fixes a bug where this file's own Passed/Failed columns
+// (KPI card, table, CSV export) were computed from `totalAttended` — i.e.
+// plain attendance — so a student who attended but scored below the pass
+// threshold (or never took the quiz at all) still showed up as "Passed".
+function countPassFail(row: WorkshopAnalyticsRow): { passed: number; failed: number } {
+  let passed = 0;
+  let failed = 0;
+  (row.students || []).forEach((s: any) => {
+    const status = computeModuleStatus(s, row);
+    if (status === 'PRESENT') passed++;
+    else if (status === 'FAIL') failed++;
+  });
+  return { passed, failed };
+}
 
 const CHECK_IN_LABEL: Record<string, string> = {
   NOT_CHECKED_IN: 'Not Checked-in',
@@ -84,15 +104,26 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
     const avgRating = ratedRows.length
       ? ratedRows.reduce((sum, r) => sum + Number(r.avgRating), 0) / ratedRows.length
       : null;
-    const totalPassed = rows.reduce((sum, r) => sum + (r.totalAttended || 0), 0);
+    // Passed/Failed here mean quiz result, not attendance — see countPassFail.
+    // Rate is passed / (passed + failed), i.e. among students who actually
+    // have a judgeable quiz outcome, not out of everyone registered (most of
+    // whom haven't taken the quiz yet for an upcoming/ongoing workshop).
+    const { passed: totalPassed, failed: totalFailed } = rows.reduce(
+      (acc, r) => {
+        const { passed, failed } = countPassFail(r);
+        return { passed: acc.passed + passed, failed: acc.failed + failed };
+      },
+      { passed: 0, failed: 0 },
+    );
     const totalRegistered = rows.reduce((sum, r) => sum + (r.totalRegistered || 0), 0);
+    const totalJudged = totalPassed + totalFailed;
     const sheetsPending = rows.filter((r) => !r.hasPhysicalSheet).length;
     return {
       totalStudents: uniqueStudents.length || totalRegistered,
       totalEvents: rows.length,
       sheetsPending,
       avgRating: avgRating ? `${avgRating.toFixed(2)} / 5.0` : '—',
-      passRate: totalRegistered ? `${Math.round((totalPassed / totalRegistered) * 100)}%` : '—',
+      passRate: totalJudged ? `${Math.round((totalPassed / totalJudged) * 100)}%` : '—',
     };
   }, [rows]);
 
@@ -130,10 +161,7 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
   /* ── CSV export ── */
   const exportRegistryCSV = () => {
     const csvRows = rows.map((r) => {
-      const passed = r.totalAttended || 0;
-      const failed = (r.students || []).filter(
-        (s: any) => s.quizCompleted && s.attendanceStatus !== 'PRESENT',
-      ).length;
+      const { passed, failed } = countPassFail(r);
       return {
         Workshop: r.workshopName,
         Course: r.courseName || '—',
@@ -141,7 +169,7 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
         Date: r.date ? new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
         'Assigned Conductor': r.associateInstructorName !== '—' ? r.associateInstructorName : r.instructorName,
         'Physical Sheet': r.hasPhysicalSheet ? `Uploaded (${r.physicalSheetCount})` : 'Pending',
-        'Check-In': passed + failed,
+        'Check-In': r.totalAttended || 0,
         Passed: passed,
         Failed: failed,
         'Avg Rating': r.avgRating || '—',
@@ -394,11 +422,11 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
                     <td colSpan={11} className="text-center py-12 text-white/30">No completed workshops match the current filter</td>
                   </tr>
                 ) : rows.map((row, i) => {
-                  const passed = row.totalAttended || 0;
-                  const failed = (row.students || []).filter(
-                    (s: any) => s.quizCompleted && s.attendanceStatus !== 'PRESENT',
-                  ).length;
-                  const checkIn = passed + failed;
+                  const { passed, failed } = countPassFail(row);
+                  // Check-In is plain attendance headcount — kept independent of
+                  // the quiz-based Passed/Failed columns above (a student can be
+                  // checked in without yet having a judgeable quiz outcome).
+                  const checkIn = row.totalAttended || 0;
                   const timeFmt: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
                   return (
                     <tr

@@ -111,7 +111,7 @@ export type ModuleStatus = 'ABSENT' | 'PENDING' | 'PRESENT' | 'FAIL' | 'N/A';
 // Fail: attended, course has quiz-based grading, quizScore < 4 (out of 10).
 // Present: attended and either the course has no quiz-based grading at all,
 //   or quizScore >= 4.
-function computeModuleStatus(s: AnalyticsStudentEntry, row: WorkshopAnalyticsRow): ModuleStatus {
+export function computeModuleStatus(s: AnalyticsStudentEntry, row: WorkshopAnalyticsRow): ModuleStatus {
   if (s.attendanceStatus === 'NOT_MARKED') return s.hasCheckedIn ? 'PENDING' : 'ABSENT';
   if (s.attendanceStatus !== 'PRESENT') return 'ABSENT';
   if (!row.courseHasQuiz) return 'PRESENT';
