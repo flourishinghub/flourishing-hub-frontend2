@@ -231,6 +231,8 @@ export default function EventDetailPage() {
           capacity: eventData.capacity || 0,
           registeredCount: eventData._count?.registrations || 0,
           status: eventData.status?.toLowerCase() || 'draft',
+          registrationOpensAt: eventData.registrationOpensAt || null,
+          registrationClosesAt: eventData.registrationClosesAt || null,
           organizer: eventData.createdBy?.name || 'Admin',
           meetLink: eventData.meetLink,
           quizLink: ensureHttps(rawQuizLink),
@@ -462,8 +464,8 @@ export default function EventDetailPage() {
   // of their own, so it's computed the same way here.
   const midSessionReached = isPastEventMidpoint(event.startAt || (event.date + 'T' + event.time), event.endAt);
   const isUpcoming = isEventUpcoming(event.startAt || (event.date + 'T' + event.time));
-  // Registration allowed until 15 minutes after the event starts
-  const regOpen = isRegistrationOpen(event.startAt || (event.date + 'T' + event.time));
+  // No start-time-based cutoff — same rule as the backend (published + admin-set window only)
+  const regOpen = isRegistrationOpen(event);
   const isFull = event.registeredCount >= event.capacity && event.capacity > 0;
 
   // ─── LIVE EVENT PAGE (includes 30-min grace after endAt) ──────────

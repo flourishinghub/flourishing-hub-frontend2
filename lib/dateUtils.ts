@@ -28,9 +28,20 @@ export function isEventUpcoming(eventStartAt: string): boolean {
 }
 
 // Registration is open before start and up to `graceMins` after the event starts.
-export function isRegistrationOpen(eventStartAt: string, graceMins = 15): boolean {
-  const deadline = new Date(new Date(eventStartAt).getTime() + graceMins * 60 * 1000);
-  return new Date() <= deadline;
+// Mirrors the backend's registerForEvent gate (registration.service.js): no
+// implicit event-start-based cutoff — only the event being PUBLISHED and any
+// admin-set registrationOpensAt/registrationClosesAt window. The old hardcoded
+// "closes 15 minutes after start" rule was removed on both sides (2026-09-23).
+export function isRegistrationOpen(event: {
+  status?: string | null;
+  registrationOpensAt?: string | null;
+  registrationClosesAt?: string | null;
+}): boolean {
+  const now = new Date();
+  if (event.status && event.status.toLowerCase() !== 'published') return false;
+  if (event.registrationClosesAt && new Date(event.registrationClosesAt) < now) return false;
+  if (event.registrationOpensAt && new Date(event.registrationOpensAt) > now) return false;
+  return true;
 }
 
 export function isEventPast(eventStartAt: string, eventEndAt?: string | null): boolean {
