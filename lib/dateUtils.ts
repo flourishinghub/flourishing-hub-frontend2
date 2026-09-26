@@ -27,7 +27,6 @@ export function isEventUpcoming(eventStartAt: string): boolean {
   return new Date() < new Date(eventStartAt);
 }
 
-// Registration is open before start and up to `graceMins` after the event starts.
 // Mirrors the backend's registerForEvent gate (registration.service.js): no
 // implicit event-start-based cutoff — only the event being PUBLISHED and any
 // admin-set registrationOpensAt/registrationClosesAt window. The old hardcoded
