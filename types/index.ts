@@ -326,10 +326,14 @@ export interface WorkshopAnalyticsRow {
   // isCompulsory. Drives whether a student's quizScore can produce "Fail".
   courseHasQuiz: boolean;
   moduleName: string;
+  // First-name display (account or typed no-account name); *Key is the
+  // backend's first+last-name identity used to group one person's workshops.
   instructorName: string;
   instructorId: string | null;
+  instructorKey?: string | null;
   associateInstructorName: string;
   associateInstructorId: string | null;
+  associateInstructorKey?: string | null;
   volunteerNames: string[];
   date: string;
   endAt: string;

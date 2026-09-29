@@ -13,6 +13,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLive, isEventLiveOrGrace, isGracePeriodActive, getGraceSecondsRemaining, isEventUpcoming, isRegistrationOpen, isPastEventMidpoint } from '@/lib/dateUtils';
+import { staffFirstName } from '@/lib/staffName';
 import { getRegisteredEventIds } from '@/lib/registrationUtils';
 import type { AuthPayload, QuizStudentView, QuizOptionKey, FeedbackFormStudentView, FeedbackStudentAnswer } from '@/types';
 import toast from 'react-hot-toast';
@@ -242,8 +243,8 @@ export default function EventDetailPage() {
           courseName: eventData.course?.name || null,
           moduleName: eventData.courseModule?.title || null,
           batch: eventData.batch || null,
-          instructorName: eventData.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.name || null,
-          associateInstructorName: eventData.assignments?.find((a: any) => a.role === 'ASSOCIATE_INSTRUCTOR')?.user?.name || null,
+          instructorName: staffFirstName(eventData, 'INSTRUCTOR'),
+          associateInstructorName: staffFirstName(eventData, 'ASSOCIATE_INSTRUCTOR'),
           volunteerNames: (eventData.assignments || []).filter((a: any) => a.role === 'VOLUNTEER').map((a: any) => a.user?.name).filter(Boolean),
         };
 

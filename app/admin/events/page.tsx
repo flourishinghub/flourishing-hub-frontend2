@@ -13,6 +13,8 @@ import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import { toLocalDateKey, isEventLive } from '@/lib/dateUtils';
 import { downloadCsv } from '@/lib/csv';
+import { staffFirstName } from '@/lib/staffName';
+import StaffPicker from '../_components/StaffPicker';
 import toast from 'react-hot-toast';
 
 type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
@@ -35,6 +37,9 @@ interface EventFormData {
   feedbackLink: string;
   instructorId: string;
   associateInstructorId: string;
+  // Typed full name for staff without an account (used only when no account is picked)
+  instructorName: string;
+  associateInstructorName: string;
   maxVolunteers: string;
 }
 
@@ -42,7 +47,7 @@ const emptyForm: EventFormData = {
   title: '', description: '', date: '', time: '',
   venue: '', mode: 'In Classroom', capacity: '', status: 'published',
   courseId: '', courseModuleId: '', batch: '', posterUrl: '', quizLink: '', feedbackLink: '',
-  endTime: '', instructorId: '', associateInstructorId: '', maxVolunteers: '',
+  endTime: '', instructorId: '', associateInstructorId: '', instructorName: '', associateInstructorName: '', maxVolunteers: '',
 };
 
 const statusColors: Record<EventStatus, string> = {
@@ -78,10 +83,13 @@ const transformEventsData = (rawEvents: any[]) => rawEvents.map((event: any) => 
   bannerImageUrl: event.bannerImageUrl || null,
   maxVolunteers: event.maxVolunteers || null,
   assignments: event.assignments || [],
-  instructorName: event.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.name || null,
+  instructorName: staffFirstName(event, 'INSTRUCTOR'),
   instructorId: event.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.id || null,
-  associateInstructorName: event.assignments?.find((a: any) => a.role === 'ASSOCIATE_INSTRUCTOR')?.user?.name || null,
+  associateInstructorName: staffFirstName(event, 'ASSOCIATE_INSTRUCTOR'),
   associateInstructorId: event.assignments?.find((a: any) => a.role === 'ASSOCIATE_INSTRUCTOR')?.user?.id || null,
+  // Raw typed names for staff without an account — prefill the edit form
+  typedInstructorName: event.instructorName || '',
+  typedAssociateInstructorName: event.associateInstructorName || '',
   quizLink: event.modules?.[0]?.quizLink || null,
 }));
 
@@ -135,6 +143,12 @@ export default function AdminEventsPage() {
     fetchData();
   }, []);
 
+  // Same "name (role)" labels this page's staff dropdowns always showed
+  const staffOptions = staffList.map((m: any) => ({
+    id: m.id,
+    name: `${m.name} (${m.role?.toLowerCase().replace(/_/g, ' ')})`,
+  }));
+
   const refreshEvents = async () => {
     const eventsResponse = await apiCall('/admin/events-with-registrations');
     setEvents(transformEventsData(eventsResponse.data));
@@ -168,6 +182,8 @@ export default function AdminEventsPage() {
       feedbackLink: ev.feedbackLink || '',
       instructorId: ev.instructorId || '',
       associateInstructorId: ev.associateInstructorId || '',
+      instructorName: ev.typedInstructorName || '',
+      associateInstructorName: ev.typedAssociateInstructorName || '',
       maxVolunteers: ev.maxVolunteers ? String(ev.maxVolunteers) : '',
     });
     if (ev.courseId) {
@@ -214,6 +230,9 @@ export default function AdminEventsPage() {
             quizLink: form.quizLink,
           }]
         }),
+        // Typed names only count when no account is picked for that role
+        instructorName: form.instructorId ? null : form.instructorName.trim() || null,
+        associateInstructorName: form.associateInstructorId ? null : form.associateInstructorName.trim() || null,
       };
 
       if (editingEvent) {
@@ -848,36 +867,20 @@ export default function AdminEventsPage() {
                 {/* Instructor & Associate Instructor */}
                 <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
                   <p className="text-xs font-semibold text-white/60 uppercase tracking-wider">Facilitators</p>
-                  <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Instructor</label>
-                    <select
-                      value={form.instructorId}
-                      onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                    >
-                      <option value="">— Select Instructor —</option>
-                      {staffList.map((m: any) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.role?.toLowerCase().replace(/_/g, ' ')})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-white/60 mb-1.5 block">Associate Instructor</label>
-                    <select
-                      value={form.associateInstructorId}
-                      onChange={(e) => setForm({ ...form, associateInstructorId: e.target.value })}
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                    >
-                      <option value="">— Select Associate Instructor —</option>
-                      {staffList.map((m: any) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.role?.toLowerCase().replace(/_/g, ' ')})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <StaffPicker
+                    label="Instructor"
+                    accounts={staffOptions}
+                    accountId={form.instructorId}
+                    typedName={form.instructorName}
+                    onChange={(accountId, typedName) => setForm({ ...form, instructorId: accountId, instructorName: typedName })}
+                  />
+                  <StaffPicker
+                    label="Associate Instructor"
+                    accounts={staffOptions}
+                    accountId={form.associateInstructorId}
+                    typedName={form.associateInstructorName}
+                    onChange={(accountId, typedName) => setForm({ ...form, associateInstructorId: accountId, associateInstructorName: typedName })}
+                  />
                 </div>
 
                 {/* Volunteer Slots */}

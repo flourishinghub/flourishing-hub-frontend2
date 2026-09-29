@@ -17,6 +17,7 @@ import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLive, isEventUpcoming, isEventPast, toLocalDateKey } from '@/lib/dateUtils';
 import { useNowTick } from '@/lib/useNowTick';
 import { downloadCsv } from '@/lib/csv';
+import { staffFirstName } from '@/lib/staffName';
 import type { Event, MemberDirectory, UserRole, QuizLibraryItem, FeedbackLibraryItem } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -123,6 +124,9 @@ interface EventFormData {
   feedbackLink: string;
   instructorId: string;
   associateInstructorId: string;
+  // Typed full name for staff without an account (used only when no account is picked)
+  instructorName: string;
+  associateInstructorName: string;
   maxVolunteers: string;
   registrationMode: 'compulsory' | 'optional' | 'open';
   quizId: string | null;
@@ -136,7 +140,7 @@ const emptyForm: EventFormData = {
   title: '', description: '', date: '', time: '',
   venue: '', mode: 'In Classroom', capacity: '', status: 'published',
   courseId: '', courseModuleId: '', batch: '', posterUrl: '', quizLink: '', postQuizLink: '', feedbackLink: '',
-  endTime: '', instructorId: '', associateInstructorId: '', maxVolunteers: '',
+  endTime: '', instructorId: '', associateInstructorId: '', instructorName: '', associateInstructorName: '', maxVolunteers: '',
   registrationMode: 'open',
   quizId: null, quizApplicable: false, feedbackApplicable: false, feedbackFormId: null, ratingApplicable: true,
 };
@@ -268,8 +272,11 @@ export default function AdminDashboard() {
     registrationMode: event.registrationMode || null,
     bannerImageUrl: event.bannerImageUrl || null,
     instructorId: event.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.id || null,
-    instructorName: event.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.name || null,
+    instructorName: staffFirstName(event, 'INSTRUCTOR'),
     associateInstructorId: event.assignments?.find((a: any) => a.role === 'ASSOCIATE_INSTRUCTOR')?.user?.id || null,
+    // Raw typed names for staff without an account — prefill the edit form
+    typedInstructorName: event.instructorName || '',
+    typedAssociateInstructorName: event.associateInstructorName || '',
     volunteersNeeded: event.volunteersNeeded || null,
     avgInstructorRating: event.avgInstructorRating ?? null,
     avgEventRating: event.avgEventRating ?? null,
@@ -660,6 +667,8 @@ export default function AdminDashboard() {
       registrationMode: (ev.registrationMode === 'COMPULSORY' ? 'compulsory' : ev.registrationMode === 'OPTIONAL_BUNDLE' ? 'optional' : 'open') as 'compulsory' | 'optional' | 'open',
       instructorId: ev.instructorId || '',
       associateInstructorId: ev.associateInstructorId || '',
+      instructorName: ev.typedInstructorName || '',
+      associateInstructorName: ev.typedAssociateInstructorName || '',
       maxVolunteers: ev.volunteersNeeded ? String(ev.volunteersNeeded) : '',
       quizId: null,
       quizApplicable: Boolean(ev.quizApplicable),
@@ -743,6 +752,9 @@ export default function AdminDashboard() {
         ...(form.batch && { batch: form.batch }),
         ...(form.posterUrl && { bannerImageUrl: form.posterUrl }),
         ...(form.maxVolunteers && { volunteersNeeded: parseInt(form.maxVolunteers) }),
+        // Typed names only count when no account is picked for that role
+        instructorName: form.instructorId ? null : form.instructorName.trim() || null,
+        associateInstructorName: form.associateInstructorId ? null : form.associateInstructorName.trim() || null,
       };
 
       console.log("📤 Sending event data:", eventData);
@@ -1311,6 +1323,8 @@ export default function AdminDashboard() {
       feedbackLink: mod.feedbackLink || '',
       instructorId: '',
       associateInstructorId: '',
+      instructorName: '',
+      associateInstructorName: '',
       maxVolunteers: '',
       // Backend batch-restriction gates (self-registration, visibility, auto-cascade)
       // only apply when registrationMode is COMPULSORY — must inherit the course's

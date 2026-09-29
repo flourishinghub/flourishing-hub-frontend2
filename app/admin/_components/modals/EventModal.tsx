@@ -8,6 +8,7 @@ import type { Event, QuizLibraryItem, FeedbackLibraryItem } from '@/types';
 import QuizLinkPicker, { type QuizLinkPickerHandle } from '../QuizLinkPicker';
 import FeedbackLinkPicker, { type FeedbackLinkPickerHandle } from '../FeedbackLinkPicker';
 import ApplicableToggle from '../ApplicableToggle';
+import StaffPicker from '../StaffPicker';
 
 type EventStatus = 'published' | 'completed' | 'draft' | 'cancelled';
 type RegistrationMode = 'compulsory' | 'optional' | 'open';
@@ -31,6 +32,8 @@ interface EventFormData {
   feedbackLink: string;
   instructorId: string;
   associateInstructorId: string;
+  instructorName: string;
+  associateInstructorName: string;
   maxVolunteers: string;
   registrationMode: RegistrationMode;
   quizId: string | null;
@@ -278,50 +281,20 @@ export default function EventModal({
               {/* Instructor & Associate Instructor */}
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
                 <p className="text-xs font-semibold text-white/60 uppercase tracking-wider">Facilitators</p>
-                <div>
-                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Instructor</label>
-                  {instructors.length > 0 ? (
-                    <select
-                      value={form.instructorId}
-                      onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                    >
-                      <option value="">— Select Instructor —</option>
-                      {instructors.map((m: any) => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      value={form.instructorId}
-                      onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
-                      placeholder="Instructor name"
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                    />
-                  )}
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-white/60 mb-1.5 block">Associate Instructor</label>
-                  {associateInstructors.length > 0 ? (
-                    <select
-                      value={form.associateInstructorId}
-                      onChange={(e) => setForm({ ...form, associateInstructorId: e.target.value })}
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                    >
-                      <option value="">— Select Associate Instructor —</option>
-                      {associateInstructors.map((m: any) => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      value={form.associateInstructorId}
-                      onChange={(e) => setForm({ ...form, associateInstructorId: e.target.value })}
-                      placeholder="Associate instructor name"
-                      className="input-dark w-full px-4 py-2.5 rounded-xl text-sm"
-                    />
-                  )}
-                </div>
+                <StaffPicker
+                  label="Instructor"
+                  accounts={instructors}
+                  accountId={form.instructorId}
+                  typedName={form.instructorName}
+                  onChange={(accountId, typedName) => setForm({ ...form, instructorId: accountId, instructorName: typedName })}
+                />
+                <StaffPicker
+                  label="Associate Instructor"
+                  accounts={associateInstructors}
+                  accountId={form.associateInstructorId}
+                  typedName={form.associateInstructorName}
+                  onChange={(accountId, typedName) => setForm({ ...form, associateInstructorId: accountId, associateInstructorName: typedName })}
+                />
               </div>
 
               {/* Volunteer Slots */}

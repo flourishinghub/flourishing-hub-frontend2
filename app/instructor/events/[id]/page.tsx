@@ -10,6 +10,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import { apiCall } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
+import { staffFirstName } from '@/lib/staffName';
 import toast from 'react-hot-toast';
 
 const OPTION_KEYS = ['A', 'B', 'C', 'D'] as const;
@@ -178,8 +179,8 @@ export default function InstructorEventLivePage() {
   }
 
   const pendingCount = checkIns.filter((c) => c.status === 'PENDING').length;
-  const instructorName = event.assignments?.find((a: any) => a.role === 'INSTRUCTOR')?.user?.name;
-  const associateInstructorName = event.assignments?.find((a: any) => a.role === 'ASSOCIATE_INSTRUCTOR')?.user?.name;
+  const instructorName = staffFirstName(event, 'INSTRUCTOR');
+  const associateInstructorName = staffFirstName(event, 'ASSOCIATE_INSTRUCTOR');
   const volunteerNames = (event.assignments || []).filter((a: any) => a.role === 'VOLUNTEER').map((a: any) => a.user?.name).filter(Boolean);
 
   return (

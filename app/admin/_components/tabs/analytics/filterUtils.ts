@@ -281,9 +281,11 @@ export interface InstructorAggregateRow {
 export function aggregateInstructors(rows: WorkshopAnalyticsRow[]): InstructorAggregateRow[] {
   const map = new Map<string, InstructorAggregateRow>();
 
-  const addAppearance = (id: string | null, name: string, row: WorkshopAnalyticsRow) => {
+  // staffKey is the backend's first+last-name identity (utils/staffName.js),
+  // so an account and a typed no-account name for one person share a bucket.
+  const addAppearance = (id: string | null, name: string, row: WorkshopAnalyticsRow, staffKey?: string | null) => {
     const hasName = Boolean(name && name !== '—');
-    const key = id || (hasName ? `name:${name}` : 'unassigned');
+    const key = staffKey ? `staff:${staffKey}` : id || (hasName ? `name:${name}` : 'unassigned');
     let agg = map.get(key);
     if (!agg) {
       agg = {
@@ -311,8 +313,8 @@ export function aggregateInstructors(rows: WorkshopAnalyticsRow[]): InstructorAg
   rows.forEach((row) => {
     const hasInstructor = Boolean(row.instructorId || (row.instructorName && row.instructorName !== '—'));
     const hasAssociate = Boolean(row.associateInstructorId || (row.associateInstructorName && row.associateInstructorName !== '—'));
-    if (hasInstructor) addAppearance(row.instructorId, row.instructorName, row);
-    if (hasAssociate) addAppearance(row.associateInstructorId, row.associateInstructorName, row);
+    if (hasInstructor) addAppearance(row.instructorId, row.instructorName, row, row.instructorKey);
+    if (hasAssociate) addAppearance(row.associateInstructorId, row.associateInstructorName, row, row.associateInstructorKey);
     if (!hasInstructor && !hasAssociate) addAppearance(null, '—', row);
   });
 
