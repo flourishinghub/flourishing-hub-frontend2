@@ -24,11 +24,14 @@ const MODULE_STATUS_STYLE: Record<ModuleStatus, string> = {
   'N/A': 'bg-white/5 text-white/30 border-white/10',
 };
 
+// Result column: FAIL (attended, quiz score < 4 or no score) reads as Absent
+// per the admin's grading rule; PENDING covers both an unverified check-in
+// and a session that hasn't happened yet.
 const MODULE_STATUS_LABEL: Record<ModuleStatus, string> = {
   PRESENT: 'Present',
   ABSENT: 'Absent',
-  PENDING: 'Attendance Verification In-progress',
-  FAIL: 'Fail',
+  PENDING: 'Pending',
+  FAIL: 'Absent',
   'N/A': 'N/A',
 };
 
@@ -162,7 +165,7 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
         'Avg Score %': s.avgScorePct != null ? `${s.avgScorePct}%` : '—',
         'Avg Rating': s.avgRating ?? '—',
         ...Object.fromEntries(moduleNames.flatMap((m) => [
-          [`${m} — Result`, s.moduleStatus[m] ?? '—'],
+          [`${m} — Result`, s.moduleStatus[m] ? MODULE_STATUS_LABEL[s.moduleStatus[m]] : '—'],
           ...(showScore ? [[`${m} — Score`, fmtScore(m, s)] as [string, string]] : []),
           [`${m} — Attended`, s.moduleAttendance[m] ?? '—'],
           [`${m} — Check-in`, s.moduleCheckIn[m] ? CHECK_IN_LABEL[s.moduleCheckIn[m]] : '—'],

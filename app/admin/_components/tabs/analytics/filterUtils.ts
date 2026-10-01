@@ -106,16 +106,24 @@ export type ModuleStatus = 'ABSENT' | 'PENDING' | 'PRESENT' | 'FAIL' | 'N/A';
 //   fully "Pending" here and still have completed everything.
 // Absent: instructor explicitly marked the check-in ABSENT/REJECTED, or the
 //   student never checked in at all, for that module's event.
-// N/A: attended, course has quiz-based grading enabled, but no in-built-quiz
-//   submission exists for this student on this module (nothing to grade).
-// Fail: attended, course has quiz-based grading, quizScore < 4 (out of 10).
+// Pending also: the session hasn't ended yet and there's no quiz score.
+// Pending also: attended, quiz-graded course, no score, and this session's
+//   topic score sheet hasn't been uploaded yet (row.quizScoresAvailable false).
+// Fail: attended, course has quiz-based grading, and the quiz score (in-built
+//   submission, else the uploaded topic score sheet) is < 4 out of 10 — or
+//   missing after the sheet was uploaded. Shown as "Absent" in the
+//   Student-Level Result column (admin rule, 2026-10-01); kept as its own
+//   status so Workshop Passed/Failed still count it.
 // Present: attended and either the course has no quiz-based grading at all,
-//   or quizScore >= 4.
+//   or the quiz score is >= 4.
+// ('N/A' is no longer produced; kept in the type for older callers.)
 export function computeModuleStatus(s: AnalyticsStudentEntry, row: WorkshopAnalyticsRow): ModuleStatus {
+  const sessionOver = !row.endAt || new Date(row.endAt).getTime() <= Date.now();
+  if (!sessionOver && (!row.courseHasQuiz || s.quizScore == null)) return 'PENDING';
   if (s.attendanceStatus === 'NOT_MARKED') return s.hasCheckedIn ? 'PENDING' : 'ABSENT';
   if (s.attendanceStatus !== 'PRESENT') return 'ABSENT';
   if (!row.courseHasQuiz) return 'PRESENT';
-  if (s.quizScore == null) return 'N/A';
+  if (s.quizScore == null) return row.quizScoresAvailable ? 'FAIL' : 'PENDING';
   return s.quizScore >= 4 ? 'PRESENT' : 'FAIL';
 }
 

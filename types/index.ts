@@ -325,6 +325,9 @@ export interface WorkshopAnalyticsRow {
   // (Course.hasQuiz) — set by admins on the course template, separate from
   // isCompulsory. Drives whether a student's quizScore can produce "Fail".
   courseHasQuiz: boolean;
+  // True once a score source exists for this session (uploaded topic sheet or
+  // in-built quiz) — before that, attended-but-unscored grades as Pending.
+  quizScoresAvailable?: boolean;
   moduleName: string;
   // First-name display (account or typed no-account name); *Key is the
   // backend's first+last-name identity used to group one person's workshops.
