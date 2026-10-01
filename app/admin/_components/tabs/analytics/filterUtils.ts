@@ -94,7 +94,7 @@ export interface StudentHistoryEntry {
   rating: number | null;
 }
 
-export type ModuleStatus = 'ABSENT' | 'PENDING' | 'PRESENT' | 'FAIL' | 'N/A';
+export type ModuleStatus = 'ABSENT' | 'PENDING' | 'PRESENT' | 'FAIL' | 'NOT_ATTEMPTED' | 'N/A';
 
 // Pending: checked in (hasCheckedIn) but the instructor hasn't reviewed the
 //   check-in yet (no AttendanceRecord exists at all — distinct from a real
@@ -110,10 +110,11 @@ export type ModuleStatus = 'ABSENT' | 'PENDING' | 'PRESENT' | 'FAIL' | 'N/A';
 // Pending also: attended, quiz-graded course, no score, and this session's
 //   topic score sheet hasn't been uploaded yet (row.quizScoresAvailable false).
 // Fail: attended, course has quiz-based grading, and the quiz score (in-built
-//   submission, else the uploaded topic score sheet) is < 4 out of 10 — or
-//   missing after the sheet was uploaded. Shown as "Absent" in the
-//   Student-Level Result column (admin rule, 2026-10-01); kept as its own
-//   status so Workshop Passed/Failed still count it.
+//   submission, else the uploaded topic score sheet) is < 4 out of 10. Shown
+//   as "Absent" in the Student-Level Result column (admin rule, 2026-10-01);
+//   kept as its own status so Workshop Passed/Failed still count it.
+// Not attempted: attended, quiz-graded, the topic's score sheet has been
+//   uploaded, but this student has no score in it ("Quiz Not Attempted").
 // Present: attended and either the course has no quiz-based grading at all,
 //   or the quiz score is >= 4.
 // ('N/A' is no longer produced; kept in the type for older callers.)
@@ -123,7 +124,7 @@ export function computeModuleStatus(s: AnalyticsStudentEntry, row: WorkshopAnaly
   if (s.attendanceStatus === 'NOT_MARKED') return s.hasCheckedIn ? 'PENDING' : 'ABSENT';
   if (s.attendanceStatus !== 'PRESENT') return 'ABSENT';
   if (!row.courseHasQuiz) return 'PRESENT';
-  if (s.quizScore == null) return row.quizScoresAvailable ? 'FAIL' : 'PENDING';
+  if (s.quizScore == null) return row.quizScoresAvailable ? 'NOT_ATTEMPTED' : 'PENDING';
   return s.quizScore >= 4 ? 'PRESENT' : 'FAIL';
 }
 

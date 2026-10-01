@@ -21,17 +21,20 @@ const MODULE_STATUS_STYLE: Record<ModuleStatus, string> = {
   ABSENT: 'bg-red-500/15 text-red-400 border-red-500/30',
   PENDING: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
   FAIL: 'bg-red-500/15 text-red-400 border-red-500/30',
+  NOT_ATTEMPTED: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
   'N/A': 'bg-white/5 text-white/30 border-white/10',
 };
 
-// Result column: FAIL (attended, quiz score < 4 or no score) reads as Absent
-// per the admin's grading rule; PENDING covers both an unverified check-in
-// and a session that hasn't happened yet.
+// Result column: FAIL (attended, quiz score < 4) reads as Absent per the
+// admin's grading rule; NOT_ATTEMPTED is attended with no score once the
+// topic's sheet is uploaded; PENDING covers both an unverified check-in and
+// a session that hasn't happened (or hasn't been graded) yet.
 const MODULE_STATUS_LABEL: Record<ModuleStatus, string> = {
   PRESENT: 'Present',
   ABSENT: 'Absent',
   PENDING: 'Pending',
   FAIL: 'Absent',
+  NOT_ATTEMPTED: 'Quiz Not Attempted',
   'N/A': 'N/A',
 };
 
