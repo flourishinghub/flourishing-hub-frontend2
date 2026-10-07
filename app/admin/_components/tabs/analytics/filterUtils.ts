@@ -141,6 +141,44 @@ function computeAttendanceOnlyStatus(s: AnalyticsStudentEntry): AttendanceOnlySt
   return s.attendanceStatus === 'PRESENT' ? 'PRESENT' : 'ABSENT';
 }
 
+// ─── Wellness Workshop grading (admin rule, 2026-10-07) ───
+// Wellness is the only graded course. Per topic:
+//   Physical attendance — the reconciled physical sheet says PRESENT.
+//   Digital attendance  — the student self-checked-in on the website
+//                         (pending or verified); not checked in / rejected
+//                         is Absent.
+//   Quiz result         — PP when the topic quiz score is 4 or more (of 10).
+//   Grade / Final attendance — PP / Present only when all three hold.
+// Pending only while the grade can't be decided yet: the session hasn't
+// ended, or physical + digital both hold but this session's quiz scores
+// haven't been uploaded.
+export const WELLNESS_COURSE = 'Wellness Workshop';
+export const WELLNESS_PASS_SCORE = 4;
+
+export type WellnessFinal = 'PRESENT' | 'ABSENT' | 'PENDING';
+
+export interface WellnessModuleGrade {
+  physical: boolean;
+  digital: boolean;
+  quizScore: number | null;
+  quizPass: boolean;
+  final: WellnessFinal;
+}
+
+export function computeWellnessGrade(s: AnalyticsStudentEntry, row: WorkshopAnalyticsRow): WellnessModuleGrade {
+  const physical = s.physicalSheetStatus === 'PRESENT';
+  const digital = s.checkInStatus === 'CHECKED_IN_PENDING' || s.checkInStatus === 'CHECKED_IN_VERIFIED';
+  const quizScore = s.quizScore ?? null;
+  const quizPass = quizScore != null && quizScore >= WELLNESS_PASS_SCORE;
+  const sessionOver = !row.endAt || new Date(row.endAt).getTime() <= Date.now();
+  let final: WellnessFinal;
+  if (physical && digital && quizPass) final = 'PRESENT';
+  else if (!sessionOver) final = 'PENDING';
+  else if (physical && digital && quizScore == null && !row.quizScoresAvailable) final = 'PENDING';
+  else final = 'ABSENT';
+  return { physical, digital, quizScore, quizPass, final };
+}
+
 export interface StudentAggregateRow {
   userId: string;
   name: string;
@@ -174,6 +212,9 @@ export interface StudentAggregateRow {
   // uploaded topic score sheet or an in-built quiz). Absent from the map
   // when no score exists — rendered as "N/A" in the Score column.
   moduleScore: Record<string, { score: number; maxScore: number }>;
+  // Same keys as moduleStatus — Wellness grading per topic (computeWellnessGrade);
+  // filled for every row, only shown when the Wellness course is selected.
+  moduleWellness: Record<string, WellnessModuleGrade>;
 }
 
 /** Dedupes the (already filtered) rows' nested students by userId, aggregating across every matching appearance. */
@@ -213,6 +254,7 @@ export function aggregateStudents(rows: WorkshopAnalyticsRow[]): StudentAggregat
           moduleCheckIn: {},
           modulePhysicalSheet: {},
           moduleScore: {},
+          moduleWellness: {},
         };
         map.set(key, agg);
       }
@@ -231,6 +273,11 @@ export function aggregateStudents(rows: WorkshopAnalyticsRow[]): StudentAggregat
         if (s.score != null && s.maxScore != null) {
           agg.moduleScore[row.moduleName] = { score: s.score, maxScore: s.maxScore };
         }
+        // A student in two batches of one topic keeps the better grade.
+        const grade = computeWellnessGrade(s, row);
+        const prev = agg.moduleWellness[row.moduleName];
+        const rank = { PRESENT: 2, PENDING: 1, ABSENT: 0 } as const;
+        if (!prev || rank[grade.final] > rank[prev.final]) agg.moduleWellness[row.moduleName] = grade;
       }
       agg.history.push({
         workshopName: row.workshopName,

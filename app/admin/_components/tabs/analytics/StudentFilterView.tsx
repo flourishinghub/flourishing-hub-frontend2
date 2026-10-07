@@ -5,7 +5,7 @@ import { ArrowLeft, Download, Eye, Star } from 'lucide-react';
 import { downloadCsv } from '@/lib/csv';
 import { WorkshopAnalyticsRow } from '@/types';
 import { AnalyticsStudentEntry } from '@/types';
-import { AttendanceOnlyStatus, aggregateStudents, ModuleStatus, StudentAggregateRow } from './filterUtils';
+import { AttendanceOnlyStatus, aggregateStudents, ModuleStatus, StudentAggregateRow, WELLNESS_COURSE, WellnessFinal, WellnessModuleGrade } from './filterUtils';
 
 function MetricCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -112,6 +112,36 @@ function PhysicalSheetBadge({ status }: { status: PhysicalSheetStatus | undefine
   );
 }
 
+// Wellness grading badges (see computeWellnessGrade).
+const WELLNESS_FINAL_STYLE: Record<WellnessFinal, string> = {
+  PRESENT: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  ABSENT: 'bg-red-500/15 text-red-400 border-red-500/30',
+  PENDING: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+};
+const WELLNESS_FINAL_LABEL: Record<WellnessFinal, string> = { PRESENT: 'Present', ABSENT: 'Absent', PENDING: 'Pending' };
+
+function YesNoBadge({ ok }: { ok: boolean | undefined }) {
+  if (ok === undefined) return <span className="text-white/20">—</span>;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+      ok ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-red-500/15 text-red-400 border-red-500/30'
+    }`}>
+      {ok ? 'Present' : 'Absent'}
+    </span>
+  );
+}
+
+function WellnessFinalBadge({ grade }: { grade: WellnessModuleGrade | undefined }) {
+  if (!grade) return <span className="text-white/20">—</span>;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${WELLNESS_FINAL_STYLE[grade.final]}`}>
+      {WELLNESS_FINAL_LABEL[grade.final]}
+    </span>
+  );
+}
+
+const wellnessGradeLabel = (g: WellnessModuleGrade) => (g.final === 'PRESENT' ? 'PP' : g.final === 'PENDING' ? 'Pending' : 'NP');
+
 export default function StudentFilterView({ rows, selectedCourse }: { rows: WorkshopAnalyticsRow[]; selectedCourse?: string }) {
   const [selected, setSelected] = useState<StudentAggregateRow | null>(null);
 
@@ -131,7 +161,10 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
   // Per-topic "Score" column is only meaningful for courses that run a quiz
   // (Course.hasQuiz) — shown alongside Result/Attended/Check-in/Physical Sheet.
   const showScore = useMemo(() => rows.some((r) => r.courseHasQuiz), [rows]);
-  const perModuleCols = showScore ? 5 : 4;
+  // Wellness is the only graded course: its topics show Score / Physical
+  // Attendance / Check-in / Final Attendance and export the grade sheet.
+  const isWellness = selectedCourse === WELLNESS_COURSE;
+  const perModuleCols = isWellness ? 4 : showScore ? 5 : 4;
   const fmtScore = (m: string, row: StudentAggregateRow) => {
     const v = row.moduleScore[m];
     return v ? `${v.score} / ${v.maxScore}` : 'N/A';
@@ -154,6 +187,29 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
   }, [students]);
 
   const exportCSV = () => {
+    if (isWellness) {
+      downloadCsv(
+        students.map((s) => ({
+          'Roll No': s.rollNo,
+          'Student Name': s.name,
+          Email: s.email,
+          Batch: s.batches.join(', ') || '—',
+          ...Object.fromEntries(moduleNames.flatMap((m) => {
+            const g = s.moduleWellness[m];
+            if (!g) return [[`${m} — Physical Attendance`, '—'], [`${m} — Digital Attendance`, '—'], [`${m} — Quiz`, '—'], [`${m} — Quiz Result`, '—'], [`${m} — Grade`, '—']];
+            return [
+              [`${m} — Physical Attendance`, g.physical ? 'Present' : 'Absent'],
+              [`${m} — Digital Attendance`, g.digital ? 'Present' : 'Absent'],
+              [`${m} — Quiz`, g.quizScore != null ? `${g.quizScore} / 10` : '—'],
+              [`${m} — Quiz Result`, g.quizScore != null ? (g.quizPass ? 'PP' : 'NP') : g.final === 'PENDING' ? 'Pending' : 'NP'],
+              [`${m} — Grade`, wellnessGradeLabel(g)],
+            ];
+          })),
+        })),
+        'wellness-student-grades',
+      );
+      return;
+    }
     downloadCsv(
       students.map((s) => ({
         Name: s.name,
@@ -294,11 +350,13 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
                 <tr className="border-b border-white/5">
                   {[
                     'Name', 'Roll No', 'Email', 'Department', 'Batch', 'Events', 'Attendance', 'Avg Score', 'Avg Rating',
-                    ...moduleNames.flatMap((m) => [
-                      `${m} — Result`,
-                      ...(showScore ? [`${m} — Score`] : []),
-                      `${m} — Attended`, `${m} — Check-in`, `${m} — Physical Sheet`,
-                    ]),
+                    ...moduleNames.flatMap((m) => isWellness
+                      ? [`${m} — Score`, `${m} — Physical Attendance`, `${m} — Check-in`, `${m} — Final Attendance`]
+                      : [
+                        `${m} — Result`,
+                        ...(showScore ? [`${m} — Score`] : []),
+                        `${m} — Attended`, `${m} — Check-in`, `${m} — Physical Sheet`,
+                      ]),
                     '',
                   ].map((h, i) => (
                     <th key={`${h}-${i}`} className="px-4 py-3 text-left text-[10px] font-semibold text-white/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
@@ -332,7 +390,22 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
                         </div>
                       ) : <span className="text-white/30">—</span>}
                     </td>
-                    {moduleNames.map((m) => (
+                    {isWellness && moduleNames.map((m) => {
+                      const g = s.moduleWellness[m];
+                      return (
+                        <Fragment key={m}>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {g?.quizScore != null
+                              ? <span className={`font-semibold ${g.quizPass ? 'text-white/80' : 'text-red-400'}`}>{g.quizScore} / 10</span>
+                              : <span className="text-white/25">{g ? 'N/A' : '—'}</span>}
+                          </td>
+                          <td className="px-4 py-3"><YesNoBadge ok={g?.physical} /></td>
+                          <td className="px-4 py-3"><CheckInBadge status={g ? s.moduleCheckIn[m] : undefined} /></td>
+                          <td className="px-4 py-3"><WellnessFinalBadge grade={g} /></td>
+                        </Fragment>
+                      );
+                    })}
+                    {!isWellness && moduleNames.map((m) => (
                       <Fragment key={m}>
                         <td className="px-4 py-3">
                           <ModuleStatusBadge status={s.moduleStatus[m]} />
