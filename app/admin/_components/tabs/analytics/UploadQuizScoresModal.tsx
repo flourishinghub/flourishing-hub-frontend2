@@ -14,6 +14,7 @@ interface UploadResult {
   created: number;
   skipped: number;
   skippedRows: { row: number; roll: string; reason: string }[];
+  conflictRows?: { row: number; roll: string; email: string; reason: string }[];
 }
 
 export default function UploadQuizScoresModal({
@@ -202,6 +203,18 @@ export default function UploadQuizScoresModal({
                   <p key={i} className="text-xs text-white/60">
                     <span className="font-mono text-white/40">row {sr.row}</span>
                     {sr.roll ? <> · <span className="font-mono">{sr.roll}</span></> : null} — {sr.reason}
+                  </p>
+                ))}
+              </div>
+            )}
+            {(result.conflictRows?.length ?? 0) > 0 && (
+              <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-3 space-y-1.5 max-h-52 overflow-y-auto">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold text-sky-400 uppercase tracking-wider">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Roll No and Email don&apos;t match
+                </p>
+                {result.conflictRows!.map((cr, i) => (
+                  <p key={i} className="text-xs text-white/60">
+                    <span className="font-mono text-white/40">row {cr.row}</span> · <span className="font-mono">{cr.email}</span> — {cr.reason}
                   </p>
                 ))}
               </div>
