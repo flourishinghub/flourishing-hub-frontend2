@@ -5,7 +5,7 @@ import { ArrowLeft, Download, Eye, Star } from 'lucide-react';
 import { downloadCsv } from '@/lib/csv';
 import { WorkshopAnalyticsRow } from '@/types';
 import { AnalyticsStudentEntry } from '@/types';
-import { AttendanceOnlyStatus, aggregateStudents, ModuleStatus, StudentAggregateRow, WELLNESS_COURSE, WellnessFinal, WellnessModuleGrade } from './filterUtils';
+import { AttendanceOnlyStatus, aggregateStudents, formatModuleBatches, ModuleStatus, StudentAggregateRow, WELLNESS_COURSE, WellnessFinal, WellnessModuleGrade } from './filterUtils';
 
 function MetricCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -164,7 +164,7 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
   // Wellness is the only graded course: its topics show Score / Physical
   // Attendance / Check-in / Final Attendance and export the grade sheet.
   const isWellness = selectedCourse === WELLNESS_COURSE;
-  const perModuleCols = isWellness ? 4 : showScore ? 5 : 4;
+  const perModuleCols = isWellness ? 5 : showScore ? 6 : 5;
   const fmtScore = (m: string, row: StudentAggregateRow) => {
     const v = row.moduleScore[m];
     return v ? `${v.score} / ${v.maxScore}` : 'N/A';
@@ -194,10 +194,12 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
           'Student Name': s.name,
           Email: s.email,
           Batch: s.batches.join(', ') || '—',
+          'Attendance % (module-wise)': s.attendancePct != null ? `${s.attendancePct}%` : '—',
           ...Object.fromEntries(moduleNames.flatMap((m) => {
             const g = s.moduleWellness[m];
-            if (!g) return [[`${m} — Physical Attendance`, '—'], [`${m} — Digital Attendance`, '—'], [`${m} — Quiz`, '—'], [`${m} — Quiz Result`, '—'], [`${m} — Grade`, '—']];
+            if (!g) return [[`${m} — Batch`, '—'], [`${m} — Physical Attendance`, '—'], [`${m} — Digital Attendance`, '—'], [`${m} — Quiz`, '—'], [`${m} — Quiz Result`, '—'], [`${m} — Grade`, '—']];
             return [
+              [`${m} — Batch`, formatModuleBatches(s.moduleBatches[m])],
               [`${m} — Physical Attendance`, g.physical ? 'Present' : 'Absent'],
               [`${m} — Digital Attendance`, g.digital ? 'Present' : 'Absent'],
               [`${m} — Quiz`, g.quizScore != null ? `${g.quizScore} / 10` : '—'],
@@ -224,6 +226,7 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
         'Avg Score %': s.avgScorePct != null ? `${s.avgScorePct}%` : '—',
         'Avg Rating': s.avgRating ?? '—',
         ...Object.fromEntries(moduleNames.flatMap((m) => [
+          [`${m} — Batch`, formatModuleBatches(s.moduleBatches[m])],
           [`${m} — Result`, s.moduleStatus[m] ? MODULE_STATUS_LABEL[s.moduleStatus[m]] : '—'],
           ...(showScore ? [[`${m} — Score`, fmtScore(m, s)] as [string, string]] : []),
           [`${m} — Attended`, s.moduleAttendance[m] ?? '—'],
@@ -351,8 +354,9 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
                   {[
                     'Name', 'Roll No', 'Email', 'Department', 'Batch', 'Events', 'Attendance', 'Avg Score', 'Avg Rating',
                     ...moduleNames.flatMap((m) => isWellness
-                      ? [`${m} — Score`, `${m} — Physical Attendance`, `${m} — Check-in`, `${m} — Final Attendance`]
+                      ? [`${m} — Batch`, `${m} — Score`, `${m} — Physical Attendance`, `${m} — Check-in`, `${m} — Final Attendance`]
                       : [
+                        `${m} — Batch`,
                         `${m} — Result`,
                         ...(showScore ? [`${m} — Score`] : []),
                         `${m} — Attended`, `${m} — Check-in`, `${m} — Physical Sheet`,
@@ -394,6 +398,7 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
                       const g = s.moduleWellness[m];
                       return (
                         <Fragment key={m}>
+                          <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatModuleBatches(s.moduleBatches[m])}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             {g?.quizScore != null
                               ? <span className={`font-semibold ${g.quizPass ? 'text-white/80' : 'text-red-400'}`}>{g.quizScore} / 10</span>
@@ -407,6 +412,7 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
                     })}
                     {!isWellness && moduleNames.map((m) => (
                       <Fragment key={m}>
+                        <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatModuleBatches(s.moduleBatches[m])}</td>
                         <td className="px-4 py-3">
                           <ModuleStatusBadge status={s.moduleStatus[m]} />
                         </td>

@@ -189,6 +189,10 @@ export interface StudentAggregateRow {
   batches: string[];
   courses: string[];
   eventsCount: number;
+  // Module-wise, not session-wise (admin rule, 2026-10-09): a module the
+  // student sat in two sessions of (e.g. D2 then Buffer 2) counts once, with
+  // its final result. presentCount = modules Present, markedCount = every
+  // module of the student's course(s) in view, completed or still pending.
   presentCount: number;
   markedCount: number;
   attendancePct: number | null;
@@ -215,11 +219,65 @@ export interface StudentAggregateRow {
   // Same keys as moduleStatus — Wellness grading per topic (computeWellnessGrade);
   // filled for every row, only shown when the Wellness course is selected.
   moduleWellness: Record<string, WellnessModuleGrade>;
+  // Same keys as moduleStatus — every session batch the student had for that
+  // module, in date order (e.g. ["D2", "Buffer 2"]); shown as "D2 → Buffer 2".
+  moduleBatches: Record<string, string[]>;
 }
 
-/** Dedupes the (already filtered) rows' nested students by userId, aggregating across every matching appearance. */
+export const formatModuleBatches = (batches: string[] | undefined) => (batches?.length ? batches.join(' → ') : '—');
+
+// One student, one line per module (admin rule, 2026-10-09). When a student
+// has several sessions of one module (original batch + a Buffer make-up),
+// every module column is taken from a single chosen session, so Result,
+// Check-in, Physical Sheet and Score never mix two different sessions:
+//   1. the best result (Present > attended-but-failed/unscored > Pending > Absent),
+//   2. then the session with a score,
+//   3. then the session with a physical-sheet signature or a check-in,
+//   4. then the latest session.
+// The score falls back to any other session's score when the chosen one has
+// none, so a quiz the student did take still shows.
+const MODULE_STATUS_RANK: Record<ModuleStatus, number> = {
+  PRESENT: 5, FAIL: 4, NOT_ATTEMPTED: 4, PENDING: 2, ABSENT: 1, 'N/A': 0,
+};
+const WELLNESS_FINAL_RANK: Record<WellnessFinal, number> = { PRESENT: 3, PENDING: 2, ABSENT: 1 };
+
+interface ModuleSession { s: AnalyticsStudentEntry; row: WorkshopAnalyticsRow }
+
+function sessionRank({ s, row }: ModuleSession): number[] {
+  const result = row.courseName === WELLNESS_COURSE
+    ? WELLNESS_FINAL_RANK[computeWellnessGrade(s, row).final]
+    : MODULE_STATUS_RANK[computeModuleStatus(s, row)];
+  const hasScore = s.quizScore != null || s.score != null ? 1 : 0;
+  const evidence = (s.physicalSheetStatus === 'PRESENT' ? 1 : 0) + (s.hasCheckedIn ? 1 : 0);
+  return [result, hasScore, evidence, new Date(row.date).getTime()];
+}
+
+function pickModuleSession(sessions: ModuleSession[]): ModuleSession {
+  return sessions.reduce((best, cur) => {
+    const a = sessionRank(cur);
+    const b = sessionRank(best);
+    for (let i = 0; i < a.length; i += 1) {
+      if (a[i] !== b[i]) return a[i] > b[i] ? cur : best;
+    }
+    return best;
+  });
+}
+
+// The module's single result for the module-wise Attendance %: Wellness uses
+// its graded final attendance, every other course plain attendance.
+function moduleFinal({ s, row }: ModuleSession): AttendanceOnlyStatus {
+  if (row.courseName === WELLNESS_COURSE) return computeWellnessGrade(s, row).final;
+  const sessionOver = !row.endAt || new Date(row.endAt).getTime() <= Date.now();
+  if (!sessionOver) return 'PENDING';
+  return computeAttendanceOnlyStatus(s);
+}
+
+/** One line per student (deduped by userId, else roll number), one result per module. */
 export function aggregateStudents(rows: WorkshopAnalyticsRow[]): StudentAggregateRow[] {
   const map = new Map<string, StudentAggregateRow>();
+  // student key -> module key -> that module's sessions. Rows without a
+  // module (standalone events) are their own module, keyed by event id.
+  const sessionsByStudent = new Map<string, Map<string, ModuleSession[]>>();
 
   rows.forEach((row) => {
     row.students.forEach((s) => {
@@ -230,7 +288,10 @@ export function aggregateStudents(rows: WorkshopAnalyticsRow[]): StudentAggregat
       // Workshop tab's, which already counts them via row.totalAttended.
       // userId here is only ever used as a React list key downstream, never
       // for navigation or an API call, so a non-real value is safe.
-      const key = s.userId || `pending:${s.rollNo}:${s.email}`;
+      // Keyed by roll number (not roll+email) so a no-account student's sheet
+      // row and CSV-absent row in two sessions of a module stay one line.
+      const roll = s.rollNo && s.rollNo !== '—' ? s.rollNo.toUpperCase() : '';
+      const key = s.userId || (roll ? `pending:${roll}` : `pending:${s.email}`);
       let agg = map.get(key);
       if (!agg) {
         agg = {
@@ -255,30 +316,18 @@ export function aggregateStudents(rows: WorkshopAnalyticsRow[]): StudentAggregat
           modulePhysicalSheet: {},
           moduleScore: {},
           moduleWellness: {},
+          moduleBatches: {},
         };
         map.set(key, agg);
+        sessionsByStudent.set(key, new Map());
       }
       agg.eventsCount += 1;
-      if (s.attendanceStatus !== 'NOT_MARKED') {
-        agg.markedCount += 1;
-        if (s.attendanceStatus === 'PRESENT') agg.presentCount += 1;
-      }
       if (s.batch && s.batch !== '—' && !agg.batches.includes(s.batch)) agg.batches.push(s.batch);
       if (row.courseName && row.courseName !== '—' && !agg.courses.includes(row.courseName)) agg.courses.push(row.courseName);
-      if (row.moduleName && row.moduleName !== '—') {
-        agg.moduleStatus[row.moduleName] = computeModuleStatus(s, row);
-        agg.moduleAttendance[row.moduleName] = computeAttendanceOnlyStatus(s);
-        agg.moduleCheckIn[row.moduleName] = s.checkInStatus;
-        agg.modulePhysicalSheet[row.moduleName] = s.physicalSheetStatus;
-        if (s.score != null && s.maxScore != null) {
-          agg.moduleScore[row.moduleName] = { score: s.score, maxScore: s.maxScore };
-        }
-        // A student in two batches of one topic keeps the better grade.
-        const grade = computeWellnessGrade(s, row);
-        const prev = agg.moduleWellness[row.moduleName];
-        const rank = { PRESENT: 2, PENDING: 1, ABSENT: 0 } as const;
-        if (!prev || rank[grade.final] > rank[prev.final]) agg.moduleWellness[row.moduleName] = grade;
-      }
+      const moduleKey = row.moduleName && row.moduleName !== '—' ? row.moduleName : `event:${row.id}`;
+      const modules = sessionsByStudent.get(key)!;
+      if (!modules.has(moduleKey)) modules.set(moduleKey, []);
+      modules.get(moduleKey)!.push({ s, row });
       agg.history.push({
         workshopName: row.workshopName,
         courseName: row.courseName,
@@ -292,6 +341,51 @@ export function aggregateStudents(rows: WorkshopAnalyticsRow[]): StudentAggregat
         maxScore: s.maxScore,
         rating: s.rating,
       });
+    });
+  });
+
+  // Attendance % denominator (admin rule, 2026-10-09): every module of the
+  // course, completed or pending, whether or not the student has a session
+  // in it yet — taken from the rows in view, so a topic filter narrows it.
+  const courseModules = new Map<string, Set<string>>();
+  rows.forEach((row) => {
+    if (!row.moduleName || row.moduleName === '—') return;
+    if (!courseModules.has(row.courseName)) courseModules.set(row.courseName, new Set());
+    courseModules.get(row.courseName)!.add(row.moduleName);
+  });
+
+  map.forEach((agg, key) => {
+    agg.markedCount = agg.courses.reduce((n, c) => n + (courseModules.get(c)?.size ?? 0), 0);
+    sessionsByStudent.get(key)!.forEach((sessions, moduleKey) => {
+      const chosen = pickModuleSession(sessions);
+      if (moduleFinal(chosen) === 'PRESENT') agg.presentCount += 1;
+      if (moduleKey.startsWith('event:')) {
+        agg.markedCount += 1;
+        return;
+      }
+      const { s, row } = chosen;
+      agg.moduleStatus[moduleKey] = computeModuleStatus(s, row);
+      agg.moduleAttendance[moduleKey] = computeAttendanceOnlyStatus(s);
+      agg.moduleCheckIn[moduleKey] = s.checkInStatus;
+      agg.modulePhysicalSheet[moduleKey] = s.physicalSheetStatus;
+      const grade = computeWellnessGrade(s, row);
+      const scored = s.score != null && s.maxScore != null
+        ? s
+        : sessions.map((x) => x.s).find((x) => x.score != null && x.maxScore != null);
+      if (scored) agg.moduleScore[moduleKey] = { score: scored.score as number, maxScore: scored.maxScore as number };
+      // Score display only — the grade's final stays the chosen session's.
+      if (grade.quizScore == null) {
+        const other = sessions.map((x) => x.s.quizScore).find((q) => q != null);
+        if (other != null) {
+          grade.quizScore = other;
+          grade.quizPass = other >= WELLNESS_PASS_SCORE;
+        }
+      }
+      agg.moduleWellness[moduleKey] = grade;
+      agg.moduleBatches[moduleKey] = [...sessions]
+        .sort((a, b) => new Date(a.row.date).getTime() - new Date(b.row.date).getTime())
+        .map((x) => x.row.batch || x.s.batch)
+        .filter((b) => b && b !== '—');
     });
   });
 
