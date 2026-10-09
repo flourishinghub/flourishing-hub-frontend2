@@ -112,7 +112,12 @@ export default function SignupPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
+        // A 400 "Validation failed" carries the field reasons in details
+        // (zod flatten) — show those (e.g. "Roll number must match your
+        // institute email") instead of the generic message.
+        const fieldErrors = data.details?.fieldErrors as Record<string, string[]> | undefined;
+        const reasons = [...(data.details?.formErrors ?? []), ...Object.values(fieldErrors ?? {}).flat()];
+        throw new Error(reasons.length ? reasons.join('. ') : data.message || 'Registration failed');
       }
 
       // Check if user needs OTP verification or admin approval
