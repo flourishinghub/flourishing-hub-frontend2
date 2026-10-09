@@ -179,6 +179,22 @@ export function computeWellnessGrade(s: AnalyticsStudentEntry, row: WorkshopAnal
   return { physical, digital, quizScore, quizPass, final };
 }
 
+// ─── Mentor Training Course final attendance (admin rule, 2026-10-09) ───
+// Digital attendance (app check-in) and the physical sheet are both shown;
+// either one makes the student Present (no quiz in MTC). A REJECTED
+// check-in doesn't count. A Present already recorded (e.g. instructor-
+// verified check-in, admin-approved manual Present) stays Present. Pending
+// only while the session hasn't ended; otherwise Absent.
+export const MTC_COURSE_PREFIX = 'Mentor Training Course';
+export const isMtcCourse = (courseName: string | undefined) => Boolean(courseName?.startsWith(MTC_COURSE_PREFIX));
+
+export function computeMtcFinal(s: AnalyticsStudentEntry, row: WorkshopAnalyticsRow): AttendanceOnlyStatus {
+  const digital = s.checkInStatus === 'CHECKED_IN_PENDING' || s.checkInStatus === 'CHECKED_IN_VERIFIED';
+  if (s.attendanceStatus === 'PRESENT' || s.physicalSheetStatus === 'PRESENT' || digital) return 'PRESENT';
+  const sessionOver = !row.endAt || new Date(row.endAt).getTime() <= Date.now();
+  return sessionOver ? 'ABSENT' : 'PENDING';
+}
+
 export interface StudentAggregateRow {
   userId: string;
   name: string;
@@ -222,6 +238,9 @@ export interface StudentAggregateRow {
   // Same keys as moduleStatus — every session batch the student had for that
   // module, in date order (e.g. ["D2", "Buffer 2"]); shown as "D2 → Buffer 2".
   moduleBatches: Record<string, string[]>;
+  // Same keys as moduleStatus — MTC final attendance, check-in or physical
+  // sheet (computeMtcFinal); filled for every row, only shown for MTC.
+  moduleMtcFinal: Record<string, AttendanceOnlyStatus>;
 }
 
 export const formatModuleBatches = (batches: string[] | undefined) => (batches?.length ? batches.join(' → ') : '—');
@@ -246,7 +265,9 @@ interface ModuleSession { s: AnalyticsStudentEntry; row: WorkshopAnalyticsRow }
 function sessionRank({ s, row }: ModuleSession): number[] {
   const result = row.courseName === WELLNESS_COURSE
     ? WELLNESS_FINAL_RANK[computeWellnessGrade(s, row).final]
-    : MODULE_STATUS_RANK[computeModuleStatus(s, row)];
+    : isMtcCourse(row.courseName)
+      ? WELLNESS_FINAL_RANK[computeMtcFinal(s, row)]
+      : MODULE_STATUS_RANK[computeModuleStatus(s, row)];
   const hasScore = s.quizScore != null || s.score != null ? 1 : 0;
   const evidence = (s.physicalSheetStatus === 'PRESENT' ? 1 : 0) + (s.hasCheckedIn ? 1 : 0);
   return [result, hasScore, evidence, new Date(row.date).getTime()];
@@ -264,9 +285,11 @@ function pickModuleSession(sessions: ModuleSession[]): ModuleSession {
 }
 
 // The module's single result for the module-wise Attendance %: Wellness uses
-// its graded final attendance, every other course plain attendance.
+// its graded final attendance, MTC check-in or sheet, every other course
+// plain attendance.
 function moduleFinal({ s, row }: ModuleSession): AttendanceOnlyStatus {
   if (row.courseName === WELLNESS_COURSE) return computeWellnessGrade(s, row).final;
+  if (isMtcCourse(row.courseName)) return computeMtcFinal(s, row);
   const sessionOver = !row.endAt || new Date(row.endAt).getTime() <= Date.now();
   if (!sessionOver) return 'PENDING';
   return computeAttendanceOnlyStatus(s);
@@ -317,6 +340,7 @@ export function aggregateStudents(rows: WorkshopAnalyticsRow[]): StudentAggregat
           moduleScore: {},
           moduleWellness: {},
           moduleBatches: {},
+          moduleMtcFinal: {},
         };
         map.set(key, agg);
         sessionsByStudent.set(key, new Map());
@@ -382,6 +406,7 @@ export function aggregateStudents(rows: WorkshopAnalyticsRow[]): StudentAggregat
         }
       }
       agg.moduleWellness[moduleKey] = grade;
+      agg.moduleMtcFinal[moduleKey] = computeMtcFinal(s, row);
       agg.moduleBatches[moduleKey] = [...sessions]
         .sort((a, b) => new Date(a.row.date).getTime() - new Date(b.row.date).getTime())
         .map((x) => x.row.batch || x.s.batch)

@@ -5,7 +5,7 @@ import { ArrowLeft, Download, Eye, Star } from 'lucide-react';
 import { downloadCsv } from '@/lib/csv';
 import { WorkshopAnalyticsRow } from '@/types';
 import { AnalyticsStudentEntry } from '@/types';
-import { AttendanceOnlyStatus, aggregateStudents, formatModuleBatches, ModuleStatus, StudentAggregateRow, WELLNESS_COURSE, WellnessFinal, WellnessModuleGrade } from './filterUtils';
+import { AttendanceOnlyStatus, aggregateStudents, formatModuleBatches, isMtcCourse, ModuleStatus, StudentAggregateRow, WELLNESS_COURSE, WellnessFinal, WellnessModuleGrade } from './filterUtils';
 
 function MetricCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -164,7 +164,12 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
   // Wellness is the only graded course: its topics show Score / Physical
   // Attendance / Check-in / Final Attendance and export the grade sheet.
   const isWellness = selectedCourse === WELLNESS_COURSE;
-  const perModuleCols = isWellness ? 5 : showScore ? 6 : 5;
+  // MTC: Digital (check-in) and Physical attendance side by side; Final
+  // Attendance is Present on either one (see computeMtcFinal).
+  const isMtc = isMtcCourse(selectedCourse);
+  const perModuleCols = isWellness ? 5 : isMtc ? 4 : showScore ? 6 : 5;
+  const digitalLabel = (c: CheckInStatus | undefined) =>
+    !c ? '—' : c === 'CHECKED_IN_PENDING' || c === 'CHECKED_IN_VERIFIED' ? 'Present' : 'Absent';
   const fmtScore = (m: string, row: StudentAggregateRow) => {
     const v = row.moduleScore[m];
     return v ? `${v.score} / ${v.maxScore}` : 'N/A';
@@ -209,6 +214,29 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
           })),
         })),
         'wellness-student-grades',
+      );
+      return;
+    }
+    if (isMtc) {
+      downloadCsv(
+        students.map((s) => ({
+          Name: s.name,
+          Email: s.email,
+          'Roll No': s.rollNo,
+          Department: s.department,
+          Programme: s.programme,
+          Batch: s.batches.join(', ') || '—',
+          Events: s.eventsCount,
+          'Attendance % (module-wise)': s.attendancePct != null ? `${s.attendancePct}%` : '—',
+          ...Object.fromEntries(moduleNames.flatMap((m) => [
+            [`${m} — Batch`, formatModuleBatches(s.moduleBatches[m])],
+            [`${m} — Digital Attendance`, digitalLabel(s.moduleCheckIn[m])],
+            [`${m} — Check-in`, s.moduleCheckIn[m] ? CHECK_IN_LABEL[s.moduleCheckIn[m]] : '—'],
+            [`${m} — Physical Attendance`, s.moduleMtcFinal[m] ? (s.modulePhysicalSheet[m] === 'PRESENT' ? 'Present' : 'Absent') : '—'],
+            [`${m} — Final Attendance`, s.moduleMtcFinal[m] ? WELLNESS_FINAL_LABEL[s.moduleMtcFinal[m]] : '—'],
+          ])),
+        })),
+        'mtc-student-attendance',
       );
       return;
     }
@@ -353,7 +381,9 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
                 <tr className="border-b border-white/5">
                   {[
                     'Name', 'Roll No', 'Email', 'Department', 'Batch', 'Events', 'Attendance', 'Avg Score', 'Avg Rating',
-                    ...moduleNames.flatMap((m) => isWellness
+                    ...moduleNames.flatMap((m) => isMtc
+                      ? [`${m} — Batch`, `${m} — Digital Attendance (Check-in)`, `${m} — Physical Attendance`, `${m} — Final Attendance`]
+                      : isWellness
                       ? [`${m} — Batch`, `${m} — Score`, `${m} — Physical Attendance`, `${m} — Check-in`, `${m} — Final Attendance`]
                       : [
                         `${m} — Batch`,
@@ -410,7 +440,21 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
                         </Fragment>
                       );
                     })}
-                    {!isWellness && moduleNames.map((m) => (
+                    {isMtc && moduleNames.map((m) => (
+                      <Fragment key={m}>
+                        <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatModuleBatches(s.moduleBatches[m])}</td>
+                        <td className="px-4 py-3"><CheckInBadge status={s.moduleMtcFinal[m] ? s.moduleCheckIn[m] : undefined} /></td>
+                        <td className="px-4 py-3"><YesNoBadge ok={s.moduleMtcFinal[m] ? s.modulePhysicalSheet[m] === 'PRESENT' : undefined} /></td>
+                        <td className="px-4 py-3">
+                          {s.moduleMtcFinal[m] ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${WELLNESS_FINAL_STYLE[s.moduleMtcFinal[m]]}`}>
+                              {WELLNESS_FINAL_LABEL[s.moduleMtcFinal[m]]}
+                            </span>
+                          ) : <span className="text-white/20">—</span>}
+                        </td>
+                      </Fragment>
+                    ))}
+                    {!isWellness && !isMtc && moduleNames.map((m) => (
                       <Fragment key={m}>
                         <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatModuleBatches(s.moduleBatches[m])}</td>
                         <td className="px-4 py-3">
