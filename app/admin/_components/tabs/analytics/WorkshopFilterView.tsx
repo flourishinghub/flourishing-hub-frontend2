@@ -6,26 +6,53 @@ import { apiCall } from '@/lib/api';
 import { downloadCsv } from '@/lib/csv';
 import toast from 'react-hot-toast';
 import { WorkshopAnalyticsRow } from '@/types';
-import { computeModuleStatus } from './filterUtils';
+import { computeModuleStatus, computeMtcFinal, computeWellnessGrade, isMtcCourse, WELLNESS_COURSE } from './filterUtils';
 
-// Quiz-score-based Pass/Fail per workshop row (via the same computeModuleStatus
-// used by the Student-Level view) — NOT attendance. A student only counts as
-// Passed/Failed once they're PRESENT and (for a quiz-bearing course) have
-// actually submitted the quiz; present-but-quiz-not-yet-taken is 'N/A' and
-// counts as neither. Fixes a bug where this file's own Passed/Failed columns
-// (KPI card, table, CSV export) were computed from `totalAttended` — i.e.
-// plain attendance — so a student who attended but scored below the pass
-// threshold (or never took the quiz at all) still showed up as "Passed".
+// Per-session Passed/Failed by each course's own rule — the same rules the
+// Student-Level view grades with, so the two reports never disagree:
+//   Wellness: Passed = PP (physical sheet + app check-in + quiz >= 4, see
+//             computeWellnessGrade); Failed = attended but NP.
+//   MTC:      Passed = Present on check-in or physical sheet (no quiz);
+//             there is no Failed.
+//   Others:   attended + quiz >= 4 is Passed, attended + quiz < 4 is Failed
+//             (computeModuleStatus); attended but not yet graded counts as
+//             neither.
 function countPassFail(row: WorkshopAnalyticsRow): { passed: number; failed: number } {
   let passed = 0;
   let failed = 0;
   (row.students || []).forEach((s: any) => {
-    const status = computeModuleStatus(s, row);
-    if (status === 'PRESENT') passed++;
-    else if (status === 'FAIL') failed++;
+    if (row.courseName === WELLNESS_COURSE) {
+      const final = computeWellnessGrade(s, row).final;
+      if (final === 'PRESENT') passed++;
+      else if (final === 'ABSENT' && s.attendanceStatus === 'PRESENT') failed++;
+    } else if (isMtcCourse(row.courseName)) {
+      if (computeMtcFinal(s, row) === 'PRESENT') passed++;
+    } else {
+      const status = computeModuleStatus(s, row);
+      if (status === 'PRESENT') passed++;
+      else if (status === 'FAIL') failed++;
+    }
   });
   return { passed, failed };
 }
+
+// Headcounts kept apart (they used to be conflated): app check-ins (pending or
+// verified), students signed PRESENT on the physical sheet, and attendance
+// PRESENT records (row.totalAttended, which also counts no-account signers).
+function sessionCounts(row: WorkshopAnalyticsRow) {
+  let checkIns = 0;
+  let sheetSigned = 0;
+  (row.students || []).forEach((s: any) => {
+    if (s.checkInStatus === 'CHECKED_IN_PENDING' || s.checkInStatus === 'CHECKED_IN_VERIFIED') checkIns++;
+    if (s.physicalSheetStatus === 'PRESENT') sheetSigned++;
+  });
+  return { checkIns, sheetSigned, present: row.totalAttended || 0 };
+}
+
+// The lead instructor conducts the session; the associate slot is often a
+// placeholder account, so it never stands in for a named instructor.
+const conductorOf = (row: WorkshopAnalyticsRow) =>
+  row.instructorName && row.instructorName !== '—' ? row.instructorName : row.associateInstructorName;
 
 const CHECK_IN_LABEL: Record<string, string> = {
   NOT_CHECKED_IN: 'Not Checked-in',
@@ -162,14 +189,18 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
   const exportRegistryCSV = () => {
     const csvRows = rows.map((r) => {
       const { passed, failed } = countPassFail(r);
+      const { checkIns, sheetSigned, present } = sessionCounts(r);
       return {
         Workshop: r.workshopName,
         Course: r.courseName || '—',
         Batch: r.batch || '—',
         Date: r.date ? new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
-        'Assigned Conductor': r.associateInstructorName !== '—' ? r.associateInstructorName : r.instructorName,
-        'Physical Sheet': r.hasPhysicalSheet ? `Uploaded (${r.physicalSheetCount})` : 'Pending',
-        'Check-In': r.totalAttended || 0,
+        Instructor: conductorOf(r),
+        'Associate Instructor': r.instructorName && r.instructorName !== '—' ? r.associateInstructorName : '—',
+        Registered: r.totalRegistered || 0,
+        'Physical Sheet': r.hasPhysicalSheet ? `Uploaded (${sheetSigned} signed)` : 'Pending',
+        'Present (Attendance)': present,
+        'Check-In (App)': checkIns,
         Passed: passed,
         Failed: failed,
         'Avg Rating': r.avgRating || '—',
@@ -411,7 +442,7 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-white/5">
-                  {['Workshop Session', 'Assigned Conductor', 'Batch', 'Date', 'Time', 'Physical Sheet', 'Check-In', 'Passed', 'Failed', 'Avg Rating', ''].map((h) => (
+                  {['Workshop Session', 'Instructor', 'Batch', 'Date', 'Time', 'Physical Sheet', 'Present', 'Check-In (App)', 'Passed', 'Failed', 'Avg Rating', ''].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-white/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -419,14 +450,11 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="text-center py-12 text-white/30">No completed workshops match the current filter</td>
+                    <td colSpan={12} className="text-center py-12 text-white/30">No completed workshops match the current filter</td>
                   </tr>
                 ) : rows.map((row, i) => {
                   const { passed, failed } = countPassFail(row);
-                  // Check-In is plain attendance headcount — kept independent of
-                  // the quiz-based Passed/Failed columns above (a student can be
-                  // checked in without yet having a judgeable quiz outcome).
-                  const checkIn = row.totalAttended || 0;
+                  const { checkIns, sheetSigned, present } = sessionCounts(row);
                   const timeFmt: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
                   return (
                     <tr
@@ -438,7 +466,12 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
                         <p className="text-white font-medium">{row.workshopName}</p>
                         <p className="text-white/35 text-[10px] mt-0.5">{row.courseName}</p>
                       </td>
-                      <td className="px-4 py-3 text-white/60">{row.associateInstructorName !== '—' ? row.associateInstructorName : row.instructorName}</td>
+                      <td className="px-4 py-3 text-white/60">
+                        <p>{conductorOf(row)}</p>
+                        {row.instructorName && row.instructorName !== '—' && row.associateInstructorName !== '—' && (
+                          <p className="text-white/30 text-[10px] mt-0.5">Assoc: {row.associateInstructorName}</p>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-white/60 whitespace-nowrap">{row.batch || '—'}</td>
                       <td className="px-4 py-3 text-white/60 whitespace-nowrap">
                         {row.date ? new Date(row.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
@@ -452,7 +485,7 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
                         {row.hasPhysicalSheet ? (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Uploaded
-                            {row.physicalSheetCount ? <span className="text-emerald-400/60">({row.physicalSheetCount})</span> : null}
+                            <span className="text-emerald-400/60">({sheetSigned} signed)</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30">
@@ -460,7 +493,8 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-white/70 font-semibold">{checkIn > 0 ? `${checkIn} Stud` : '—'}</td>
+                      <td className="px-4 py-3 text-white/70 font-semibold">{present > 0 ? `${present} Stud` : '—'}</td>
+                      <td className="px-4 py-3 text-white/70 font-semibold">{checkIns > 0 ? `${checkIns} Stud` : '—'}</td>
                       <td className="px-4 py-3">
                         <span className="text-emerald-400 font-semibold">{passed > 0 ? `${passed} Users` : '—'}</span>
                       </td>
