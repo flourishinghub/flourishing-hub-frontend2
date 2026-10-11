@@ -13,7 +13,10 @@ export function toCsvContent(data: Record<string, any>[]): string {
     return value ?? '';
   };
   return [
-    headers.join(','),
+    // Headers need the same escaping: a module title like "3. Sleep,
+    // nutrition, and digital wellbeing" otherwise splits into extra header
+    // cells and every column after it sits under the wrong heading.
+    headers.map(escapeCell).join(','),
     ...data.map((row) => headers.map((header) => escapeCell(row[header])).join(',')),
   ].join('\n');
 }
