@@ -287,7 +287,8 @@ export default function WorkshopFilterView({ rows, allRows, selectedAnalyticsEve
                       'Physical Sheet Status': s.physicalSheetStatus ?? '—',
                       'Final Attendance Status': finalAttendanceLabel(s),
                       'Quiz Completed': s.quizCompleted ? 'Yes' : 'No',
-                      Score: s.score != null ? `${s.score}/${s.maxScore ?? '?'}` : '—',
+                      // "8 out of 10", not "8/10": Excel opens the latter as a date (08-Oct).
+                      Score: s.score != null ? `${s.score} out of ${s.maxScore ?? '?'}` : '—',
                       Rating: s.rating ?? '—',
                       'Registration Status': s.registrationStatus,
                     }));

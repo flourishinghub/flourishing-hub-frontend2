@@ -172,7 +172,8 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
     !c ? '—' : c === 'CHECKED_IN_PENDING' || c === 'CHECKED_IN_VERIFIED' ? 'Present' : 'Absent';
   const fmtScore = (m: string, row: StudentAggregateRow) => {
     const v = row.moduleScore[m];
-    return v ? `${v.score} / ${v.maxScore}` : 'N/A';
+    // CSV only — "8 out of 10", since Excel turns "8 / 10" into a date (08-Oct).
+    return v ? `${v.score} out of ${v.maxScore}` : 'N/A';
   };
 
   const metrics = useMemo(() => {
@@ -202,12 +203,14 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
           'Attendance % (module-wise)': s.attendancePct != null ? `${s.attendancePct}%` : '—',
           ...Object.fromEntries(moduleNames.flatMap((m) => {
             const g = s.moduleWellness[m];
-            if (!g) return [[`${m} — Batch`, '—'], [`${m} — Physical Attendance`, '—'], [`${m} — Digital Attendance`, '—'], [`${m} — Quiz`, '—'], [`${m} — Quiz Result`, '—'], [`${m} — Grade`, '—']];
+            // Quiz goes out as a bare number under an "(out of 10)" heading: Excel
+            // reads a "10 / 10" cell as a date and shows it as 10-Oct.
+            if (!g) return [[`${m} — Batch`, '—'], [`${m} — Physical Attendance`, '—'], [`${m} — Digital Attendance`, '—'], [`${m} — Quiz (out of 10)`, '—'], [`${m} — Quiz Result`, '—'], [`${m} — Grade`, '—']];
             return [
               [`${m} — Batch`, formatModuleBatches(s.moduleBatches[m])],
               [`${m} — Physical Attendance`, g.physical ? 'Present' : 'Absent'],
               [`${m} — Digital Attendance`, g.digital ? 'Present' : 'Absent'],
-              [`${m} — Quiz`, g.quizScore != null ? `${g.quizScore} / 10` : '—'],
+              [`${m} — Quiz (out of 10)`, g.quizScore != null ? g.quizScore : '—'],
               [`${m} — Quiz Result`, g.quizScore != null ? (g.quizPass ? 'PP' : 'NP') : g.final === 'PENDING' ? 'Pending' : 'NP'],
               [`${m} — Grade`, wellnessGradeLabel(g)],
             ];
