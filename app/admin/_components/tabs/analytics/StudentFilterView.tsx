@@ -205,7 +205,8 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
             const g = s.moduleWellness[m];
             // Quiz goes out as a bare number under an "(out of 10)" heading: Excel
             // reads a "10 / 10" cell as a date and shows it as 10-Oct.
-            if (!g) return [[`${m} — Batch`, '—'], [`${m} — Physical Attendance`, '—'], [`${m} — Digital Attendance`, '—'], [`${m} — Quiz (out of 10)`, '—'], [`${m} — Quiz Result`, '—'], [`${m} — Grade`, '—']];
+            // No session of this module yet: the module is not done, so the grade is NP (admin rule, 2026-10-19).
+            if (!g) return [[`${m} — Batch`, '—'], [`${m} — Physical Attendance`, '—'], [`${m} — Digital Attendance`, '—'], [`${m} — Quiz (out of 10)`, '—'], [`${m} — Quiz Result`, '—'], [`${m} — Grade`, 'NP']];
             return [
               [`${m} — Batch`, formatModuleBatches(s.moduleBatches[m])],
               [`${m} — Physical Attendance`, g.physical ? 'Present' : 'Absent'],
