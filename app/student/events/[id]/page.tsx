@@ -102,14 +102,14 @@ export default function EventDetailPage() {
     }
   };
 
-  // Poll while PENDING so page transitions immediately when instructor verifies.
-  // 12s (was 5s) — under a large concurrent workshop this was the single
-  // biggest source of backend load (every checked-in student hitting the
-  // server 12x/minute); still fast enough that verification shows up well
-  // within a session's grace window.
+  // Poll while PENDING so page transitions when instructor verifies.
+  // 60s (was 5s, then 12s) — under a large concurrent workshop this was the
+  // single biggest source of backend load, and check-ins are mostly verified
+  // the next day anyway (24 Oct 2026: the DB connection pool ran out at the
+  // end of a session); a live verification still shows up within a minute.
   useEffect(() => {
     if (checkIn?.status === 'PENDING') {
-      pollRef.current = setInterval(() => fetchCheckInStatus(), 12000);
+      pollRef.current = setInterval(() => fetchCheckInStatus(), 60000);
     } else {
       if (pollRef.current) clearInterval(pollRef.current);
     }
@@ -128,14 +128,28 @@ export default function EventDetailPage() {
   // past the actual unlock moment, until something else (a manual refresh)
   // happened to re-fetch. Poll from PENDING onward instead, so the unlock
   // is picked up within 15s of actually happening, regardless of whether
-  // an instructor ever verifies the check-in.
+  // an instructor ever verifies the check-in. The poll stops once nothing
+  // is left to unlock (both known, neither locked): after that it only
+  // added load, since submitting re-fetches the card itself.
+  const checkedIn = checkIn?.status === 'VERIFIED' || checkIn?.status === 'PENDING';
+  const waitingForUnlock =
+    myQuiz === null ||
+    myFeedbackForm === null ||
+    (myQuiz.available && myQuiz.locked === true) ||
+    (myFeedbackForm.available && myFeedbackForm.locked === true);
+
   useEffect(() => {
-    if (checkIn?.status === 'VERIFIED' || checkIn?.status === 'PENDING') {
+    if (checkedIn) {
       fetchMyProgress();
       fetchMyQuiz();
       fetchMyFeedbackForm();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkIn?.status]);
+
+  useEffect(() => {
+    if (checkedIn && waitingForUnlock) {
       scorePollerRef.current = setInterval(() => {
-        fetchMyProgress();
         fetchMyQuiz();
         fetchMyFeedbackForm();
       }, 15000);
@@ -144,7 +158,7 @@ export default function EventDetailPage() {
     }
     return () => { if (scorePollerRef.current) clearInterval(scorePollerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkIn?.status]);
+  }, [checkedIn, waitingForUnlock]);
 
   // Grace period countdown timer
   useEffect(() => {
