@@ -8,6 +8,7 @@ import Link from 'next/link';
 import type { Programme } from '@/types';
 import toast from 'react-hot-toast';
 import Logo from '@/components/Logo';
+import { safeNextPath, withNext } from '@/lib/nextPath';
 
 const PROGRAMMES: Programme[] = ['BTech', 'B.Des', 'BS', 'MTech', 'PhD', 'MSc', 'Staff', 'Dual Degree'];
 // Explicit mapping — backend Programme enum values don't always match
@@ -120,11 +121,14 @@ export default function SignupPage() {
         throw new Error(reasons.length ? reasons.join('. ') : data.message || 'Registration failed');
       }
 
+      // Carry the QR/event link through OTP verify and login
+      const next = safeNextPath(new URLSearchParams(window.location.search).get('next'));
+
       // Check if user needs OTP verification or admin approval
       if (data.data?.requiresOTP) {
         // IITB email - redirect to OTP verification
         toast.success('Registration successful! Please check your email for OTP.');
-        router.push(`/verify-email?userId=${data.data.userId}&email=${encodeURIComponent(data.data.email)}`);
+        router.push(withNext(`/verify-email?userId=${data.data.userId}&email=${encodeURIComponent(data.data.email)}`, next));
       } else if (data.data?.requiresApproval) {
         // Non-IITB email - show approval pending message
         toast.success('Account created! Pending admin approval.');
@@ -132,7 +136,7 @@ export default function SignupPage() {
       } else {
         // Fallback
         toast.success('Registration successful!');
-        router.push('/login');
+        router.push(withNext('/login', next));
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');

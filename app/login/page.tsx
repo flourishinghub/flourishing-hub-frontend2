@@ -8,6 +8,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { setAuthTokenCookie } from '@/lib/utils';
 import Logo from '@/components/Logo';
+import { safeNextPath, withNext } from '@/lib/nextPath';
 
 const WORDS = ['Mindfulness', 'Resilience', 'Growth', 'Clarity', 'Balance', 'Joy', 'Flourish'];
 const FEATURES = [
@@ -23,6 +24,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [wordIndex, setWordIndex] = useState(0);
+  const [nextPath, setNextPath] = useState('');
   const router = useRouter();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 
@@ -44,6 +46,7 @@ export default function LoginPage() {
     if (searchParams?.get('reset') === 'true') {
       toast.success('Password reset successfully! Please login with your new password.');
     }
+    setNextPath(safeNextPath(searchParams?.get('next')));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -111,8 +114,7 @@ export default function LoginPage() {
 
         // Back to the student page that sent them to login (set by
         // middleware), only for same-site /student/ paths.
-        const next = searchParams?.get('next') || '';
-        const target = /^\/student\/[\w\-\/]*$/.test(next) ? next : '/home';
+        const target = safeNextPath(searchParams?.get('next')) || '/home';
 
         // Small delay to prevent race condition
         setTimeout(() => {
@@ -258,7 +260,7 @@ export default function LoginPage() {
           <div className="mt-6 pt-6 border-t border-white/5 text-center">
             <p className="text-sm text-white/50">
               New to Flourishing Hub?{' '}
-              <Link href="/signup" className="text-primary font-semibold hover:text-primary/80 transition-colors">
+              <Link href={withNext('/signup', nextPath)} className="text-primary font-semibold hover:text-primary/80 transition-colors">
                 Create Account
               </Link>
             </p>

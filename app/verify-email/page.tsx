@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiCall } from "@/lib/api";
+import { safeNextPath, withNext } from "@/lib/nextPath";
 
 function VerifyEmailContent() {
   const router = useRouter();
@@ -103,7 +104,7 @@ function VerifyEmailContent() {
 
       setSuccess(true);
       setTimeout(() => {
-        router.push("/login?verified=true");
+        router.push(withNext("/login?verified=true", safeNextPath(searchParams.get("next"))));
       }, 2000);
     } catch (err: any) {
       setError(err.message || "Invalid OTP. Please try again.");
