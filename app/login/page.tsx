@@ -108,10 +108,15 @@ export default function LoginPage() {
         setAuthTokenCookie(data.data.accessToken, 86400);
         
         toast.success('Welcome back!');
-        
+
+        // Back to the student page that sent them to login (set by
+        // middleware), only for same-site /student/ paths.
+        const next = searchParams?.get('next') || '';
+        const target = /^\/student\/[\w\-\/]*$/.test(next) ? next : '/home';
+
         // Small delay to prevent race condition
         setTimeout(() => {
-          router.push('/home');
+          router.push(target);
         }, 100);
       } else {
         // Fallback if no delay needed

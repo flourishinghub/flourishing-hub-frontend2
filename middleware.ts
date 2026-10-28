@@ -41,7 +41,11 @@ export function middleware(request: NextRequest) {
 
   if (PROTECTED_PATHS.some((p) => pathname.startsWith(p))) {
     if (!isLoggedIn) {
-      return NextResponse.redirect(new URL('/login', request.url));
+      // Remember a student deep link (e.g. an event QR code) so login can
+      // bring the student back to it instead of the generic /home.
+      const loginUrl = new URL('/login', request.url);
+      if (pathname.startsWith('/student/')) loginUrl.searchParams.set('next', pathname);
+      return NextResponse.redirect(loginUrl);
     }
     return NextResponse.next();
   }
