@@ -20,9 +20,25 @@ function decodeToken(token: string) {
   }
 }
 
+// Printed QR codes that can't be taken down: once the first event is over,
+// its student page forwards to the event that replaced it.
+const EVENT_REDIRECTS: { from: string; to: string; after: string }[] = [
+  // Antarang Day 1 QR is still stuck up in the hall on Day 2
+  {
+    from: '/student/events/cmvrgydm70001j57z5t6zrum4',
+    to: '/student/events/cmvrgygvo0003j57zw1ltonxi',
+    after: '2026-10-28T20:00:00+05:30',
+  },
+];
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
+  const forward = EVENT_REDIRECTS.find((r) => r.from === pathname && Date.now() > Date.parse(r.after));
+  if (forward) {
+    return NextResponse.redirect(new URL(forward.to, request.url));
+  }
+
   // Check for token in cookie
   const cookieToken = request.cookies.get('token')?.value;
   const payload = cookieToken ? decodeToken(cookieToken) : null;
