@@ -296,6 +296,7 @@ export default function StudentDashboard() {
   const upcomingEvents = events.filter(event => {
     return isEventUpcoming(event.startAt || (event.date + 'T' + event.time));
   });
+  const liveEvents = events.filter(event => isEventLiveOrGrace(event.startAt || (event.date + 'T' + event.time), event.endAt));
 
   // 🔥 CRITICAL: Calculate registered events using safe utilities
   const registrationMetrics = getRegistrationMetrics(registrations);
@@ -628,17 +629,20 @@ export default function StudentDashboard() {
             <h2 className="text-base font-semibold text-white mb-4">Event Status</h2>
 
             {/* Live Events - NEW SECTION */}
-            {events.filter(event => isEventLiveOrGrace(event.startAt || (event.date + 'T' + event.time), event.endAt)).length > 0 && (
+            {/* Live/Upcoming lists stack vertically on phones: as a hidden-scrollbar
+                side-scroller only the first card showed and a student with 5 live
+                sessions couldn't tell the other 4 existed. */}
+            {liveEvents.length > 0 && (
               <>
                 <h3 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                   <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
-                  Live Events
+                  Live Events ({liveEvents.length})
                 </h3>
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide mb-6">
-                  {events.filter(event => isEventLiveOrGrace(event.startAt || (event.date + 'T' + event.time), event.endAt)).map((event) => (
+                <div className="flex flex-col sm:flex-row gap-3 sm:overflow-x-auto pb-2 scrollbar-hide mb-6">
+                  {liveEvents.map((event) => (
                     <div 
                       key={event.id} 
-                      className="flex-shrink-0 w-72 p-3 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/15 transition-all cursor-pointer"
+                      className="w-full sm:w-72 sm:flex-shrink-0 p-3 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/15 transition-all cursor-pointer"
                       onClick={() => router.push(`/student/events/${event.id}`)}
                     >
                       <div className="flex items-center gap-3">
@@ -676,7 +680,7 @@ export default function StudentDashboard() {
             )}
 
             {/* Upcoming Events */}
-            <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">Upcoming Registered Events</h3>
+            <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">Upcoming Registered Events{upcomingRegistered.length > 0 && ` (${upcomingRegistered.length})`}</h3>
             {upcomingRegistered.length === 0 ? (
               <div className="text-center py-6 text-white/30 text-sm">
                 <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -684,11 +688,11 @@ export default function StudentDashboard() {
                 <p className="text-xs text-white/20 mt-1">Register for events to see them here</p>
               </div>
             ) : (
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              <div className="flex flex-col sm:flex-row gap-3 sm:overflow-x-auto pb-2 scrollbar-hide">
                 {upcomingRegistered.map((event) => (
                   <div 
                     key={event.id} 
-                    className="flex-shrink-0 w-72 p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all cursor-pointer"
+                    className="w-full sm:w-72 sm:flex-shrink-0 p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all cursor-pointer"
                     onClick={() => router.push(`/student/events/${event.id}`)}
                   >
                     <div className="flex items-center gap-3">
