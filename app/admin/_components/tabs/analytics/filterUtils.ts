@@ -188,10 +188,19 @@ export function computeWellnessGrade(s: AnalyticsStudentEntry, row: WorkshopAnal
 export const MTC_COURSE_PREFIX = 'Mentor Training Course';
 export const isMtcCourse = (courseName: string | undefined) => Boolean(courseName?.startsWith(MTC_COURSE_PREFIX));
 
+// Admin rule, 2026-11-13: from the 3 Oct 2026 sessions on, only the physical
+// sheet decides MTC Final; the check-in is still shown as Digital Attendance
+// but no longer makes a student Present. Earlier sessions keep the rule above.
+export const MTC_SHEET_ONLY_FROM = new Date('2026-10-03T00:00:00+05:30').getTime();
+
 export function computeMtcFinal(s: AnalyticsStudentEntry, row: WorkshopAnalyticsRow): AttendanceOnlyStatus {
+  const sessionOver = !row.endAt || new Date(row.endAt).getTime() <= Date.now();
+  if (new Date(row.date).getTime() >= MTC_SHEET_ONLY_FROM) {
+    if (s.physicalSheetStatus === 'PRESENT') return 'PRESENT';
+    return sessionOver ? 'ABSENT' : 'PENDING';
+  }
   const digital = s.checkInStatus === 'CHECKED_IN_PENDING' || s.checkInStatus === 'CHECKED_IN_VERIFIED';
   if (s.attendanceStatus === 'PRESENT' || s.physicalSheetStatus === 'PRESENT' || digital) return 'PRESENT';
-  const sessionOver = !row.endAt || new Date(row.endAt).getTime() <= Date.now();
   return sessionOver ? 'ABSENT' : 'PENDING';
 }
 
