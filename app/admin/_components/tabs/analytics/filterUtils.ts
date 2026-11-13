@@ -193,11 +193,11 @@ export const isMtcCourse = (courseName: string | undefined) => Boolean(courseNam
 // but no longer makes a student Present. Earlier sessions keep the rule above.
 export const MTC_SHEET_ONLY_FROM = new Date('2026-10-03T00:00:00+05:30').getTime();
 
-// Psychological First Aid (admin rule, 2026-11-13): every session, sheet only,
-// shown with the same Digital / Physical / Final columns as MTC.
+// Psychological First Aid and Stress Management (admin rule, 2026-11-13): every
+// session, sheet only, shown with the same Digital / Physical / Final columns as MTC.
 // isSheetFinalCourse = the courses whose Final is computeMtcFinal.
-export const PFA_COURSE = 'Psychological First Aid';
-export const isPfaCourse = (courseName: string | undefined) => courseName === PFA_COURSE;
+export const SHEET_ONLY_COURSES = ['Psychological First Aid', 'Stress Management'];
+export const isPfaCourse = (courseName: string | undefined) => !!courseName && SHEET_ONLY_COURSES.includes(courseName);
 export const isSheetFinalCourse = (courseName: string | undefined) => isMtcCourse(courseName) || isPfaCourse(courseName);
 
 export function computeMtcFinal(s: AnalyticsStudentEntry, row: WorkshopAnalyticsRow): AttendanceOnlyStatus {
