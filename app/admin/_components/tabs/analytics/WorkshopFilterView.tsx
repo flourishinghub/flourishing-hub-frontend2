@@ -6,7 +6,7 @@ import { apiCall } from '@/lib/api';
 import { downloadCsv } from '@/lib/csv';
 import toast from 'react-hot-toast';
 import { WorkshopAnalyticsRow } from '@/types';
-import { computeModuleStatus, computeMtcFinal, computeWellnessGrade, isMtcCourse, WELLNESS_COURSE } from './filterUtils';
+import { computeModuleStatus, computeMtcFinal, computeWellnessGrade, isSheetFinalCourse, WELLNESS_COURSE } from './filterUtils';
 
 // Per-session Passed/Failed by each course's own rule — the same rules the
 // Student-Level view grades with, so the two reports never disagree:
@@ -25,7 +25,7 @@ function countPassFail(row: WorkshopAnalyticsRow): { passed: number; failed: num
       const final = computeWellnessGrade(s, row).final;
       if (final === 'PRESENT') passed++;
       else if (final === 'ABSENT' && s.attendanceStatus === 'PRESENT') failed++;
-    } else if (isMtcCourse(row.courseName)) {
+    } else if (isSheetFinalCourse(row.courseName)) {
       if (computeMtcFinal(s, row) === 'PRESENT') passed++;
     } else {
       const status = computeModuleStatus(s, row);

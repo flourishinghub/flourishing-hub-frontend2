@@ -193,9 +193,16 @@ export const isMtcCourse = (courseName: string | undefined) => Boolean(courseNam
 // but no longer makes a student Present. Earlier sessions keep the rule above.
 export const MTC_SHEET_ONLY_FROM = new Date('2026-10-03T00:00:00+05:30').getTime();
 
+// Psychological First Aid (admin rule, 2026-11-13): every session, sheet only,
+// shown with the same Digital / Physical / Final columns as MTC.
+// isSheetFinalCourse = the courses whose Final is computeMtcFinal.
+export const PFA_COURSE = 'Psychological First Aid';
+export const isPfaCourse = (courseName: string | undefined) => courseName === PFA_COURSE;
+export const isSheetFinalCourse = (courseName: string | undefined) => isMtcCourse(courseName) || isPfaCourse(courseName);
+
 export function computeMtcFinal(s: AnalyticsStudentEntry, row: WorkshopAnalyticsRow): AttendanceOnlyStatus {
   const sessionOver = !row.endAt || new Date(row.endAt).getTime() <= Date.now();
-  if (new Date(row.date).getTime() >= MTC_SHEET_ONLY_FROM) {
+  if (isPfaCourse(row.courseName) || new Date(row.date).getTime() >= MTC_SHEET_ONLY_FROM) {
     if (s.physicalSheetStatus === 'PRESENT') return 'PRESENT';
     return sessionOver ? 'ABSENT' : 'PENDING';
   }
@@ -274,7 +281,7 @@ interface ModuleSession { s: AnalyticsStudentEntry; row: WorkshopAnalyticsRow }
 function sessionRank({ s, row }: ModuleSession): number[] {
   const result = row.courseName === WELLNESS_COURSE
     ? WELLNESS_FINAL_RANK[computeWellnessGrade(s, row).final]
-    : isMtcCourse(row.courseName)
+    : isSheetFinalCourse(row.courseName)
       ? WELLNESS_FINAL_RANK[computeMtcFinal(s, row)]
       : MODULE_STATUS_RANK[computeModuleStatus(s, row)];
   const hasScore = s.quizScore != null || s.score != null ? 1 : 0;
@@ -298,7 +305,7 @@ function pickModuleSession(sessions: ModuleSession[]): ModuleSession {
 // plain attendance.
 function moduleFinal({ s, row }: ModuleSession): AttendanceOnlyStatus {
   if (row.courseName === WELLNESS_COURSE) return computeWellnessGrade(s, row).final;
-  if (isMtcCourse(row.courseName)) return computeMtcFinal(s, row);
+  if (isSheetFinalCourse(row.courseName)) return computeMtcFinal(s, row);
   const sessionOver = !row.endAt || new Date(row.endAt).getTime() <= Date.now();
   if (!sessionOver) return 'PENDING';
   return computeAttendanceOnlyStatus(s);

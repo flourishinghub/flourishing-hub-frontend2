@@ -5,7 +5,7 @@ import { ArrowLeft, Download, Eye, Star } from 'lucide-react';
 import { downloadCsv } from '@/lib/csv';
 import { WorkshopAnalyticsRow } from '@/types';
 import { AnalyticsStudentEntry } from '@/types';
-import { AttendanceOnlyStatus, aggregateStudents, formatModuleBatches, isMtcCourse, ModuleStatus, StudentAggregateRow, WELLNESS_COURSE, WellnessFinal, WellnessModuleGrade } from './filterUtils';
+import { AttendanceOnlyStatus, aggregateStudents, formatModuleBatches, isMtcCourse, isSheetFinalCourse, ModuleStatus, StudentAggregateRow, WELLNESS_COURSE, WellnessFinal, WellnessModuleGrade } from './filterUtils';
 
 function MetricCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -165,8 +165,8 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
   // Attendance / Check-in / Final Attendance and export the grade sheet.
   const isWellness = selectedCourse === WELLNESS_COURSE;
   // MTC: Digital (check-in) and Physical attendance side by side; Final
-  // Attendance is Present on either one (see computeMtcFinal).
-  const isMtc = isMtcCourse(selectedCourse);
+  // Attendance per computeMtcFinal. PFA uses the same columns (sheet only).
+  const isMtc = isSheetFinalCourse(selectedCourse);
   const perModuleCols = isWellness ? 5 : isMtc ? 4 : showScore ? 6 : 5;
   const digitalLabel = (c: CheckInStatus | undefined) =>
     !c ? '—' : c === 'CHECKED_IN_PENDING' || c === 'CHECKED_IN_VERIFIED' ? 'Present' : 'Absent';
@@ -240,7 +240,7 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
             [`${m} — Final Attendance`, s.moduleMtcFinal[m] ? WELLNESS_FINAL_LABEL[s.moduleMtcFinal[m]] : '—'],
           ])),
         })),
-        'mtc-student-attendance',
+        isMtcCourse(selectedCourse) ? 'mtc-student-attendance' : 'pfa-student-attendance',
       );
       return;
     }
