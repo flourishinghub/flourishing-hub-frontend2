@@ -196,7 +196,12 @@ export const MTC_SHEET_ONLY_FROM = new Date('2026-10-03T00:00:00+05:30').getTime
 // Psychological First Aid and Stress Management (admin rule, 2026-11-13): every
 // session, sheet only, shown with the same Digital / Physical / Final columns as MTC.
 // isSheetFinalCourse = the courses whose Final is computeMtcFinal.
-export const SHEET_ONLY_COURSES = ['Psychological First Aid', 'Stress Management'];
+export const SHEET_ONLY_COURSES = [
+  'Psychological First Aid', 'Stress Management',
+  // 18 Nov 2026: these courses also count only the physical-sheet signature.
+  'Emotional Fitness', 'Confident Communication for Researchers', 'Confident Communication Course',
+  'Interview Psychology', 'Crack that Interview',
+];
 export const isPfaCourse = (courseName: string | undefined) => !!courseName && SHEET_ONLY_COURSES.includes(courseName);
 export const isSheetFinalCourse = (courseName: string | undefined) => isMtcCourse(courseName) || isPfaCourse(courseName);
 

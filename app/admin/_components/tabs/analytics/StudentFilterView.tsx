@@ -240,7 +240,9 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
             [`${m} — Final Attendance`, s.moduleMtcFinal[m] ? WELLNESS_FINAL_LABEL[s.moduleMtcFinal[m]] : '—'],
           ])),
         })),
-        isMtcCourse(selectedCourse) ? 'mtc-student-attendance' : selectedCourse === 'Stress Management' ? 'stress-management-student-attendance' : 'pfa-student-attendance',
+        isMtcCourse(selectedCourse) ? 'mtc-student-attendance'
+          : selectedCourse === 'Psychological First Aid' ? 'pfa-student-attendance'
+          : `${String(selectedCourse).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-student-attendance`,
       );
       return;
     }
