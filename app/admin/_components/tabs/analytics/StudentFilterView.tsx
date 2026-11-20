@@ -212,7 +212,9 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
               [`${m} — Physical Attendance`, g.physical ? 'Present' : 'Absent'],
               [`${m} — Digital Attendance`, g.digital ? 'Present' : 'Absent'],
               [`${m} — Quiz (out of 10)`, g.quizScore != null ? g.quizScore : '—'],
-              [`${m} — Quiz Result`, g.quizScore != null ? (g.quizPass ? 'PP' : 'NP') : g.final === 'PENDING' ? 'Pending' : 'NP'],
+              [`${m} — Quiz Result`, g.quizScore != null
+                ? `${g.quizPass ? 'PP' : 'NP'}${g.quizFrom ? ` (quiz in ${g.quizFrom}, not the attended session)` : ''}`
+                : g.final === 'PENDING' ? 'Pending' : 'NP'],
               [`${m} — Grade`, wellnessGradeLabel(g)],
             ];
           })),
@@ -437,7 +439,7 @@ export default function StudentFilterView({ rows, selectedCourse }: { rows: Work
                           <td className="px-4 py-3 text-white/60 whitespace-nowrap">{formatModuleBatches(s.moduleBatches[m])}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             {g?.quizScore != null
-                              ? <span className={`font-semibold ${g.quizPass ? 'text-white/80' : 'text-red-400'}`}>{g.quizScore} / 10</span>
+                              ? <span className={`font-semibold ${g.quizPass ? 'text-white/80' : 'text-red-400'}`} title={g.quizFrom ? `Quiz filled in ${g.quizFrom}, not in the attended session` : undefined}>{g.quizScore} / 10{g.quizFrom && <span className="ml-1 text-[10px] font-normal text-amber-400">({g.quizFrom})</span>}</span>
                               : <span className="text-white/25">{g ? 'N/A' : '—'}</span>}
                           </td>
                           <td className="px-4 py-3"><YesNoBadge ok={g?.physical} /></td>

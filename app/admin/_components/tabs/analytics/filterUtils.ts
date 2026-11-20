@@ -163,6 +163,8 @@ export interface WellnessModuleGrade {
   quizScore: number | null;
   quizPass: boolean;
   final: WellnessFinal;
+  /** Batch of the other session the shown quiz score came from (score display only). */
+  quizFrom?: string;
 }
 
 export function computeWellnessGrade(s: AnalyticsStudentEntry, row: WorkshopAnalyticsRow): WellnessModuleGrade {
@@ -291,7 +293,12 @@ function sessionRank({ s, row }: ModuleSession): number[] {
       : MODULE_STATUS_RANK[computeModuleStatus(s, row)];
   const hasScore = s.quizScore != null || s.score != null ? 1 : 0;
   const evidence = (s.physicalSheetStatus === 'PRESENT' ? 1 : 0) + (s.hasCheckedIn ? 1 : 0);
-  return [result, hasScore, evidence, new Date(row.date).getTime()];
+  // Wellness: evidence before score, so an NP module shows the session the student
+  // attended, not one that only holds a quiz response (Yashas 26B2503 M2, 20 Nov).
+  // Keep in sync with backend services/wellnessGradesExport.service.js.
+  return row.courseName === WELLNESS_COURSE
+    ? [result, evidence, hasScore, new Date(row.date).getTime()]
+    : [result, hasScore, evidence, new Date(row.date).getTime()];
 }
 
 function pickModuleSession(sessions: ModuleSession[]): ModuleSession {
@@ -420,10 +427,12 @@ export function aggregateStudents(rows: WorkshopAnalyticsRow[]): StudentAggregat
       if (scored) agg.moduleScore[moduleKey] = { score: scored.score as number, maxScore: scored.maxScore as number };
       // Score display only — the grade's final stays the chosen session's.
       if (grade.quizScore == null) {
-        const other = sessions.map((x) => x.s.quizScore).find((q) => q != null);
-        if (other != null) {
-          grade.quizScore = other;
-          grade.quizPass = other >= WELLNESS_PASS_SCORE;
+        const other = sessions.find((x) => x.s.quizScore != null);
+        if (other) {
+          grade.quizScore = other.s.quizScore as number;
+          grade.quizPass = grade.quizScore >= WELLNESS_PASS_SCORE;
+          const b = other.row.batch || other.s.batch;
+          grade.quizFrom = b && b !== '—' ? b : 'another session';
         }
       }
       agg.moduleWellness[moduleKey] = grade;
