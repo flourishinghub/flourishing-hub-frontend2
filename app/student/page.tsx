@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
 import DataTable from '@/components/DataTable';
+import WellnessResult from '@/components/WellnessResult';
 import { getCurrentUser, apiCall, transformUserData } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLiveOrGrace, isEventUpcoming } from '@/lib/dateUtils';
@@ -89,6 +90,10 @@ export default function StudentDashboard() {
   const [registeredEvents, setRegisteredEvents] = useState<string[]>([]);
   const [registeringEventIds, setRegisteringEventIds] = useState<string[]>([]);
   const [bundleProgress, setBundleProgress] = useState<any[]>([]);
+  const [hasWellnessResult, setHasWellnessResult] = useState(false);
+  const visibleBundles = hasWellnessResult
+    ? bundleProgress.filter((b: any) => b.courseName !== 'Wellness Workshop')
+    : bundleProgress;
   const [eventsFilter, setEventsFilter] = useState<'all' | 'registered' | 'unregistered'>('all');
   const sliderRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -571,15 +576,20 @@ export default function StudentDashboard() {
         );
       })()}
 
-      {/* Bundle Progress */}
-      {bundleProgress.length > 0 && (
+      {/* Wellness PP/NP per module (own fetch; renders nothing for a non-Wellness student) */}
+      <WellnessResult onLoaded={(d) => setHasWellnessResult(Boolean(d))} />
+
+      {/* Bundle Progress — Wellness is left out once its result card above is
+          shown: its "4 of 7 workshops" counted sessions, not passed modules,
+          and students read it as their result. */}
+      {visibleBundles.length > 0 && (
         <div className="glass-card rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-white">Course Bundle Progress</h2>
-            <span className="text-xs text-white/40">{bundleProgress.length} bundle{bundleProgress.length !== 1 ? 's' : ''}</span>
+            <span className="text-xs text-white/40">{visibleBundles.length} bundle{visibleBundles.length !== 1 ? 's' : ''}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {bundleProgress.map((bundle: any) => (
+            {visibleBundles.map((bundle: any) => (
               <motion.div
                 key={bundle.courseId}
                 whileHover={{ y: -2 }}

@@ -18,6 +18,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import EventCard from '@/components/EventCard';
 import FlourishingTagline from '@/components/FlourishingTagline';
 import Logo from '@/components/Logo';
+import WellnessResult from '@/components/WellnessResult';
 import type { AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -607,6 +608,12 @@ export default function HomePage() {
                           </span>
                         </div>
                       </div>
+                      {/* Wellness: the module PP/NP result first; the session list below
+                          only says whether the student was present in each session. */}
+                      {c.name === 'Wellness Workshop' && <WellnessResult compact />}
+                      {c.name === 'Wellness Workshop' && (
+                        <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Your sessions</p>
+                      )}
                       <div className="space-y-2">
                         {c.workshops.map((w: any, i: number) => (
                           <div key={w.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.05] hover:border-white/15 transition-colors">
@@ -644,7 +651,7 @@ export default function HomePage() {
                                   </span>
                                   {w.attended ? (
                                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                      <CheckCircle2 className="w-3 h-3" /> Attended
+                                      <CheckCircle2 className="w-3 h-3" /> {c.name === 'Wellness Workshop' ? 'Present in session' : 'Attended'}
                                     </span>
                                   ) : w.verificationPending ? (
                                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
@@ -652,7 +659,7 @@ export default function HomePage() {
                                     </span>
                                   ) : (
                                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/15 text-red-400 border border-red-500/30">
-                                      <XCircle className="w-3 h-3" /> Not Attended
+                                      <XCircle className="w-3 h-3" /> {c.name === 'Wellness Workshop' ? 'Not present' : 'Not Attended'}
                                     </span>
                                   )}
                                 </>
