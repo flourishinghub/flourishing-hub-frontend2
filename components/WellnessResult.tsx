@@ -31,6 +31,50 @@ export interface WellnessResultData {
   passedModules: number;
   courseResult: 'PP' | 'NP' | 'PENDING';
   modules: WellnessModule[];
+  sessionResults?: WellnessSessionResult[];
+}
+
+// One past session on its own (what that day gave), for the session list.
+export interface WellnessSessionResult {
+  eventId: string;
+  module: string;
+  result: ModuleResult;
+  reasons: Reason[];
+  quizScore: number | null;
+  moduleResult?: ModuleResult;
+}
+
+// Badge for one session row: PP / what made it NP / pending / not present.
+export function WellnessSessionBadge({ r, passScore = 4 }: { r: WellnessSessionResult; passScore?: number }) {
+  const base = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border';
+  if (r.result === 'PP') {
+    return <span className={`${base} bg-emerald-500/15 text-emerald-400 border-emerald-500/30`}><CheckCircle2 className="w-3 h-3" /> PP: module cleared</span>;
+  }
+  if (r.result === 'PENDING') {
+    return <span className={`${base} bg-amber-500/15 text-amber-400 border-amber-500/30`}><Clock className="w-3 h-3" /> Result pending</span>;
+  }
+  if (r.result === 'NOT_ATTENDED') {
+    return (
+      <span className={`${base} bg-white/10 text-white/50 border-white/15`}>
+        <MinusCircle className="w-3 h-3" /> {r.moduleResult === 'PP' ? 'Not present (module already PP)' : 'Not present'}
+      </span>
+    );
+  }
+  const has = (x: Reason) => r.reasons.includes(x);
+  const what = has('NO_SHEET_SIGN') && !has('NO_CHECK_IN')
+    ? 'Checked in, not on sheet'
+    : has('NO_CHECK_IN') && !has('NO_SHEET_SIGN')
+      ? 'Signed sheet, no app check-in'
+      : has('QUIZ_LOW')
+        ? `Attended, quiz ${r.quizScore}/10 (need ${passScore})`
+        : 'Attended, quiz not submitted';
+  // Sheet/check-in both fine: the quiz is the only gap, name it.
+  const label = !has('NO_SHEET_SIGN') && !has('NO_CHECK_IN') ? what : what + (has('NO_QUIZ') ? ', no quiz' : has('QUIZ_LOW') ? `, quiz ${r.quizScore}/10` : '');
+  return (
+    <span className={`${base} bg-red-500/15 text-red-400 border-red-500/30`}>
+      <XCircle className="w-3 h-3" /> {label} → NP{r.moduleResult === 'PP' ? ' (module already PP)' : ''}
+    </span>
+  );
 }
 
 const RESULT_STYLE: Record<ModuleResult, { label: string; cls: string; Icon: typeof CheckCircle2 }> = {
@@ -105,10 +149,12 @@ function ModuleRow({ m, passScore }: { m: WellnessModule; passScore: number }) {
   );
 }
 
-export default function WellnessResult({ compact = false, onLoaded }: { compact?: boolean; onLoaded?: (data: WellnessResultData | null) => void }) {
-  const [data, setData] = useState<WellnessResultData | null>(null);
+export default function WellnessResult({ compact = false, onLoaded, data: given }: { compact?: boolean; onLoaded?: (data: WellnessResultData | null) => void; data?: WellnessResultData | null }) {
+  const [fetched, setData] = useState<WellnessResultData | null>(null);
+  const data = given !== undefined ? given : fetched;
 
   useEffect(() => {
+    if (given !== undefined) return; // the page fetched it already
     let cancelled = false;
     apiCall('/student/wellness-result')
       .then((res: any) => {

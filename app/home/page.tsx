@@ -18,7 +18,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import EventCard from '@/components/EventCard';
 import FlourishingTagline from '@/components/FlourishingTagline';
 import Logo from '@/components/Logo';
-import WellnessResult from '@/components/WellnessResult';
+import WellnessResult, { WellnessSessionBadge, type WellnessResultData } from '@/components/WellnessResult';
 import type { AuthPayload } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -30,6 +30,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [volunteerStates, setVolunteerStates] = useState<Record<string, boolean>>({});
   const [registeringIds, setRegisteringIds] = useState<string[]>([]);
+  const [wellnessResult, setWellnessResult] = useState<WellnessResultData | null>(null);
   const router = useRouter();
   useNowTick(); // re-render every 30s so isEventLiveOrGrace() flips to "live" without a manual refresh
 
@@ -147,6 +148,14 @@ export default function HomePage() {
         const userRegistrations = registrationsResponse.data || [];
         setRegistrations(userRegistrations);
         console.log("✅ User registrations loaded:", userRegistrations.length);
+
+        // Wellness PP/NP per module + per session (students only; slow query,
+        // so not awaited: the page renders and the Wellness card fills in).
+        if (transformedUser.role === 'student') {
+          apiCall('/student/wellness-result')
+            .then((res: any) => setWellnessResult(res?.data ?? null))
+            .catch(() => {});
+        }
 
         // Fetch courses to group registered workshops by course (student home view)
         try {
@@ -268,6 +277,9 @@ export default function HomePage() {
     if (isEventUpcoming(start)) return 'upcoming';
     return 'completed';
   };
+  // Wellness: each past session's own outcome (PP / what made it NP / not
+  // present), so "present in session" is never read as the module result.
+  const wellnessSessionById = new Map((wellnessResult?.sessionResults || []).map((r) => [r.eventId, r]));
   const courseCode = (c: any) => c.code || `FH-${String(c.id).slice(-5).toUpperCase()}`;
   const registeredCourses = courses
     .map((c: any) => {
@@ -610,7 +622,7 @@ export default function HomePage() {
                       </div>
                       {/* Wellness: the module PP/NP result first; the session list below
                           only says whether the student was present in each session. */}
-                      {c.name === 'Wellness Workshop' && <WellnessResult compact />}
+                      {c.name === 'Wellness Workshop' && <WellnessResult compact data={wellnessResult} />}
                       {c.name === 'Wellness Workshop' && (
                         <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Your sessions</p>
                       )}
@@ -649,7 +661,9 @@ export default function HomePage() {
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/10 text-white/50 border border-white/15">
                                     Completed
                                   </span>
-                                  {w.attended ? (
+                                  {c.name === 'Wellness Workshop' && wellnessSessionById.has(w.id) ? (
+                                    <WellnessSessionBadge r={wellnessSessionById.get(w.id)!} passScore={wellnessResult?.passScore} />
+                                  ) : w.attended ? (
                                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                                       <CheckCircle2 className="w-3 h-3" /> {c.name === 'Wellness Workshop' ? 'Present in session' : 'Attended'}
                                     </span>
