@@ -547,10 +547,13 @@ export default function StudentDashboard() {
                       <div className="col-span-2 sm:col-span-5 flex flex-col gap-1.5">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[10px] text-white/40">This session:</span>
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold w-fit ${sessionCls}`}>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold w-fit ${
+                            isPresent && record.onSheet === false ? 'bg-orange-500/15 text-orange-300 border border-orange-500/30' : sessionCls}`}>
                             <div className={`w-1.5 h-1.5 rounded-full ${sessionDot}`} />
                             {/* Wellness record = the physical sheet, so say that, not "Present" (read as "passed"). */}
-                            {isPresent ? 'Sheet signed' : isExcused ? 'Excused' : isPending ? 'Attendance verification in progress' : 'Sheet not signed'}
+                            {isPresent
+                              ? (record.onSheet === false ? 'Marked present by app check-in, not on sheet' : 'Sheet signed')
+                              : isExcused ? 'Excused' : isPending ? 'Attendance verification in progress' : 'Sheet not signed'}
                           </span>
                           {sr && <WellnessSessionBadge r={sr} passScore={pass} />}
                         </div>
