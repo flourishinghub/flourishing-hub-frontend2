@@ -8,7 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
 import DataTable from '@/components/DataTable';
-import WellnessResult from '@/components/WellnessResult';
+import WellnessResult, { type WellnessResultData } from '@/components/WellnessResult';
 import { getCurrentUser, apiCall, transformUserData } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLiveOrGrace, isEventUpcoming } from '@/lib/dateUtils';
@@ -86,6 +86,16 @@ export default function StudentDashboard() {
   const [events, setEvents] = useState<any[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+  // Wellness module PP/NP for the Past Records rows (a session can be Present
+  // while its module is still NP, e.g. no check-in or no quiz there).
+  const [wellnessResult, setWellnessResult] = useState<WellnessResultData | null>(null);
+  const hasWellnessRecords = attendanceRecords.some((r) => r.courseName === 'Wellness Workshop');
+  useEffect(() => {
+    if (!showPastRecords || !hasWellnessRecords || wellnessResult) return;
+    apiCall('/student/wellness-result')
+      .then((res: any) => setWellnessResult(res?.data ?? null))
+      .catch(() => {});
+  }, [showPastRecords, hasWellnessRecords, wellnessResult]);
   const [loading, setLoading] = useState(true);
   const [registeredEvents, setRegisteredEvents] = useState<string[]>([]);
   const [registeringEventIds, setRegisteringEventIds] = useState<string[]>([]);
@@ -508,6 +518,22 @@ export default function StudentDashboard() {
                     <p className="text-xs text-white/60">
                       {record.marks != null ? `${record.marks}/${record.maxMarks}` : '—'}
                     </p>
+                    {(() => {
+                      // Wellness: the module's PP/NP next to the session status.
+                      if (record.courseName !== 'Wellness Workshop' || !record.moduleTitle || !wellnessResult) return null;
+                      const m = wellnessResult.modules.find((x) => x.title === record.moduleTitle);
+                      if (!m) return null;
+                      const pp = m.result === 'PP';
+                      const pending = m.result === 'PENDING';
+                      return (
+                        <span className={`col-span-2 sm:col-span-5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold w-fit ${
+                          pp ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+                            : pending ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
+                            : 'bg-red-500/10 text-red-300 border border-red-500/20'}`}>
+                          {pp ? 'Module PP (passed)' : pending ? 'Module result pending' : 'Module NP: see Wellness result on Home'}
+                        </span>
+                      );
+                    })()}
                   </div>
                 );
               })}
