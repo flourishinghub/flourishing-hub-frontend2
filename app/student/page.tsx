@@ -549,7 +549,8 @@ export default function StudentDashboard() {
                           <span className="text-[10px] text-white/40">This session:</span>
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold w-fit ${sessionCls}`}>
                             <div className={`w-1.5 h-1.5 rounded-full ${sessionDot}`} />
-                            {sessionLabel}
+                            {/* Wellness record = the physical sheet, so say that, not "Present" (read as "passed"). */}
+                            {isPresent ? 'Sheet signed' : isExcused ? 'Excused' : isPending ? 'Attendance verification in progress' : 'Sheet not signed'}
                           </span>
                           {sr && <WellnessSessionBadge r={sr} passScore={pass} />}
                         </div>
