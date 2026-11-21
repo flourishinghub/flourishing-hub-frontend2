@@ -492,6 +492,29 @@ export default function StudentDashboard() {
                 const isPresent = record.status === 'PRESENT';
                 const isExcused = record.status === 'EXCUSED';
                 const isPending = record.status === 'PENDING';
+                const sessionCls = isPresent
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                  : isExcused
+                  ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'
+                  : isPending
+                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                  : 'bg-red-500/15 text-red-400 border border-red-500/30';
+                const sessionDot = isPresent ? 'bg-emerald-400' : isExcused ? 'bg-yellow-400' : isPending ? 'bg-amber-400' : 'bg-red-400';
+                const sessionLabel = isPresent ? 'Present' : isExcused ? 'Excused' : isPending ? 'Attendance Verification In-progress' : 'Absent';
+                // Wellness: the module's PP/NP is the real final, so it is the big
+                // status; this session's Present/Absent and the reason go below it.
+                const wm = record.courseName === 'Wellness Workshop' && record.moduleTitle && wellnessResult
+                  ? wellnessResult.modules.find((x) => x.title === record.moduleTitle) ?? null
+                  : null;
+                const pass = wellnessResult?.passScore ?? 4;
+                const sr = wm ? wellnessResult?.sessionResults?.find((x) => x.eventId === record.eventId) : undefined;
+                const mPP = wm?.result === 'PP';
+                const mPending = wm?.result === 'PENDING';
+                const why = wm ? wm.reasons.map((r) =>
+                  r === 'NO_SHEET_SIGN' ? 'not signed on the attendance sheet'
+                    : r === 'NO_CHECK_IN' ? 'app check-in missing'
+                    : r === 'NO_QUIZ' ? 'quiz not submitted'
+                    : `quiz score ${wm.quizScore}/10 (need ${pass} or more)`).join(', ') : '';
                 return (
                   <div key={record.eventId + i} className="grid grid-cols-2 sm:grid-cols-5 gap-y-2 gap-x-3 items-center p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
                     <div className="flex items-center gap-2 min-w-0">
@@ -503,57 +526,43 @@ export default function StudentDashboard() {
                       <p className="text-xs text-white/70">{eventDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                       <p className="text-[10px] text-white/40 mt-0.5">{eventDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>
                     </div>
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold w-fit ${
-                      isPresent
-                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                        : isExcused
-                        ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'
-                        : isPending
-                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                        : 'bg-red-500/15 text-red-400 border border-red-500/30'
-                    }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${isPresent ? 'bg-emerald-400' : isExcused ? 'bg-yellow-400' : isPending ? 'bg-amber-400' : 'bg-red-400'}`} />
-                      {isPresent ? 'Present' : isExcused ? 'Excused' : isPending ? 'Attendance Verification In-progress' : 'Absent'}
-                    </span>
+                    {wm ? (
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold w-fit border ${
+                        mPP ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                          : mPending ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          : 'bg-red-500/20 text-red-300 border-red-500/40'}`}>
+                        <div className={`w-2 h-2 rounded-full ${mPP ? 'bg-emerald-400' : mPending ? 'bg-amber-400' : 'bg-red-400'}`} />
+                        {mPP ? 'Module PP (Passed)' : mPending ? 'Module result pending' : 'Module NP (Not passed)'}
+                      </span>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold w-fit ${sessionCls}`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${sessionDot}`} />
+                        {sessionLabel}
+                      </span>
+                    )}
                     <p className="text-xs text-white/60">
                       {record.marks != null ? `${record.marks}/${record.maxMarks}` : '—'}
                     </p>
-                    {(() => {
-                      // Wellness: what this session gave, and the module's PP/NP with the reason.
-                      if (record.courseName !== 'Wellness Workshop' || !record.moduleTitle || !wellnessResult) return null;
-                      const m = wellnessResult.modules.find((x) => x.title === record.moduleTitle);
-                      if (!m) return null;
-                      const pass = wellnessResult.passScore ?? 4;
-                      const sr = wellnessResult.sessionResults?.find((x) => x.eventId === record.eventId);
-                      const pp = m.result === 'PP';
-                      const pending = m.result === 'PENDING';
-                      const why = m.reasons.map((r) =>
-                        r === 'NO_SHEET_SIGN' ? 'not signed on the attendance sheet'
-                          : r === 'NO_CHECK_IN' ? 'app check-in missing'
-                          : r === 'NO_QUIZ' ? 'quiz not submitted'
-                          : `quiz score ${m.quizScore}/10 (need ${pass} or more)`).join(', ');
-                      return (
-                        <div className="col-span-2 sm:col-span-5 flex flex-col gap-1.5">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {sr && <WellnessSessionBadge r={sr} passScore={pass} />}
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold w-fit border ${
-                              pp ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
-                                : pending ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
-                                : 'bg-red-500/10 text-red-300 border-red-500/20'}`}>
-                              {pp ? 'Module PP (passed)' : pending ? 'Module result pending' : 'Module NP'}
-                            </span>
-                          </div>
-                          {!pp && !pending && (
-                            <p className="text-[11px] text-red-300/90">
-                              Why NP: {m.result === 'NOT_ATTENDED' || !why
-                                ? 'no session of this module has the sheet sign, app check-in and quiz together'
-                                : <>{why}{m.session ? <> (best session: {m.session.batch}, {new Date(m.session.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })})</> : null}</>}
-                              . PP needs all three in one session: sheet signed, app check-in, quiz {pass}/10 or more.
-                            </p>
-                          )}
+                    {wm && (
+                      <div className="col-span-2 sm:col-span-5 flex flex-col gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] text-white/40">This session:</span>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold w-fit ${sessionCls}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${sessionDot}`} />
+                            {sessionLabel}
+                          </span>
+                          {sr && <WellnessSessionBadge r={sr} passScore={pass} />}
                         </div>
-                      );
-                    })()}
+                        {!mPP && !mPending && (
+                          <p className="text-[11px] text-red-300/90">
+                            Why NP: {wm.result === 'NOT_ATTENDED' || !why
+                              ? 'no session of this module has the sheet sign, app check-in and quiz together'
+                              : <>{why}{wm.session ? <> (best session: {wm.session.batch}, {new Date(wm.session.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })})</> : null}</>}
+                            . PP needs all three in one session: sheet signed, app check-in, quiz {pass}/10 or more.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
