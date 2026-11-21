@@ -8,7 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import StatCard from '@/components/StatCard';
 import MiniCalendar from '@/components/MiniCalendar';
 import DataTable from '@/components/DataTable';
-import WellnessResult, { type WellnessResultData } from '@/components/WellnessResult';
+import WellnessResult, { WellnessSessionBadge, type WellnessResultData } from '@/components/WellnessResult';
 import { getCurrentUser, apiCall, transformUserData } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/utils';
 import { isEventLiveOrGrace, isEventUpcoming } from '@/lib/dateUtils';
@@ -519,19 +519,39 @@ export default function StudentDashboard() {
                       {record.marks != null ? `${record.marks}/${record.maxMarks}` : '—'}
                     </p>
                     {(() => {
-                      // Wellness: the module's PP/NP next to the session status.
+                      // Wellness: what this session gave, and the module's PP/NP with the reason.
                       if (record.courseName !== 'Wellness Workshop' || !record.moduleTitle || !wellnessResult) return null;
                       const m = wellnessResult.modules.find((x) => x.title === record.moduleTitle);
                       if (!m) return null;
+                      const pass = wellnessResult.passScore ?? 4;
+                      const sr = wellnessResult.sessionResults?.find((x) => x.eventId === record.eventId);
                       const pp = m.result === 'PP';
                       const pending = m.result === 'PENDING';
+                      const why = m.reasons.map((r) =>
+                        r === 'NO_SHEET_SIGN' ? 'not signed on the attendance sheet'
+                          : r === 'NO_CHECK_IN' ? 'app check-in missing'
+                          : r === 'NO_QUIZ' ? 'quiz not submitted'
+                          : `quiz score ${m.quizScore}/10 (need ${pass} or more)`).join(', ');
                       return (
-                        <span className={`col-span-2 sm:col-span-5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold w-fit ${
-                          pp ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                            : pending ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
-                            : 'bg-red-500/10 text-red-300 border border-red-500/20'}`}>
-                          {pp ? 'Module PP (passed)' : pending ? 'Module result pending' : 'Module NP: see Wellness result on Home'}
-                        </span>
+                        <div className="col-span-2 sm:col-span-5 flex flex-col gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {sr && <WellnessSessionBadge r={sr} passScore={pass} />}
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold w-fit border ${
+                              pp ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+                                : pending ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                                : 'bg-red-500/10 text-red-300 border-red-500/20'}`}>
+                              {pp ? 'Module PP (passed)' : pending ? 'Module result pending' : 'Module NP'}
+                            </span>
+                          </div>
+                          {!pp && !pending && (
+                            <p className="text-[11px] text-red-300/90">
+                              Why NP: {m.result === 'NOT_ATTENDED' || !why
+                                ? 'no session of this module has the sheet sign, app check-in and quiz together'
+                                : <>{why}{m.session ? <> (best session: {m.session.batch}, {new Date(m.session.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })})</> : null}</>}
+                              . PP needs all three in one session: sheet signed, app check-in, quiz {pass}/10 or more.
+                            </p>
+                          )}
+                        </div>
                       );
                     })()}
                   </div>
